@@ -25,6 +25,7 @@ import {
   limit as qlimit,
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { prepareRecord, type SourceType, type VerificationStatus } from "@/lib/records";
 
 async function readExifOrientation(file: File): Promise<number | null> {
   const buf = await file.slice(0, 64 * 1024).arrayBuffer();
@@ -144,9 +145,18 @@ async function compressWithExifFix(file: File, maxDim = 1600, quality = 0.85): P
 export default function UploadPage() {
   const [user, setUser] = useState<User | null>(auth.currentUser ?? null);
   const [brand, setBrand] = useState("");
+  const [productName, setProductName] = useState("");
   const [rn, setRn] = useState("");
   const [styleNumber, setStyleNumber] = useState("");
+  const [category, setCategory] = useState("");
+  const [year, setYear] = useState("");
+  const [madeIn, setMadeIn] = useState("");
+  const [materials, setMaterials] = useState("");
+  const [careText, setCareText] = useState("");
   const [notes, setNotes] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [sourceType, setSourceType] = useState<SourceType>("manual");
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>("pending");
   const [file, setFile] = useState<File | null>(null);
 
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
@@ -259,24 +269,45 @@ export default function UploadPage() {
       });
 
       await new Promise<void>((res, rej) => task.on("state_changed", undefined, rej, () => res()));
-      const url = await getDownloadURL(ref(storage, path));
+      const imageUrl = await getDownloadURL(ref(storage, path));
 
-      await addDoc(collection(db, "tags"), {
-        brand: brand.trim() || null,
-        rn: rn.trim() || null,
-        styleNumber: styleNumber.trim() || null,
-        notes: notes.trim() || null,
-        imageUrl: url,
+      const payload = prepareRecord({
+        brand,
+        productName,
+        rn,
+        styleNumber,
+        category,
+        year,
+        madeIn,
+        materials,
+        careText,
+        notes,
+        imageUrl,
         storagePath: path,
-        createdAt: serverTimestamp(),
+        sourceUrl,
+        sourceName: sourceUrl ? new URL(sourceUrl).hostname : null,
+        sourceType,
+        verificationStatus,
         createdBy: user.uid,
+        createdAt: serverTimestamp(),
       });
+
+      await addDoc(collection(db, "tags"), payload);
 
       setStatus({ kind: "success", text: "Record uploaded ✅" });
       setBrand("");
+      setProductName("");
       setRn("");
       setStyleNumber("");
+      setCategory("");
+      setYear("");
+      setMadeIn("");
+      setMaterials("");
+      setCareText("");
       setNotes("");
+      setSourceUrl("");
+      setSourceType("manual");
+      setVerificationStatus("pending");
       setFile(null);
       const input = document.getElementById("fileInput") as HTMLInputElement | null;
       if (input) input.value = "";
@@ -287,7 +318,7 @@ export default function UploadPage() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto p-6 space-y-6">
+    <main className="max-w-3xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-2xl font-semibold">Add a TaguSheep record</h1>
         <div className="flex items-center gap-2 text-sm">
@@ -305,78 +336,53 @@ export default function UploadPage() {
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/80">
-        TaguSheep is aiming to be a clothing internet database. Best uploads are clean, well-lit label photos on a plain white backdrop with no people, cluttered rooms, mirrors, or explicit content in frame.
+        TaguSheep is building a real clothing internet database. Strong records combine a clean reference image with product metadata, source provenance, and review status.
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
-        <div>
-          <input
-            className="w-full border rounded p-2 text-black"
-            placeholder="Brand"
-            value={brand}
-            onChange={(e) => setBrand(e.target.value)}
-          />
-          {brandAutocomplete.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-2">
-              {brandAutocomplete.map((b) => (
-                <button
-                  key={b}
-                  type="button"
-                  onClick={() => setBrand(b)}
-                  className="text-xs rounded-full border border-white/15 px-2 py-1 hover:border-emerald-300/50 transition"
-                  title="Fill brand"
-                >
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Brand" value={brand} onChange={setBrand} />
+          <Field label="Product name" value={productName} onChange={setProductName} />
+          <Field label="RN" value={rn} onChange={handleRnChange} />
+          <Field label="Style number" value={styleNumber} onChange={setStyleNumber} />
+          <Field label="Category" value={category} onChange={setCategory} />
+          <Field label="Year" value={year} onChange={setYear} />
+          <Field label="Made in" value={madeIn} onChange={setMadeIn} />
+          <Field label="Materials" value={materials} onChange={setMaterials} />
+        </div>
+
+        {brandAutocomplete.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {brandAutocomplete.map((b) => (
+              <button key={b} type="button" onClick={() => setBrand(b)} className="text-xs rounded-full border border-white/15 px-2 py-1 hover:border-emerald-300/50 transition">
+                {b}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {rnWarning && <p className="text-xs text-amber-300">{rnWarning}</p>}
+        {rn && rnBrandSuggestions.length > 0 && (
+          <div>
+            <p className="text-xs text-white/70 mb-1">Brands already seen for RN {rn}:</p>
+            <div className="flex flex-wrap gap-2">
+              {rnBrandSuggestions.map((b) => (
+                <button key={b} type="button" onClick={() => setBrand(b)} className="text-xs rounded-full border border-white/15 px-2 py-1 hover:border-emerald-300/50 transition">
                   {b}
                 </button>
               ))}
             </div>
-          )}
+          </div>
+        )}
+
+        <TextArea label="Care text" value={careText} onChange={setCareText} rows={4} />
+        <TextArea label="Notes" value={notes} onChange={setNotes} rows={5} />
+        <Field label="Source URL" value={sourceUrl} onChange={setSourceUrl} />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Select label="Source type" value={sourceType} onChange={(v) => setSourceType(v as SourceType)} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
+          <Select label="Verification status" value={verificationStatus} onChange={(v) => setVerificationStatus(v as VerificationStatus)} options={["draft", "pending", "reviewed", "verified", "rejected"]} />
         </div>
-
-        <div>
-          <input
-            className="w-full border rounded p-2 text-black"
-            placeholder="RN (digits only)"
-            value={rn}
-            onChange={(e) => handleRnChange(e.target.value)}
-            inputMode="numeric"
-            pattern="[0-9]*"
-          />
-          {rnWarning && <p className="mt-1 text-xs text-amber-300">{rnWarning}</p>}
-
-          {rn && rnBrandSuggestions.length > 0 && (
-            <div className="mt-2">
-              <p className="text-xs text-white/70 mb-1">Brands already seen for RN {rn}:</p>
-              <div className="flex flex-wrap gap-2">
-                {rnBrandSuggestions.map((b) => (
-                  <button
-                    key={b}
-                    type="button"
-                    onClick={() => setBrand(b)}
-                    className="text-xs rounded-full border border-white/15 px-2 py-1 hover:border-emerald-300/50 transition"
-                    title="Use this brand"
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <input
-          className="w-full border rounded p-2 text-black"
-          placeholder="Style number / article code / model code"
-          value={styleNumber}
-          onChange={(e) => setStyleNumber(e.target.value)}
-        />
-
-        <textarea
-          className="w-full border rounded p-2 text-black min-h-28"
-          placeholder="Optional label notes: country, fabric blend, season, care text, serial hints, collection info..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
 
         <div
           onDragOver={(e) => e.preventDefault()}
@@ -387,50 +393,55 @@ export default function UploadPage() {
           }}
           className="rounded border border-dashed border-white/20 p-4"
         >
-          <input
-            id="fileInput"
-            type="file"
-            accept="image/*"
-            className="w-full border rounded p-2 bg-white text-black"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-          <p className="mt-2 text-xs text-white/70">
-            Best result: one clean label image on a white background, centered and easy to read.
-          </p>
+          <input id="fileInput" type="file" accept="image/*" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <p className="mt-2 text-xs text-white/70">Best result: one clean label image on a white background, centered and easy to read.</p>
           {file && <p className="text-xs mt-1">Selected: <b>{file.name}</b></p>}
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="submit"
-            disabled={!user || !file || status.kind === "info" || !!rnWarning}
-            className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-          >
-            {status.kind === "info" && status.pct != null
-              ? `Uploading… ${status.pct}%`
-              : status.kind === "info"
-              ? "Saving…"
-              : "Add record"}
+          <button type="submit" disabled={!user || !file || status.kind === "info" || !!rnWarning} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
+            {status.kind === "info" && status.pct != null ? `Uploading… ${status.pct}%` : status.kind === "info" ? "Saving…" : "Add record"}
           </button>
-
           <Link href="/tags" className="text-sm underline">Search database</Link>
         </div>
       </form>
 
       {status.text && (
-        <div
-          className={`fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg px-4 py-2 text-sm shadow-lg border
-            ${
-              status.kind === "success"
-                ? "bg-emerald-500 text-black border-emerald-400"
-                : status.kind === "error"
-                ? "bg-rose-500 text-white border-rose-400"
-                : "bg-white/10 border-white/20"
-            }`}
-        >
+        <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg px-4 py-2 text-sm shadow-lg border ${status.kind === "success" ? "bg-emerald-500 text-black border-emerald-400" : status.kind === "error" ? "bg-rose-500 text-white border-rose-400" : "bg-white/10 border-white/20"}`}>
           {status.text}
         </div>
       )}
     </main>
+  );
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm text-white/80">{label}</span>
+      <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60" />
+    </label>
+  );
+}
+
+function TextArea({ label, value, onChange, rows = 4 }: { label: string; value: string; onChange: (value: string) => void; rows?: number }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm text-white/80">{label}</span>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60" />
+    </label>
+  );
+}
+
+function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm text-white/80">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60">
+        {options.map((option) => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+    </label>
   );
 }
