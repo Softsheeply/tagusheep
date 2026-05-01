@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { auth, db, storage } from "@/lib/firebase";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
 import { scrapeProductUrl } from "@/lib/scrape";
 import { findPotentialDuplicates } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
-import { IMAGE_POLICY } from "@/lib/images";
+import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeUploadedImage } from "@/lib/images";
 
 type FormState = {
   brand: string;
@@ -69,6 +70,7 @@ export default function ImportPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyState);
   const [duplicates, setDuplicates] = useState<any[] | null>(null);
+  const [hostImportedImage, setHostImportedImage] = useState(true);
   const verificationRecord: Partial<TagRecord> = {
     brand: form.brand,
     productName: form.productName,
@@ -148,6 +150,20 @@ export default function ImportPage() {
     setSaving(true);
     setMessage(null);
     try {
+      let hostedImageUrl = form.imageUrl;
+      let hostedExtraImageUrls = form.extraImageUrls.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
+      let hostedStoragePath: string | null = null;
+
+      if (hostImportedImage && form.imageUrl) {
+        const remoteFile = await fetchRemoteImageAsFile(form.imageUrl, "primary-import");
+        const normalizedFile = await normalizeUploadedImage(remoteFile);
+        const path = `tagusheep/imports/${auth.currentUser.uid}/${Date.now()}_${normalizedFile.name}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, normalizedFile, { contentType: IMAGE_POLICY.mimeType });
+        hostedImageUrl = await getDownloadURL(storageRef);
+        hostedStoragePath = path;
+      }
+
       const payload = prepareRecord({
         brand: form.brand,
         productName: form.productName,
@@ -165,13 +181,14 @@ export default function ImportPage() {
         careText: form.careText,
         color: form.color,
         notes: form.notes,
-        imageUrl: form.imageUrl,
-        extraImageUrls: form.extraImageUrls.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
+        imageUrl: hostedImageUrl,
+        extraImageUrls: hostedExtraImageUrls,
         sourceUrl: form.sourceUrl,
         sourceName: form.sourceName || safeHostnameFromUrl(form.sourceUrl),
         sourceType: form.sourceType,
         confidence: form.confidence ? Number(form.confidence) : null,
         verificationStatus: form.verificationStatus || "needs_info",
+        storagePath: hostedStoragePath,
         createdBy: auth.currentUser.uid,
         createdAt: serverTimestamp(),
         importedAt: new Date().toISOString(),
@@ -280,6 +297,10 @@ export default function ImportPage() {
           </div>
 
           <Field field="confidence" label="Confidence (0-1)" value={form.confidence} onChange={(v) => update("confidence", v)} />
+          <label className="flex items-center gap-2 text-sm text-white/78">
+            <input type="checkbox" className="accent-emerald-400" checked={hostImportedImage} onChange={(e) => setHostImportedImage(e.target.checked)} />
+            Re-host and normalize imported primary image into Tagsheep storage
+          </label>
           <Link href="/upload-guide" className="block text-sm underline text-white/75">Read the upload & photo guide</Link>
 
           <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/75 space-y-2">

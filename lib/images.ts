@@ -1,5 +1,6 @@
 export const IMAGE_POLICY = {
   format: "webp",
+  mimeType: "image/webp",
   maxDimension: 1600,
   quality: 0.84,
   maxImportedImageUrlCount: 8,
@@ -111,12 +112,29 @@ export async function normalizeUploadedImage(file: File): Promise<File> {
     const { dw, dh } = applyCanvasOrientation(ctx, srcW, srcH, orientation || 1);
     ctx.drawImage(bmp, 0, 0, dw, dh);
 
-    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/webp", IMAGE_POLICY.quality));
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, IMAGE_POLICY.mimeType, IMAGE_POLICY.quality));
     if (!blob) return file;
 
     const name = file.name.replace(/\.(png|jpe?g|gif|webp)$/i, "") + ".webp";
-    return new File([blob], name, { type: "image/webp" });
+    return new File([blob], name, { type: IMAGE_POLICY.mimeType });
   } catch {
     return file;
   }
+}
+
+export async function fetchRemoteImageAsFile(url: string, baseName = "imported-image") {
+  const response = await fetch(url, { mode: "cors" });
+  if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
+
+  const blob = await response.blob();
+  const sourceType = blob.type || "application/octet-stream";
+  const extension = sourceType.includes("png")
+    ? ".png"
+    : sourceType.includes("gif")
+      ? ".gif"
+      : sourceType.includes("webp")
+        ? ".webp"
+        : ".jpg";
+
+  return new File([blob], `${baseName}${extension}`, { type: sourceType });
 }
