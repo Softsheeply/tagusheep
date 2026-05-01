@@ -24,6 +24,7 @@ type TagDoc = {
   styleNumber?: string | null;
   notes?: string | null;
   imageUrl: string;
+  thumbnailUrl?: string | null;
   createdAt?: { seconds: number; nanoseconds: number } | null;
   createdBy?: string | null;
 };
@@ -113,14 +114,14 @@ export default function BrandPage() {
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Brand index</p>
           <h1 className="text-2xl font-semibold">{brand}</h1>
           <p className="text-sm text-white/70">
-            {count == null ? "Counting…" : `${count} record${count === 1 ? "" : "s"} in TaguSheep`}
+            {count == null ? "Counting…" : `${count} record${count === 1 ? "" : "s"} in Tagsheep`}
           </p>
         </div>
         <Link href="/tags" className="text-sm underline">← Back to database</Link>
       </div>
 
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/76">
-        Search within this brand by style number, RN, or notes. This is where TaguSheep starts feeling more like a real clothing database instead of just a loose gallery.
+        Search within this brand by style number, RN, or notes. This is where Tagsheep starts feeling like a real clothing database instead of just a loose gallery.
       </div>
 
       <div className="mt-4">
@@ -157,7 +158,7 @@ function Card({ d }: { d: TagDoc }) {
       <Link href={`/tag/${d.id}`} className="block">
         <div className="aspect-[4/5] bg-white overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full object-contain" />
+          <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full object-contain" />
         </div>
       </Link>
       <div className="p-3 text-sm">

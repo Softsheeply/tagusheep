@@ -25,6 +25,7 @@ type TagDoc = {
   verificationStatus?: VerificationStatus | null;
   notes?: string | null;
   imageUrl: string;
+  thumbnailUrl?: string | null;
   storagePath?: string | null;
   createdBy?: string | null;
   createdAt?: { seconds: number; nanoseconds: number } | null;
@@ -446,7 +447,7 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
       <Link href={`/tag/${d.id}`} className="block overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition hover:border-white/20 hover:shadow-md">
         <div className="aspect-[4/5] bg-white overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full object-contain" />
+          <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full object-contain" />
         </div>
         <div className="space-y-1 p-3 text-sm">
           <div className="font-medium truncate text-white">{d.brand || "Unknown brand"}</div>

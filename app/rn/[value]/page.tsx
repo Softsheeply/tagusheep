@@ -14,6 +14,7 @@ type TagDoc = {
   styleNumber?: string | null;
   verificationStatus?: string | null;
   imageUrl: string;
+  thumbnailUrl?: string | null;
   createdAt?: { seconds: number; nanoseconds: number } | null;
 };
 
@@ -112,7 +113,7 @@ function Card({ d }: { d: TagDoc }) {
       <Link href={`/tag/${d.id}`} className="block">
         <div className="aspect-[4/5] bg-white overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full object-contain" />
+          <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full object-contain" />
         </div>
       </Link>
       <div className="p-3 text-sm space-y-1">
