@@ -1,0 +1,317 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, normalizeBrand, normalizeStyleNumber, prepareRecord, type VerificationStatus, type SourceType } from "@/lib/records";
+import { findPotentialDuplicates } from "@/lib/duplicates";
+
+type ReviewDoc = {
+  id: string;
+  brand?: string | null;
+  productName?: string | null;
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
+  sourceUrl?: string | null;
+  sourceName?: string | null;
+  sourceType?: SourceType | null;
+  notes?: string | null;
+  styleNumber?: string | null;
+  rn?: string | null;
+  category?: string | null;
+  year?: string | null;
+  verificationStatus?: VerificationStatus | null;
+  duplicateOfId?: string | null;
+  [key: string]: any;
+};
+
+function duplicateKey(row: Pick<ReviewDoc, "brand" | "styleNumber">) {
+  const brand = normalizeBrand(row.brand) || "";
+  const style = normalizeStyleNumber(row.styleNumber) || "";
+  return `${brand}::${style}`;
+}
+
+export default function ImportsReviewPage() {
+  const [rows, setRows] = useState<ReviewDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [duplicates, setDuplicates] = useState<Record<string, any[]>>({});
+
+  async function load() {
+    setLoading(true);
+    try {
+      const qRef = query(collection(db, "imports_review"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(qRef);
+      setRows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const localDuplicateGroups = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    for (const row of rows) {
+      const key = duplicateKey(row);
+      if (key === "::") continue;
+      const current = groups.get(key) || [];
+      current.push(row.id);
+      groups.set(key, current);
+    }
+    return groups;
+  }, [rows]);
+
+  function updateLocal(id: string, patch: Partial<ReviewDoc>) {
+    setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+  }
+
+  async function saveDraft(row: ReviewDoc) {
+    setBusyId(row.id);
+    setMessage(null);
+    try {
+      await updateDoc(doc(db, "imports_review", row.id), {
+        brand: row.brand || null,
+        productName: row.productName || null,
+        imageUrl: row.imageUrl || null,
+        thumbnailUrl: row.thumbnailUrl || null,
+        sourceUrl: row.sourceUrl || null,
+        sourceName: row.sourceName || null,
+        sourceType: row.sourceType || null,
+        notes: row.notes || null,
+        styleNumber: row.styleNumber || null,
+        rn: row.rn || null,
+        category: row.category || null,
+        year: row.year || null,
+        verificationStatus: row.verificationStatus || "pending",
+        duplicateOfId: row.duplicateOfId || null,
+      });
+      setMessage("Draft updated.");
+    } catch (error: any) {
+      setMessage(error?.message || "Save failed.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function checkDuplicates(row: ReviewDoc) {
+    const found = await findPotentialDuplicates(row.brand, row.styleNumber);
+    setDuplicates((prev) => ({ ...prev, [row.id]: found }));
+  }
+
+  async function markAsDuplicate(row: ReviewDoc, duplicateId: string) {
+    setBusyId(row.id);
+    setMessage(null);
+    try {
+      await updateDoc(doc(db, "imports_review", row.id), {
+        duplicateOfId: duplicateId,
+        verificationStatus: "rejected",
+      });
+      updateLocal(row.id, { duplicateOfId: duplicateId, verificationStatus: "rejected" });
+      setMessage("Marked as duplicate candidate.");
+    } catch (error: any) {
+      setMessage(error?.message || "Could not mark duplicate.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function approve(row: ReviewDoc) {
+    if (!auth.currentUser) {
+      setMessage("Please sign in first.");
+      return;
+    }
+    if (row.duplicateOfId) {
+      setMessage("This row is marked as a duplicate. Clear that first or discard it.");
+      return;
+    }
+    setBusyId(row.id);
+    setMessage(null);
+    try {
+      const payload = prepareRecord({
+        ...row,
+        imageUrl: row.imageUrl || "",
+        thumbnailUrl: row.thumbnailUrl || null,
+        brand: row.brand || null,
+        productName: row.productName || null,
+        sourceUrl: row.sourceUrl || null,
+        sourceName: row.sourceName || null,
+        sourceType: row.sourceType || null,
+        notes: row.notes || null,
+        styleNumber: row.styleNumber || null,
+        rn: row.rn || null,
+        category: row.category || null,
+        year: row.year || null,
+        verificationStatus: (row.verificationStatus as VerificationStatus) || "pending",
+        createdBy: row.createdBy || auth.currentUser.uid,
+        createdAt: row.createdAt || serverTimestamp(),
+        importedAt: row.importedAt || new Date().toISOString(),
+      });
+      await addDoc(collection(db, "tags"), payload);
+      await deleteDoc(doc(db, "imports_review", row.id));
+      setRows((prev) => prev.filter((item) => item.id !== row.id));
+      setMessage("Import promoted to main database.");
+    } catch (error: any) {
+      setMessage(error?.message || "Approval failed.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function discard(id: string) {
+    setBusyId(id);
+    setMessage(null);
+    try {
+      await deleteDoc(doc(db, "imports_review", id));
+      setRows((prev) => prev.filter((item) => item.id !== id));
+      setMessage("Review item removed.");
+    } catch (error: any) {
+      setMessage(error?.message || "Delete failed.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <main className="mx-auto max-w-7xl p-6 space-y-6">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Review queue</p>
+          <h1 className="text-3xl font-semibold">Imported candidates</h1>
+          <p className="mt-2 max-w-2xl text-white/70">Edit partial imports here, then approve the good ones into the main database.</p>
+        </div>
+        <Link href="/tools" className="text-sm underline">← Back to tools</Link>
+      </div>
+
+      {loading ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">Loading review queue…</div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">No pending import candidates.</div>
+      ) : (
+        <div className="space-y-4">
+          {rows.map((row) => {
+            const localGroup = localDuplicateGroups.get(duplicateKey(row)) || [];
+            const hasLocalDuplicates = localGroup.length > 1;
+            const externalDuplicates = duplicates[row.id] || [];
+
+            return (
+              <div key={row.id} className="grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 lg:grid-cols-[320px_1fr]">
+                <div className="space-y-4">
+                  {row.imageUrl ? (
+                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white p-4">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={row.imageUrl} alt={row.productName || row.brand || "candidate"} className="w-full max-h-80 object-contain" />
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/50">No image extracted</div>
+                  )}
+
+                  {row.sourceUrl && <a href={row.sourceUrl} target="_blank" className="block break-all text-sm text-emerald-200 underline">{row.sourceUrl}</a>}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Brand" value={row.brand || ""} onChange={(value) => updateLocal(row.id, { brand: value })} />
+                    <Field label="Product name" value={row.productName || ""} onChange={(value) => updateLocal(row.id, { productName: value })} />
+                    <Field label="RN" value={row.rn || ""} onChange={(value) => updateLocal(row.id, { rn: value })} />
+                    <Field label="Style number" value={row.styleNumber || ""} onChange={(value) => updateLocal(row.id, { styleNumber: value })} />
+                    <Field label="Category" value={row.category || ""} onChange={(value) => updateLocal(row.id, { category: value })} />
+                    <Field label="Year" value={row.year || ""} onChange={(value) => updateLocal(row.id, { year: value })} />
+                    <Field label="Source name" value={row.sourceName || ""} onChange={(value) => updateLocal(row.id, { sourceName: value })} />
+                    <Field label="Image URL" value={row.imageUrl || ""} onChange={(value) => updateLocal(row.id, { imageUrl: value })} />
+                    <Field label="Source URL" value={row.sourceUrl || ""} onChange={(value) => updateLocal(row.id, { sourceUrl: value })} />
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Select label="Source type" value={row.sourceType || "unknown"} onChange={(value) => updateLocal(row.id, { sourceType: value as SourceType })} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
+                    <Select label="Verification" value={row.verificationStatus || "needs_info"} onChange={(value) => updateLocal(row.id, { verificationStatus: value as VerificationStatus })} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
+                  </div>
+
+                  <div className="text-sm text-emerald-200">Verification preview: {getVerificationPercent(row as any)}%</div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {CORE_VERIFICATION_FIELDS.map((field) => {
+                      const value = row[field];
+                      const filled = Array.isArray(value) ? value.length > 0 : typeof value === "string" ? value.trim().length > 0 : value != null;
+                      return (
+                        <span key={field} className={`rounded-full border px-2 py-1 ${filled ? "border-emerald-300/35 bg-emerald-400/10 text-emerald-100" : "border-white/10 text-white/45"}`}>
+                          {filled ? "✓ " : ""}{CORE_VERIFICATION_FIELD_LABELS[field]}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <TextArea label="Notes" value={row.notes || ""} onChange={(value) => updateLocal(row.id, { notes: value })} rows={4} />
+
+                  <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/75">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button onClick={() => checkDuplicates(row)} disabled={busyId === row.id} className="rounded-lg border border-white/20 px-3 py-1 text-white disabled:opacity-50">Check duplicates</button>
+                      {externalDuplicates.length ? (
+                        <span className="text-amber-200">Possible duplicates in database: {externalDuplicates.length}</span>
+                      ) : duplicates[row.id] ? (
+                        <span className="text-emerald-200">No database duplicates found</span>
+                      ) : (
+                        <span className="text-white/55">Checks brand + style number against existing records.</span>
+                      )}
+                    </div>
+
+                    {hasLocalDuplicates && (
+                      <div className="rounded-lg border border-fuchsia-300/20 bg-fuchsia-400/10 px-3 py-2 text-fuchsia-100">
+                        Queue warning: {localGroup.length} review items currently share this brand + style number.
+                      </div>
+                    )}
+
+                    {row.duplicateOfId && (
+                      <div className="rounded-lg border border-rose-300/20 bg-rose-400/10 px-3 py-2 text-rose-100">
+                        Marked as duplicate of record <code>{row.duplicateOfId}</code>.
+                      </div>
+                    )}
+                  </div>
+
+                  {externalDuplicates.length ? (
+                    <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-3 text-sm text-amber-100 space-y-2">
+                      {externalDuplicates.map((dup) => (
+                        <div key={dup.id} className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate">{dup.brand || "Unknown brand"} — {dup.productName || "No title"}</div>
+                            <div className="text-xs text-amber-100/70">Style: {dup.styleNumber || "—"}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => markAsDuplicate(row, dup.id)} disabled={busyId === row.id} className="rounded-lg border border-amber-200/40 px-2 py-1 text-xs text-amber-50 disabled:opacity-50">Mark duplicate</button>
+                            <Link href={`/tag/${dup.id}`} className="underline text-xs">Open</Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => saveDraft(row)} disabled={busyId === row.id} className="rounded-xl border border-white/20 px-4 py-2 text-white disabled:opacity-50">Save draft</button>
+                    <button onClick={() => approve(row)} disabled={busyId === row.id || !!row.duplicateOfId} className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black disabled:opacity-50">Approve</button>
+                    <button onClick={() => discard(row.id)} disabled={busyId === row.id} className="rounded-xl border border-rose-300/35 px-4 py-2 text-rose-200 disabled:opacity-50">Discard</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {message && <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/85">{message}</div>}
+    </main>
+  );
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60" /></label>;
+}
+
+function TextArea({ label, value, onChange, rows = 4 }: { label: string; value: string; onChange: (value: string) => void; rows?: number }) {
+  return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60" /></label>;
+}
+
+function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
+  return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
+}
