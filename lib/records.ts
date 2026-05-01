@@ -32,7 +32,7 @@ export type TagRecord = {
   searchText?: string | null;
   storagePath?: string | null;
   createdBy?: string | null;
-  createdAt?: any;
+  createdAt?: unknown;
   importedAt?: string | null;
 };
 

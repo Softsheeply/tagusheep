@@ -80,11 +80,12 @@ export async function GET(req: NextRequest) {
         "cache-control": "no-store",
       },
     });
-  } catch (error: any) {
-    if (error?.name === "AbortError") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "AbortError") {
       return NextResponse.json({ error: "Image import timed out" }, { status: 504 });
     }
-    return NextResponse.json({ error: error?.message || "Image import failed" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Image import failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   } finally {
     clearTimeout(timeout);
   }

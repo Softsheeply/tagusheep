@@ -76,11 +76,12 @@ export async function GET(req: NextRequest) {
 
     const record = extractRecordFromHtml(parsed.toString(), html);
     return NextResponse.json(record);
-  } catch (error: any) {
-    if (error?.name === "AbortError") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "AbortError") {
       return NextResponse.json({ error: "Import timed out" }, { status: 504 });
     }
-    return NextResponse.json({ error: error?.message || "Import failed" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Import failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   } finally {
     clearTimeout(timeout);
   }
