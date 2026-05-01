@@ -133,8 +133,15 @@ export async function normalizeThumbnailImage(file: File): Promise<File> {
 }
 
 export async function fetchRemoteImageAsFile(url: string, baseName = "imported-image") {
-  const response = await fetch(url, { mode: "cors" });
-  if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
+  const response = await fetch(`/api/import-image?url=${encodeURIComponent(url)}`, { cache: "no-store" });
+  if (!response.ok) {
+    let errorMessage = `Image fetch failed: ${response.status}`;
+    try {
+      const payload = await response.json();
+      errorMessage = payload?.error || errorMessage;
+    } catch {}
+    throw new Error(errorMessage);
+  }
 
   const blob = await response.blob();
   const sourceType = blob.type || "application/octet-stream";
