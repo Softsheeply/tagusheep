@@ -23,7 +23,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, uploadBytes } from "firebase/storage";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
-import { findPotentialDuplicates } from "@/lib/duplicates";
+import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import AuthPanel from "@/app/components/AuthPanel";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
@@ -48,7 +48,7 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
 
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
-  const [duplicates, setDuplicates] = useState<any[] | null>(null);
+  const [duplicates, setDuplicates] = useState<DuplicateCandidate[] | null>(null);
   const verificationRecord: Partial<TagRecord> = {
     brand,
     productName,
@@ -67,7 +67,15 @@ export default function UploadPage() {
     const filled = Array.isArray(value) ? value.length > 0 : typeof value === "string" ? value.trim().length > 0 : value != null;
     return { field, label: CORE_VERIFICATION_FIELD_LABELS[field], filled };
   });
-  const [rnWarning, setRnWarning] = useState<string | null>(null);
+  const rnWarning = !rn
+    ? null
+    : !/^\d+$/.test(rn)
+      ? "RN must be digits only."
+      : rn.length < 3
+        ? "RN looks too short."
+        : rn.length > 7
+          ? "RN looks too long."
+          : null;
   const [rnBrandSuggestions, setRnBrandSuggestions] = useState<string[]>([]);
   const [brandAutocomplete, setBrandAutocomplete] = useState<string[]>([]);
   const rnDebounce = useRef<number | null>(null);
@@ -87,14 +95,8 @@ export default function UploadPage() {
 
   useEffect(() => {
     if (!rn) {
-      setRnWarning(null);
-      setRnBrandSuggestions([]);
       return;
     }
-    if (!/^\d+$/.test(rn)) setRnWarning("RN must be digits only.");
-    else if (rn.length < 3) setRnWarning("RN looks too short.");
-    else if (rn.length > 7) setRnWarning("RN looks too long.");
-    else setRnWarning(null);
 
     if (rnDebounce.current) window.clearTimeout(rnDebounce.current);
     rnDebounce.current = window.setTimeout(async () => {
@@ -115,7 +117,6 @@ export default function UploadPage() {
 
   useEffect(() => {
     if (!brand) {
-      setBrandAutocomplete([]);
       return;
     }
     if (brandDebounce.current) window.clearTimeout(brandDebounce.current);
@@ -136,6 +137,15 @@ export default function UploadPage() {
       if (brandDebounce.current) window.clearTimeout(brandDebounce.current);
     };
   }, [brand]);
+
+  useEffect(() => {
+    if (!brand) {
+      setBrandAutocomplete([]);
+    }
+    if (!rn) {
+      setRnBrandSuggestions([]);
+    }
+  }, [brand, rn]);
 
   async function checkDuplicates() {
     const found = await findPotentialDuplicates(brand, styleNumber);
@@ -176,10 +186,10 @@ export default function UploadPage() {
             const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
             setStatus({ kind: "info", text: `Uploading… ${pct}%`, pct });
           },
-          (error) => {
+          (error: Error & { code?: string }) => {
             console.error("Upload failed", error);
-            const code = (error as any)?.code ? ` (${(error as any).code})` : "";
-            rej(new Error(`${(error as any)?.message || "Upload failed"}${code}`));
+            const code = error.code ? ` (${error.code})` : "";
+            rej(new Error(`${error.message || "Upload failed"}${code}`));
           },
           () => res()
         )
@@ -234,8 +244,8 @@ export default function UploadPage() {
       const input = document.getElementById("fileInput") as HTMLInputElement | null;
       if (input) input.value = "";
       setTimeout(() => setStatus({ kind: "idle", text: null }), 1200);
-    } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message || String(err) });
+    } catch (err: unknown) {
+      setStatus({ kind: "error", text: err instanceof Error ? err.message : String(err) });
     }
   }
 
