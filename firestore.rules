@@ -13,10 +13,73 @@ service cloud.firestore {
       return signedIn() && resourceData.createdBy == request.auth.uid;
     }
 
+    function allowedSourceType(value) {
+      return value == null || value in ["manual", "official", "marketplace", "archive", "resale", "unknown"];
+    }
+
+    function allowedVerificationStatus(value) {
+      return value == null || value in ["draft", "needs_info", "pending", "reviewed", "verified", "rejected"];
+    }
+
+    function stringOrNull(value, maxLen) {
+      return value == null || (value is string && value.size() <= maxLen);
+    }
+
+    function stringListOrNull(value, maxItems, maxLen) {
+      return value == null || (
+        value is list &&
+        value.size() <= maxItems &&
+        value.size() == value.where(item, !(item is string) || item.size() > maxLen).size() ? false : true
+      );
+    }
+
+    function validTagKeys(data) {
+      return data.keys().hasOnly([
+        'brand', 'productName', 'rn', 'styleNumber', 'garmentType', 'tags', 'category', 'subCategory', 'gender', 'year', 'season',
+        'madeIn', 'materials', 'careText', 'color', 'notes', 'imageUrl', 'extraImageUrls', 'sourceUrl', 'sourceName', 'sourceType',
+        'confidence', 'verificationStatus', 'searchText', 'storagePath', 'createdBy', 'createdAt', 'importedAt'
+      ]);
+    }
+
+    function validTagData(data) {
+      return validTagKeys(data) &&
+        stringOrNull(data.brand, 120) &&
+        stringOrNull(data.productName, 200) &&
+        stringOrNull(data.rn, 7) &&
+        stringOrNull(data.styleNumber, 120) &&
+        stringOrNull(data.garmentType, 120) &&
+        stringListOrNull(data.tags, 25, 60) &&
+        stringOrNull(data.category, 120) &&
+        stringOrNull(data.subCategory, 120) &&
+        stringOrNull(data.gender, 60) &&
+        stringOrNull(data.year, 40) &&
+        stringOrNull(data.season, 80) &&
+        stringOrNull(data.madeIn, 120) &&
+        stringOrNull(data.materials, 1000) &&
+        stringOrNull(data.careText, 4000) &&
+        stringOrNull(data.color, 120) &&
+        stringOrNull(data.notes, 4000) &&
+        data.imageUrl is string && data.imageUrl.size() > 0 && data.imageUrl.size() <= 2048 &&
+        stringListOrNull(data.extraImageUrls, 8, 2048) &&
+        stringOrNull(data.sourceUrl, 2048) &&
+        stringOrNull(data.sourceName, 255) &&
+        allowedSourceType(data.sourceType) &&
+        allowedVerificationStatus(data.verificationStatus) &&
+        stringOrNull(data.searchText, 12000) &&
+        stringOrNull(data.storagePath, 1024) &&
+        stringOrNull(data.createdBy, 128) &&
+        stringOrNull(data.importedAt, 80) &&
+        (data.confidence == null || (data.confidence is number && data.confidence >= 0 && data.confidence <= 1));
+    }
+
     match /tags/{tagId} {
       allow read: if true;
-      allow create: if signedIn();
-      allow update: if isAdmin() || isOwner(resource.data);
+      allow create: if signedIn() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        validTagData(request.resource.data);
+      allow update: if (isAdmin() || isOwner(resource.data)) &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        validTagData(request.resource.data);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
@@ -26,9 +89,20 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /imports_review/{importId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin() || isOwner(resource.data);
+    }
+
     match /admins/{uid} {
       allow read: if signedIn();
       allow write: if false;
+    }
+
+    match /submissions/{submissionId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
     }
   }
 }

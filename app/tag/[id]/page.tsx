@@ -6,7 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { auth, db, storage } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
-import { prepareRecord, type SourceType, type VerificationStatus } from "@/lib/records";
+import { prepareRecord, getVerificationPercent, type SourceType, type VerificationStatus } from "@/lib/records";
+import { safeHostnameFromUrl } from "@/lib/validation";
 
 async function readExifOrientation(file: File): Promise<number | null> {
   const buf = await file.slice(0, 64 * 1024).arrayBuffer();
@@ -94,6 +95,8 @@ type TagDoc = {
   productName?: string | null;
   rn?: string | null;
   styleNumber?: string | null;
+  garmentType?: string | null;
+  tags?: string[];
   category?: string | null;
   year?: string | null;
   madeIn?: string | null;
@@ -125,6 +128,8 @@ export default function TagDetailPage() {
   const [productName, setProductName] = useState("");
   const [rn, setRn] = useState("");
   const [styleNumber, setStyleNumber] = useState("");
+  const [garmentType, setGarmentType] = useState("");
+  const [tags, setTags] = useState("");
   const [category, setCategory] = useState("");
   const [year, setYear] = useState("");
   const [madeIn, setMadeIn] = useState("");
@@ -156,6 +161,8 @@ export default function TagDetailPage() {
       setProductName(data.productName ?? "");
       setRn(data.rn ?? "");
       setStyleNumber(data.styleNumber ?? "");
+      setGarmentType(data.garmentType ?? "");
+      setTags((data.tags || []).join(", "));
       setCategory(data.category ?? "");
       setYear(data.year ?? "");
       setMadeIn(data.madeIn ?? "");
@@ -279,6 +286,8 @@ export default function TagDetailPage() {
         productName,
         rn,
         styleNumber,
+        garmentType,
+        tags: tags.split(",").map((v) => v.trim()).filter(Boolean),
         category,
         year,
         madeIn,
@@ -286,7 +295,7 @@ export default function TagDetailPage() {
         careText,
         notes,
         sourceUrl,
-        sourceName: sourceUrl ? new URL(sourceUrl).hostname : null,
+        sourceName: safeHostnameFromUrl(sourceUrl),
         sourceType,
         verificationStatus,
         imageUrl,
@@ -335,7 +344,7 @@ export default function TagDetailPage() {
     <main className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">TaguSheep record</p>
+          <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Tagsheep record</p>
           <h1 className="text-2xl font-semibold">{tag.brand || "Unknown brand"}</h1>
         </div>
         <div className="flex gap-3 text-sm">
@@ -365,17 +374,23 @@ export default function TagDetailPage() {
               <InfoBox label="Style number" value={tag.styleNumber} href={tag.styleNumber ? `/style/${encodeURIComponent(tag.styleNumber)}` : undefined} />
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <InfoBox label="Category" value={tag.category} />
+              <InfoBox label="Garment type" value={tag.garmentType} />
               <InfoBox label="Year" value={tag.year} />
             </div>
+            <InfoBox label="Tags" value={(tag.tags || []).join(", ")} />
             <div className="grid gap-2 sm:grid-cols-2">
+              <InfoBox label="Category" value={tag.category} />
               <InfoBox label="Made in" value={tag.madeIn} />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
               <InfoBox label="Materials" value={tag.materials} />
+              <InfoBox label="Source" value={tag.sourceName} />
             </div>
             <InfoBox label="Care text" value={tag.careText} multiline />
             <InfoBox label="Notes" value={tag.notes} multiline />
             <div className="flex flex-wrap gap-2 pt-2 text-[11px] uppercase tracking-wide">
-              <Badge>{tag.verificationStatus || "pending"}</Badge>
+              <VerificationBadge status={tag.verificationStatus} />
+              <Badge subtle>{getVerificationPercent(tag)}% verified</Badge>
               {tag.sourceType && <Badge subtle>{tag.sourceType}</Badge>}
               {tag.sourceName && <Badge subtle>{tag.sourceName}</Badge>}
             </div>
@@ -405,6 +420,8 @@ export default function TagDetailPage() {
             </div>
           )}
           <Field label="Style number" value={styleNumber} onChange={setStyleNumber} />
+          <Field label="Garment type" value={garmentType} onChange={setGarmentType} />
+          <Field label="Tags (comma separated)" value={tags} onChange={setTags} />
           <Field label="Category" value={category} onChange={setCategory} />
           <Field label="Year" value={year} onChange={setYear} />
           <Field label="Made in" value={madeIn} onChange={setMadeIn} />
@@ -414,7 +431,7 @@ export default function TagDetailPage() {
           <Field label="Source URL" value={sourceUrl} onChange={setSourceUrl} />
           <div className="grid gap-4 md:grid-cols-2">
             <Select label="Source type" value={sourceType} onChange={(v) => setSourceType(v as SourceType)} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
-            <Select label="Verification status" value={verificationStatus} onChange={(v) => setVerificationStatus(v as VerificationStatus)} options={["draft", "pending", "reviewed", "verified", "rejected"]} />
+            <Select label="Verification status" value={verificationStatus} onChange={(v) => setVerificationStatus(v as VerificationStatus)} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
           </div>
           <input type="file" accept="image/*" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
           <div className="flex gap-2">
@@ -423,7 +440,14 @@ export default function TagDetailPage() {
             </button>
             <button type="button" disabled={!canEdit || status.kind === "info"} onClick={onMoveToTrash} className="px-4 py-2 rounded border border-amber-400 text-amber-300 disabled:opacity-50">Move to Trash</button>
           </div>
-          {!canEdit && <p className="text-sm text-amber-300">Only the uploader or an admin can edit.</p>}
+          {!canEdit && (
+            <div className="space-y-3">
+              <p className="text-sm text-amber-300">Only the uploader or an admin can edit.</p>
+              <Link href={`/submit-info?tag=${id}`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
+                Have info on this product? Submit here
+              </Link>
+            </div>
+          )}
         </form>
       </div>
 
@@ -451,4 +475,20 @@ function InfoBox({ label, value, href, multiline = false }: { label: string; val
 
 function Badge({ children, subtle = false }: { children: React.ReactNode; subtle?: boolean }) {
   return <span className={`rounded-full border px-2 py-0.5 ${subtle ? "border-white/15 text-white/55" : "border-emerald-300/35 text-emerald-200"}`}>{children}</span>;
+}
+
+function VerificationBadge({ status }: { status?: string | null }) {
+  if (status === "verified") {
+    return <span className="rounded-full border border-emerald-300/40 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-200">✓ Tagsheep Verified</span>;
+  }
+  if (status === "reviewed") {
+    return <span className="rounded-full border border-sky-300/35 bg-sky-400/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-200">Reviewed</span>;
+  }
+  if (status === "rejected") {
+    return <span className="rounded-full border border-rose-300/35 bg-rose-400/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-rose-200">Rejected</span>;
+  }
+  if (status === "needs_info") {
+    return <span className="rounded-full border border-fuchsia-300/35 bg-fuchsia-400/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-200">Needs Info</span>;
+  }
+  return <span className="rounded-full border border-amber-300/35 bg-amber-400/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-200">Pending</span>;
 }

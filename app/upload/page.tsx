@@ -2,14 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { auth, google, db, storage } from "@/lib/firebase";
+import { auth, db, storage } from "@/lib/firebase";
 import {
   onAuthStateChanged,
   setPersistence,
   browserLocalPersistence,
-  signInWithPopup,
-  signInWithRedirect,
-  signOut,
   User,
 } from "firebase/auth";
 import {
@@ -25,7 +22,10 @@ import {
   limit as qlimit,
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { prepareRecord, type SourceType, type VerificationStatus } from "@/lib/records";
+import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
+import { findPotentialDuplicates } from "@/lib/duplicates";
+import AuthPanel from "@/app/components/AuthPanel";
+import { safeHostnameFromUrl } from "@/lib/validation";
 
 async function readExifOrientation(file: File): Promise<number | null> {
   const buf = await file.slice(0, 64 * 1024).arrayBuffer();
@@ -148,6 +148,8 @@ export default function UploadPage() {
   const [productName, setProductName] = useState("");
   const [rn, setRn] = useState("");
   const [styleNumber, setStyleNumber] = useState("");
+  const [garmentType, setGarmentType] = useState("");
+  const [tags, setTags] = useState("");
   const [category, setCategory] = useState("");
   const [year, setYear] = useState("");
   const [madeIn, setMadeIn] = useState("");
@@ -160,6 +162,25 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
 
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
+  const [duplicates, setDuplicates] = useState<any[] | null>(null);
+  const verificationRecord: Partial<TagRecord> = {
+    brand,
+    productName,
+    rn,
+    styleNumber,
+    garmentType,
+    materials,
+    madeIn,
+    careText,
+    imageUrl: file ? "has-image" : "",
+    sourceUrl,
+  };
+  const verificationPreview = getVerificationPercent(verificationRecord);
+  const verificationChecklist = CORE_VERIFICATION_FIELDS.map((field) => {
+    const value = verificationRecord[field];
+    const filled = Array.isArray(value) ? value.length > 0 : typeof value === "string" ? value.trim().length > 0 : value != null;
+    return { field, label: CORE_VERIFICATION_FIELD_LABELS[field], filled };
+  });
   const [rnWarning, setRnWarning] = useState<string | null>(null);
   const [rnBrandSuggestions, setRnBrandSuggestions] = useState<string[]>([]);
   const [brandAutocomplete, setBrandAutocomplete] = useState<string[]>([]);
@@ -172,17 +193,6 @@ export default function UploadPage() {
     return () => unsub();
   }, []);
 
-  async function login() {
-    try {
-      await signInWithPopup(auth, google);
-    } catch (e: any) {
-      if (e?.code?.startsWith("auth/popup")) await signInWithRedirect(auth, google);
-    }
-  }
-
-  async function logout() {
-    await signOut(auth);
-  }
 
   function handleRnChange(val: string) {
     const digits = val.replace(/\D+/g, "");
@@ -241,6 +251,11 @@ export default function UploadPage() {
     };
   }, [brand]);
 
+  async function checkDuplicates() {
+    const found = await findPotentialDuplicates(brand, styleNumber);
+    setDuplicates(found);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) {
@@ -261,21 +276,33 @@ export default function UploadPage() {
 
       const compressed = await compressWithExifFix(file);
       const path = `tagusheep/uploads/${user.uid}/${Date.now()}_${compressed.name}`;
-      const task = uploadBytesResumable(ref(storage, path), compressed);
+      const storageRef = ref(storage, path);
+      const task = uploadBytesResumable(storageRef, compressed);
 
-      task.on("state_changed", (snap) => {
-        const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-        setStatus({ kind: "info", text: `Uploading… ${pct}%`, pct });
-      });
-
-      await new Promise<void>((res, rej) => task.on("state_changed", undefined, rej, () => res()));
-      const imageUrl = await getDownloadURL(ref(storage, path));
+      await new Promise<void>((res, rej) =>
+        task.on(
+          "state_changed",
+          (snap) => {
+            const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+            setStatus({ kind: "info", text: `Uploading… ${pct}%`, pct });
+          },
+          (error) => {
+            console.error("Upload failed", error);
+            const code = (error as any)?.code ? ` (${(error as any).code})` : "";
+            rej(new Error(`${(error as any)?.message || "Upload failed"}${code}`));
+          },
+          () => res()
+        )
+      );
+      const imageUrl = await getDownloadURL(storageRef);
 
       const payload = prepareRecord({
         brand,
         productName,
         rn,
         styleNumber,
+        garmentType,
+        tags: tags.split(",").map((v) => v.trim()).filter(Boolean),
         category,
         year,
         madeIn,
@@ -285,7 +312,7 @@ export default function UploadPage() {
         imageUrl,
         storagePath: path,
         sourceUrl,
-        sourceName: sourceUrl ? new URL(sourceUrl).hostname : null,
+        sourceName: safeHostnameFromUrl(sourceUrl),
         sourceType,
         verificationStatus,
         createdBy: user.uid,
@@ -299,6 +326,8 @@ export default function UploadPage() {
       setProductName("");
       setRn("");
       setStyleNumber("");
+      setGarmentType("");
+      setTags("");
       setCategory("");
       setYear("");
       setMadeIn("");
@@ -320,23 +349,30 @@ export default function UploadPage() {
   return (
     <main className="max-w-3xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-2xl font-semibold">Add a TaguSheep record</h1>
+        <h1 className="text-2xl font-semibold">Add a Tagsheep record</h1>
         <div className="flex items-center gap-2 text-sm">
           {user ? (
-            <>
-              <span className="opacity-80">Signed in as <b>{user.displayName || user.email}</b></span>
-              <button onClick={logout} className="rounded border border-white/15 px-3 py-1 hover:border-white/40 transition">Sign out</button>
-            </>
+            <span className="opacity-80">Signed in as <b>{user.displayName || user.email}</b></span>
           ) : (
-            <button onClick={login} className="rounded bg-emerald-400/90 hover:bg-emerald-300 text-black font-semibold px-3 py-1 transition">
-              Sign in with Google
-            </button>
+            <AuthPanel />
           )}
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/80">
-        TaguSheep is building a real clothing internet database. Strong records combine a clean reference image with product metadata, source provenance, and review status.
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/80 space-y-3">
+        <div>Tagsheep is building a real clothing internet database. Strong records combine a clean reference image with product metadata, source provenance, and review status.</div>
+        <div className="text-emerald-200">Verification preview: {verificationPreview}%</div>
+        <div>
+          <div className="mb-2 text-xs uppercase tracking-[0.2em] text-white/45">Core 10 fields</div>
+          <div className="flex flex-wrap gap-2">
+            {verificationChecklist.map((item) => (
+              <span key={item.field} className={`rounded-full border px-2 py-1 text-xs ${item.filled ? "border-emerald-300/35 bg-emerald-400/10 text-emerald-100" : "border-white/10 text-white/45"}`}>
+                {item.filled ? "✓ " : ""}{item.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <Link href="/upload-guide" className="underline">Read the upload & photo guide</Link>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
@@ -345,6 +381,8 @@ export default function UploadPage() {
           <Field label="Product name" value={productName} onChange={setProductName} />
           <Field label="RN" value={rn} onChange={handleRnChange} />
           <Field label="Style number" value={styleNumber} onChange={setStyleNumber} />
+          <Field label="Garment type" value={garmentType} onChange={setGarmentType} />
+          <Field label="Tags (comma separated)" value={tags} onChange={setTags} />
           <Field label="Category" value={category} onChange={setCategory} />
           <Field label="Year" value={year} onChange={setYear} />
           <Field label="Made in" value={madeIn} onChange={setMadeIn} />
@@ -381,7 +419,7 @@ export default function UploadPage() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <Select label="Source type" value={sourceType} onChange={(v) => setSourceType(v as SourceType)} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
-          <Select label="Verification status" value={verificationStatus} onChange={(v) => setVerificationStatus(v as VerificationStatus)} options={["draft", "pending", "reviewed", "verified", "rejected"]} />
+          <Select label="Verification status" value={verificationStatus} onChange={(v) => setVerificationStatus(v as VerificationStatus)} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
         </div>
 
         <div
@@ -396,6 +434,25 @@ export default function UploadPage() {
           <input id="fileInput" type="file" accept="image/*" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           <p className="mt-2 text-xs text-white/70">Best result: one clean label image on a white background, centered and easy to read.</p>
           {file && <p className="text-xs mt-1">Selected: <b>{file.name}</b></p>}
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/75 space-y-2">
+          <button type="button" onClick={checkDuplicates} className="rounded-lg border border-white/20 px-3 py-1 text-white">Check duplicates</button>
+          {duplicates?.length ? (
+            <div className="space-y-2 text-amber-100">
+              <div>Possible duplicates: {duplicates.length}</div>
+              {duplicates.map((dup) => (
+                <div key={dup.id} className="flex items-center justify-between gap-3 text-xs">
+                  <div className="min-w-0 truncate">{dup.brand || "Unknown"} — {dup.productName || "No title"}</div>
+                  <Link href={`/tag/${dup.id}`} className="underline">Open</Link>
+                </div>
+              ))}
+            </div>
+          ) : duplicates ? (
+            <div className="text-emerald-200">No duplicates found.</div>
+          ) : (
+            <div className="text-white/55">Checks brand + style number against existing records.</div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
