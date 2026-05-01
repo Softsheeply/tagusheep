@@ -150,6 +150,7 @@ export default function ImportPage() {
     setSaving(true);
     setMessage(null);
     try {
+      const uid = auth.currentUser.uid;
       let hostedImageUrl = form.imageUrl;
       let hostedThumbnailUrl: string | null = null;
       let hostedExtraImageUrls = form.extraImageUrls.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
@@ -160,8 +161,8 @@ export default function ImportPage() {
         const normalizedFile = await normalizeUploadedImage(remoteFile);
         const thumbnailFile = await normalizeThumbnailImage(remoteFile);
         const baseName = `${Date.now()}_${normalizedFile.name}`;
-        const path = `tagusheep/imports/${auth.currentUser.uid}/${baseName}`;
-        const thumbPath = `tagusheep/imports/${auth.currentUser.uid}/thumb_${baseName}`;
+        const path = `tagusheep/imports/${uid}/${baseName}`;
+        const thumbPath = `tagusheep/imports/${uid}/thumb_${baseName}`;
         const storageRef = ref(storage, path);
         const thumbRef = ref(storage, thumbPath);
         await uploadBytes(storageRef, normalizedFile, { contentType: IMAGE_POLICY.mimeType });
@@ -169,6 +170,20 @@ export default function ImportPage() {
         hostedImageUrl = await getDownloadURL(storageRef);
         hostedThumbnailUrl = await getDownloadURL(thumbRef);
         hostedStoragePath = path;
+
+        if (hostedExtraImageUrls.length > 0) {
+          const limitedExtraUrls = hostedExtraImageUrls.slice(0, IMAGE_POLICY.maxImportedImageUrlCount);
+          const hostedExtras = await Promise.all(limitedExtraUrls.map(async (extraUrl, index) => {
+            const extraFile = await fetchRemoteImageAsFile(extraUrl, `extra-import-${index + 1}`);
+            const normalizedExtra = await normalizeUploadedImage(extraFile);
+            const extraBaseName = `${Date.now()}_${index + 1}_${normalizedExtra.name}`;
+            const extraPath = `tagusheep/imports/${uid}/extra_${extraBaseName}`;
+            const extraRef = ref(storage, extraPath);
+            await uploadBytes(extraRef, normalizedExtra, { contentType: IMAGE_POLICY.mimeType });
+            return getDownloadURL(extraRef);
+          }));
+          hostedExtraImageUrls = hostedExtras;
+        }
       }
 
       const payload = prepareRecord({
@@ -197,7 +212,7 @@ export default function ImportPage() {
         confidence: form.confidence ? Number(form.confidence) : null,
         verificationStatus: form.verificationStatus || "needs_info",
         storagePath: hostedStoragePath,
-        createdBy: auth.currentUser.uid,
+        createdBy: uid,
         createdAt: serverTimestamp(),
         importedAt: new Date().toISOString(),
       });
