@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query, limit, startAfter, getDocs, getDoc, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, limit, startAfter, getDocs, getDoc, doc, setDoc, deleteDoc, where } from "firebase/firestore";
 import { getVerificationPercent, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
 
 type TagDoc = {
@@ -130,6 +130,9 @@ function TagsPageInner() {
   const [genderFilter, setGenderFilter] = useState("");
   const [minVerified, setMinVerified] = useState("0");
   const [admin, setAdmin] = useState(false);
+  const [exactStyleHits, setExactStyleHits] = useState<TagDoc[]>([]);
+  const [exactRnHits, setExactRnHits] = useState<TagDoc[]>([]);
+  const [lookupLoading, setLookupLoading] = useState(false);
   const me = auth.currentUser?.uid ?? null;
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -180,6 +183,48 @@ function TagsPageInner() {
   const garmentTypes = useMemo(() => Array.from(new Set(docs.map((d) => d.garmentType).filter(Boolean) as string[])).sort(), [docs]);
   const searchIntent = useMemo(() => parseSearchIntent(q), [q]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function runLookups() {
+      if (!searchIntent.exactIdentifierQuery) {
+        setExactStyleHits([]);
+        setExactRnHits([]);
+        setLookupLoading(false);
+        return;
+      }
+
+      setLookupLoading(true);
+      try {
+        const [styleSnap, rnSnap] = await Promise.all([
+          searchIntent.normalizedStyle
+            ? getDocs(query(collection(db, "tags"), where("styleNumber", "==", searchIntent.normalizedStyle), orderBy("createdAt", "desc"), limit(24)))
+            : Promise.resolve(null),
+          searchIntent.normalizedRn
+            ? getDocs(query(collection(db, "tags"), where("rn", "==", searchIntent.normalizedRn), orderBy("createdAt", "desc"), limit(24)))
+            : Promise.resolve(null),
+        ]);
+
+        if (cancelled) return;
+
+        setExactStyleHits(styleSnap ? styleSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) : []);
+        setExactRnHits(rnSnap ? rnSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) : []);
+      } catch {
+        if (!cancelled) {
+          setExactStyleHits([]);
+          setExactRnHits([]);
+        }
+      } finally {
+        if (!cancelled) setLookupLoading(false);
+      }
+    }
+
+    runLookups();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchIntent]);
+
   const filtered = useMemo(() => {
     const t = searchIntent.normalizedText;
     const minVerifiedNum = Number(minVerified || "0");
@@ -227,14 +272,26 @@ function TagsPageInner() {
   }, [docs, searchIntent, onlyWithRN, onlyWithStyle, verifiedOnly, garmentTypeFilter, yearFilter, tagFilter, colorFilter, materialFilter, genderFilter, minVerified]);
 
   const exactStyleMatches = useMemo(() => {
-    if (!searchIntent.normalizedStyle) return [] as TagDoc[];
-    return filtered.filter((d) => normalizeStyleNumber(d.styleNumber) === searchIntent.normalizedStyle);
-  }, [filtered, searchIntent.normalizedStyle]);
+    const map = new Map<string, TagDoc>();
+    for (const d of exactStyleHits) map.set(d.id, d);
+    for (const d of filtered) {
+      if (searchIntent.normalizedStyle && normalizeStyleNumber(d.styleNumber) === searchIntent.normalizedStyle) {
+        map.set(d.id, d);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => rankDoc(b, searchIntent) - rankDoc(a, searchIntent));
+  }, [exactStyleHits, filtered, searchIntent]);
 
   const exactRnMatches = useMemo(() => {
-    if (!searchIntent.normalizedRn) return [] as TagDoc[];
-    return filtered.filter((d) => (d.rn || "").replace(/\D+/g, "") === searchIntent.normalizedRn);
-  }, [filtered, searchIntent.normalizedRn]);
+    const map = new Map<string, TagDoc>();
+    for (const d of exactRnHits) map.set(d.id, d);
+    for (const d of filtered) {
+      if (searchIntent.normalizedRn && (d.rn || "").replace(/\D+/g, "") === searchIntent.normalizedRn) {
+        map.set(d.id, d);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => rankDoc(b, searchIntent) - rankDoc(a, searchIntent));
+  }, [exactRnHits, filtered, searchIntent]);
 
   const highlightedIds = useMemo(() => new Set([...exactStyleMatches, ...exactRnMatches].map((d) => d.id)), [exactStyleMatches, exactRnMatches]);
   const generalResults = useMemo(() => filtered.filter((d) => !highlightedIds.has(d.id)), [filtered, highlightedIds]);
@@ -276,8 +333,9 @@ function TagsPageInner() {
           <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/5 px-4 py-3 text-sm text-emerald-100">
             <div className="font-medium">Identifier-first lookup is active</div>
             <div className="mt-1 text-emerald-100/75">
-              Exact style number and RN matches are shown first before broader text matches.
+              Exact style number and RN matches are fetched directly from the database and shown first before broader text matches.
             </div>
+            {lookupLoading && <div className="mt-2 text-xs text-emerald-100/65">Checking exact identifier matches…</div>}
           </div>
         )}
 
@@ -332,13 +390,13 @@ function TagsPageInner() {
           <label className="flex items-center gap-2"><input type="checkbox" className="accent-emerald-400" checked={onlyWithRN} onChange={(e) => setOnlyWithRN(e.target.checked)} />Only with RN</label>
           <label className="flex items-center gap-2"><input type="checkbox" className="accent-emerald-400" checked={onlyWithStyle} onChange={(e) => setOnlyWithStyle(e.target.checked)} />Only with style number</label>
           <label className="flex items-center gap-2"><input type="checkbox" className="accent-emerald-400" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} />Reviewed / verified only</label>
-          <span className="text-white/50">{filtered.length} result{filtered.length === 1 ? "" : "s"}</span>
+          <span className="text-white/50">{filtered.length + [...highlightedIds].filter((id) => !filtered.some((doc) => doc.id === id)).length} surfaced result{filtered.length + [...highlightedIds].filter((id) => !filtered.some((doc) => doc.id === id)).length === 1 ? "" : "s"}</span>
         </div>
       </div>
 
       {loading ? (
         <SkeletonMasonry />
-      ) : filtered.length === 0 ? (
+      ) : exactStyleMatches.length === 0 && exactRnMatches.length === 0 && generalResults.length === 0 ? (
         <p className="mt-6 text-white/80">No records found.</p>
       ) : (
         <>
