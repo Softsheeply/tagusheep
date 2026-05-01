@@ -21,12 +21,12 @@ import {
   endAt,
   limit as qlimit,
 } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL, uploadBytes } from "firebase/storage";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
 import { findPotentialDuplicates } from "@/lib/duplicates";
 import AuthPanel from "@/app/components/AuthPanel";
 import { safeHostnameFromUrl } from "@/lib/validation";
-import { IMAGE_POLICY, normalizeUploadedImage } from "@/lib/images";
+import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 
 export default function UploadPage() {
   const [user, setUser] = useState<User | null>(auth.currentUser ?? null);
@@ -161,8 +161,12 @@ export default function UploadPage() {
       setStatus({ kind: "info", text: "Compressing…" });
 
       const compressed = await normalizeUploadedImage(file);
-      const path = `tagusheep/uploads/${user.uid}/${Date.now()}_${compressed.name}`;
+      const thumbnail = await normalizeThumbnailImage(file);
+      const baseName = `${Date.now()}_${compressed.name}`;
+      const path = `tagusheep/uploads/${user.uid}/${baseName}`;
+      const thumbPath = `tagusheep/uploads/${user.uid}/thumb_${baseName}`;
       const storageRef = ref(storage, path);
+      const thumbRef = ref(storage, thumbPath);
       const task = uploadBytesResumable(storageRef, compressed);
 
       await new Promise<void>((res, rej) =>
@@ -181,6 +185,8 @@ export default function UploadPage() {
         )
       );
       const imageUrl = await getDownloadURL(storageRef);
+      await uploadBytes(thumbRef, thumbnail, { contentType: IMAGE_POLICY.mimeType });
+      const thumbnailUrl = await getDownloadURL(thumbRef);
 
       const payload = prepareRecord({
         brand,
@@ -196,6 +202,7 @@ export default function UploadPage() {
         careText,
         notes,
         imageUrl,
+        thumbnailUrl,
         storagePath: path,
         sourceUrl,
         sourceName: safeHostnameFromUrl(sourceUrl),

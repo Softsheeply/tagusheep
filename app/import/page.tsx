@@ -9,7 +9,7 @@ import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificati
 import { scrapeProductUrl } from "@/lib/scrape";
 import { findPotentialDuplicates } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
-import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeUploadedImage } from "@/lib/images";
+import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 
 type FormState = {
   brand: string;
@@ -151,16 +151,23 @@ export default function ImportPage() {
     setMessage(null);
     try {
       let hostedImageUrl = form.imageUrl;
+      let hostedThumbnailUrl: string | null = null;
       let hostedExtraImageUrls = form.extraImageUrls.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
       let hostedStoragePath: string | null = null;
 
       if (hostImportedImage && form.imageUrl) {
         const remoteFile = await fetchRemoteImageAsFile(form.imageUrl, "primary-import");
         const normalizedFile = await normalizeUploadedImage(remoteFile);
-        const path = `tagusheep/imports/${auth.currentUser.uid}/${Date.now()}_${normalizedFile.name}`;
+        const thumbnailFile = await normalizeThumbnailImage(remoteFile);
+        const baseName = `${Date.now()}_${normalizedFile.name}`;
+        const path = `tagusheep/imports/${auth.currentUser.uid}/${baseName}`;
+        const thumbPath = `tagusheep/imports/${auth.currentUser.uid}/thumb_${baseName}`;
         const storageRef = ref(storage, path);
+        const thumbRef = ref(storage, thumbPath);
         await uploadBytes(storageRef, normalizedFile, { contentType: IMAGE_POLICY.mimeType });
+        await uploadBytes(thumbRef, thumbnailFile, { contentType: IMAGE_POLICY.mimeType });
         hostedImageUrl = await getDownloadURL(storageRef);
+        hostedThumbnailUrl = await getDownloadURL(thumbRef);
         hostedStoragePath = path;
       }
 
@@ -182,6 +189,7 @@ export default function ImportPage() {
         color: form.color,
         notes: form.notes,
         imageUrl: hostedImageUrl,
+        thumbnailUrl: hostedThumbnailUrl,
         extraImageUrls: hostedExtraImageUrls,
         sourceUrl: form.sourceUrl,
         sourceName: form.sourceName || safeHostnameFromUrl(form.sourceUrl),

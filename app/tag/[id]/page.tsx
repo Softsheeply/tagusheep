@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { auth, db, storage } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
 import { prepareRecord, getVerificationPercent, type SourceType, type VerificationStatus } from "@/lib/records";
 import { safeHostnameFromUrl } from "@/lib/validation";
-import { IMAGE_POLICY, normalizeUploadedImage } from "@/lib/images";
+import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 
 type TagDoc = {
   brand?: string | null;
@@ -28,6 +28,7 @@ type TagDoc = {
   sourceType?: SourceType | null;
   verificationStatus?: VerificationStatus | null;
   imageUrl: string;
+  thumbnailUrl?: string | null;
   storagePath?: string | null;
   createdBy?: string | null;
   createdAt?: any;
@@ -183,14 +184,18 @@ export default function TagDetailPage() {
     try {
       setStatus({ kind: "info", text: "Saving…" });
       let imageUrl = tag.imageUrl;
+      let thumbnailUrl = tag.thumbnailUrl ?? null;
       let storagePath = tag.storagePath ?? null;
       if (newFile) {
         if (storagePath) {
           try { await deleteObject(ref(storage, storagePath)); } catch {}
         }
         const file = await normalizeUploadedImage(newFile);
+        const thumbnail = await normalizeThumbnailImage(newFile);
         const uid = auth.currentUser?.uid!;
-        const newPath = `tagusheep/uploads/${uid}/${Date.now()}_${file.name}`;
+        const baseName = `${Date.now()}_${file.name}`;
+        const newPath = `tagusheep/uploads/${uid}/${baseName}`;
+        const thumbPath = `tagusheep/uploads/${uid}/thumb_${baseName}`;
         const task = uploadBytesResumable(ref(storage, newPath), file);
         task.on("state_changed", (snap) => {
           const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
@@ -198,6 +203,8 @@ export default function TagDetailPage() {
         });
         await new Promise<void>((res, rej) => task.on("state_changed", undefined, rej, () => res()));
         imageUrl = await getDownloadURL(ref(storage, newPath));
+        await uploadBytes(ref(storage, thumbPath), thumbnail, { contentType: IMAGE_POLICY.mimeType });
+        thumbnailUrl = await getDownloadURL(ref(storage, thumbPath));
         storagePath = newPath;
       }
 
@@ -219,6 +226,7 @@ export default function TagDetailPage() {
         sourceType,
         verificationStatus,
         imageUrl,
+        thumbnailUrl,
         storagePath,
       });
 

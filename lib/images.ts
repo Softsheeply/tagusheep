@@ -2,7 +2,9 @@ export const IMAGE_POLICY = {
   format: "webp",
   mimeType: "image/webp",
   maxDimension: 1600,
+  thumbnailMaxDimension: 480,
   quality: 0.84,
+  thumbnailQuality: 0.76,
   maxImportedImageUrlCount: 8,
 } as const;
 
@@ -89,11 +91,11 @@ function applyCanvasOrientation(
   }
 }
 
-export async function normalizeUploadedImage(file: File): Promise<File> {
+async function normalizeImage(file: File, maxDimension: number, quality: number): Promise<File> {
   try {
     const orientation = await readExifOrientation(file);
     const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, IMAGE_POLICY.maxDimension / Math.max(bmp.width, bmp.height));
+    const scale = Math.min(1, maxDimension / Math.max(bmp.width, bmp.height));
     const srcW = Math.round(bmp.width * scale);
     const srcH = Math.round(bmp.height * scale);
 
@@ -112,7 +114,7 @@ export async function normalizeUploadedImage(file: File): Promise<File> {
     const { dw, dh } = applyCanvasOrientation(ctx, srcW, srcH, orientation || 1);
     ctx.drawImage(bmp, 0, 0, dw, dh);
 
-    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, IMAGE_POLICY.mimeType, IMAGE_POLICY.quality));
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, IMAGE_POLICY.mimeType, quality));
     if (!blob) return file;
 
     const name = file.name.replace(/\.(png|jpe?g|gif|webp)$/i, "") + ".webp";
@@ -120,6 +122,14 @@ export async function normalizeUploadedImage(file: File): Promise<File> {
   } catch {
     return file;
   }
+}
+
+export async function normalizeUploadedImage(file: File): Promise<File> {
+  return normalizeImage(file, IMAGE_POLICY.maxDimension, IMAGE_POLICY.quality);
+}
+
+export async function normalizeThumbnailImage(file: File): Promise<File> {
+  return normalizeImage(file, IMAGE_POLICY.thumbnailMaxDimension, IMAGE_POLICY.thumbnailQuality);
 }
 
 export async function fetchRemoteImageAsFile(url: string, baseName = "imported-image") {

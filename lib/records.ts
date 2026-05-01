@@ -22,6 +22,7 @@ export type TagRecord = {
   color?: string | null;
   notes?: string | null;
   imageUrl: string;
+  thumbnailUrl?: string | null;
   extraImageUrls?: string[];
   sourceUrl?: string | null;
   sourceName?: string | null;
@@ -156,6 +157,7 @@ export function prepareRecord(record: Partial<TagRecord>): Partial<TagRecord> {
     notes,
     sourceUrl,
     sourceName,
+    thumbnailUrl: safeTrim(record.thumbnailUrl, 2048),
     verificationStatus: record.verificationStatus || "pending",
     sourceType: record.sourceType || (sourceUrl ? "unknown" : "manual"),
   };
