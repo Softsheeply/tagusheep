@@ -47,7 +47,7 @@ function parseSearchIntent(input: string): SearchIntent {
   const normalizedRn = raw.replace(/\D+/g, "") || null;
   const normalizedStyle = normalizeStyleNumber(raw);
   const words = normalizedText.split(/\s+/).filter(Boolean);
-  const brandWords = words.filter((word) => !/^rn$/i.test(word) && !/^style$/i.test(word) && !/^#/.test(word) && !/^\d+$/.test(word));
+  const brandWords = words.filter((word) => !/^rn$/i.test(word) && !/^style$/i.test(word) && !/^#/.test(word) && !/^\d+$/.test(word) && !/^rn\d+$/i.test(word));
   const styleTokens = (normalizedStyle || "").split(/[^A-Z0-9]+/).filter(Boolean);
   const exactIdentifierQuery = !!raw && ((normalizedRn?.length ?? 0) >= 3 || styleTokens.some((token) => /\d/.test(token)));
 
@@ -77,15 +77,21 @@ function rankDoc(doc: TagDoc, intent: SearchIntent) {
 
   let score = 0;
 
+  const brandWordMatches = intent.brandWords.filter((word) => brand.includes(word));
+
   if (intent.normalizedStyle && normalizedDocStyle === intent.normalizedStyle) score += 1000;
   if (intent.normalizedRn && normalizedDocRn === intent.normalizedRn) score += 950;
 
-  if (intent.brandWords.length && intent.normalizedStyle && normalizedDocStyle === intent.normalizedStyle && intent.brandWords.some((word) => brand.includes(word))) {
-    score += 1200;
+  if (intent.brandWords.length && intent.normalizedStyle && normalizedDocStyle === intent.normalizedStyle && brandWordMatches.length > 0) {
+    score += 1200 + brandWordMatches.length * 90;
   }
 
-  if (intent.brandWords.length && intent.normalizedRn && normalizedDocRn === intent.normalizedRn && intent.brandWords.some((word) => brand.includes(word))) {
-    score += 1150;
+  if (intent.brandWords.length && intent.normalizedRn && normalizedDocRn === intent.normalizedRn && brandWordMatches.length > 0) {
+    score += 1150 + brandWordMatches.length * 90;
+  }
+
+  if (intent.brandWords.length > 0 && intent.styleTokens.some((token) => /\d/.test(token)) && brandWordMatches.length > 0) {
+    score += 260;
   }
 
   if (intent.normalizedText && productName === intent.normalizedText) score += 500;
@@ -95,6 +101,7 @@ function rankDoc(doc: TagDoc, intent: SearchIntent) {
   for (const word of intent.brandWords) {
     if (brand.includes(word)) score += 80;
     if (productName.includes(word)) score += 40;
+    if (category.includes(word)) score += 20;
   }
 
   for (const token of intent.styleTokens) {
