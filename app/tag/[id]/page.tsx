@@ -31,7 +31,7 @@ type TagDoc = {
   thumbnailUrl?: string | null;
   storagePath?: string | null;
   createdBy?: string | null;
-  createdAt?: any;
+  createdAt?: unknown;
 };
 
 export default function TagDetailPage() {
@@ -61,7 +61,6 @@ export default function TagDetailPage() {
   const [sourceType, setSourceType] = useState<SourceType>("unknown");
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>("pending");
 
-  const [rnWarning, setRnWarning] = useState<string | null>(null);
   const [rnBrandSuggestions, setRnBrandSuggestions] = useState<string[]>([]);
   const [brandAutocomplete, setBrandAutocomplete] = useState<string[]>([]);
   const rnDebounce = useRef<number | null>(null);
@@ -114,14 +113,8 @@ export default function TagDetailPage() {
 
   useEffect(() => {
     if (!rn) {
-      setRnWarning(null);
-      setRnBrandSuggestions([]);
       return;
     }
-    if (!/^\d+$/.test(rn)) setRnWarning("RN must be digits only.");
-    else if (rn.length < 3) setRnWarning("RN looks too short.");
-    else if (rn.length > 7) setRnWarning("RN looks too long.");
-    else setRnWarning(null);
 
     if (rnDebounce.current) window.clearTimeout(rnDebounce.current);
     rnDebounce.current = window.setTimeout(async () => {
@@ -139,9 +132,18 @@ export default function TagDetailPage() {
     };
   }, [rn]);
 
+  const rnWarning = !rn
+    ? null
+    : !/^\d+$/.test(rn)
+      ? "RN must be digits only."
+      : rn.length < 3
+        ? "RN looks too short."
+        : rn.length > 7
+          ? "RN looks too long."
+          : null;
+
   useEffect(() => {
     if (!brand) {
-      setBrandAutocomplete([]);
       return;
     }
     if (brandDebounce.current) window.clearTimeout(brandDebounce.current);
@@ -161,6 +163,15 @@ export default function TagDetailPage() {
       if (brandDebounce.current) window.clearTimeout(brandDebounce.current);
     };
   }, [brand]);
+
+  useEffect(() => {
+    if (!brand) {
+      setBrandAutocomplete([]);
+    }
+    if (!rn) {
+      setRnBrandSuggestions([]);
+    }
+  }, [brand, rn]);
 
   function consoleStorageUrl(projectId: string, bucket: string, storagePath?: string | null) {
     const base = `https://console.firebase.google.com/project/${projectId}/storage/${bucket}/files`;
@@ -192,7 +203,10 @@ export default function TagDetailPage() {
         }
         const file = await normalizeUploadedImage(newFile);
         const thumbnail = await normalizeThumbnailImage(newFile);
-        const uid = auth.currentUser?.uid!;
+        const uid = auth.currentUser?.uid;
+        if (!uid) {
+          throw new Error("You must be signed in to replace the image.");
+        }
         const baseName = `${Date.now()}_${file.name}`;
         const newPath = `tagusheep/uploads/${uid}/${baseName}`;
         const thumbPath = `tagusheep/uploads/${uid}/thumb_${baseName}`;
@@ -235,8 +249,8 @@ export default function TagDetailPage() {
       setNewFile(null);
       setStatus({ kind: "success", text: "Saved ✅" });
       setTimeout(() => setStatus({ kind: "idle", text: null }), 1200);
-    } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message || String(err) });
+    } catch (err: unknown) {
+      setStatus({ kind: "error", text: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -256,8 +270,8 @@ export default function TagDetailPage() {
       await deleteDoc(doc(db, "tags", id));
       setStatus({ kind: "success", text: "Moved to Trash ✅" });
       router.push("/trash");
-    } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message || String(err) });
+    } catch (err: unknown) {
+      setStatus({ kind: "error", text: err instanceof Error ? err.message : String(err) });
     }
   }
 
