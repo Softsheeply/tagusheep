@@ -8,87 +8,7 @@ import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, o
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { prepareRecord, getVerificationPercent, type SourceType, type VerificationStatus } from "@/lib/records";
 import { safeHostnameFromUrl } from "@/lib/validation";
-
-async function readExifOrientation(file: File): Promise<number | null> {
-  const buf = await file.slice(0, 64 * 1024).arrayBuffer();
-  const view = new DataView(buf);
-  let offset = 2;
-  const length = view.byteLength;
-  if (view.getUint16(0, false) !== 0xffd8) return null;
-  while (offset < length) {
-    const marker = view.getUint16(offset, false);
-    offset += 2;
-    if (marker === 0xffe1) {
-      const size = view.getUint16(offset, false);
-      offset += 2;
-      if (view.getUint32(offset, false) === 0x45786966 && view.getUint16(offset + 4, false) === 0x0000) {
-        const tiffOffset = offset + 6;
-        const little = view.getUint16(tiffOffset, false) === 0x4949;
-        const get16 = (o: number) => view.getUint16(o, little);
-        const get32 = (o: number) => view.getUint32(o, little);
-        if (get16(tiffOffset + 2) !== 0x002a) return null;
-        const firstIFDOffset = get32(tiffOffset + 4);
-        if (!firstIFDOffset) return null;
-        const dirStart = tiffOffset + firstIFDOffset;
-        const entries = get16(dirStart);
-        for (let i = 0; i < entries; i++) {
-          const entryOffset = dirStart + 2 + i * 12;
-          const tag = get16(entryOffset);
-          if (tag === 0x0112) return get16(entryOffset + 8) || 1;
-        }
-        return null;
-      } else {
-        offset += size - 2;
-      }
-    } else if ((marker & 0xff00) !== 0xff00) {
-      break;
-    } else {
-      offset += view.getUint16(offset, false);
-    }
-  }
-  return null;
-}
-
-function applyCanvasOrientation(ctx: CanvasRenderingContext2D, w: number, h: number, orientation: number): { dw: number; dh: number } {
-  switch (orientation) {
-    case 2: ctx.translate(w, 0); ctx.scale(-1, 1); return { dw: w, dh: h };
-    case 3: ctx.translate(w, h); ctx.rotate(Math.PI); return { dw: w, dh: h };
-    case 4: ctx.translate(0, h); ctx.scale(1, -1); return { dw: w, dh: h };
-    case 5: ctx.rotate(0.5 * Math.PI); ctx.scale(1, -1); return { dw: h, dh: w };
-    case 6: ctx.rotate(0.5 * Math.PI); ctx.translate(0, -h); return { dw: h, dh: w };
-    case 7: ctx.rotate(0.5 * Math.PI); ctx.translate(w, -h); ctx.scale(-1, 1); return { dw: h, dh: w };
-    case 8: ctx.rotate(-0.5 * Math.PI); ctx.translate(-w, 0); return { dw: h, dh: w };
-    default: return { dw: w, dh: h };
-  }
-}
-
-async function compressWithExifFix(file: File, maxDim = 1600, quality = 0.85): Promise<File> {
-  try {
-    const orientation = await readExifOrientation(file);
-    const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
-    const srcW = Math.round(bmp.width * scale);
-    const srcH = Math.round(bmp.height * scale);
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    if (orientation && orientation >= 5 && orientation <= 8) {
-      canvas.width = srcH;
-      canvas.height = srcW;
-    } else {
-      canvas.width = srcW;
-      canvas.height = srcH;
-    }
-    const { dw, dh } = applyCanvasOrientation(ctx, srcW, srcH, orientation || 1);
-    ctx.drawImage(bmp, 0, 0, dw, dh);
-    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/webp", quality));
-    if (!blob) return file;
-    const name = file.name.replace(/\.(png|jpe?g|gif|webp)$/i, "") + ".webp";
-    return new File([blob], name, { type: "image/webp" });
-  } catch {
-    return file;
-  }
-}
+import { IMAGE_POLICY, normalizeUploadedImage } from "@/lib/images";
 
 type TagDoc = {
   brand?: string | null;
@@ -268,7 +188,7 @@ export default function TagDetailPage() {
         if (storagePath) {
           try { await deleteObject(ref(storage, storagePath)); } catch {}
         }
-        const file = await compressWithExifFix(newFile);
+        const file = await normalizeUploadedImage(newFile);
         const uid = auth.currentUser?.uid!;
         const newPath = `tagusheep/uploads/${uid}/${Date.now()}_${file.name}`;
         const task = uploadBytesResumable(ref(storage, newPath), file);
@@ -434,6 +354,7 @@ export default function TagDetailPage() {
             <Select label="Verification status" value={verificationStatus} onChange={(v) => setVerificationStatus(v as VerificationStatus)} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
           </div>
           <input type="file" accept="image/*" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
+          <p className="text-xs text-white/60">Replacement uploads are normalized to {IMAGE_POLICY.format.toUpperCase()} at up to {IMAGE_POLICY.maxDimension}px.</p>
           <div className="flex gap-2">
             <button type="submit" disabled={!canEdit || status.kind === "info"} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
               {status.kind === "info" && status.pct != null ? `Uploading… ${status.pct}%` : status.kind === "info" ? "Saving…" : "Save"}

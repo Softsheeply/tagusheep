@@ -8,6 +8,7 @@ import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificati
 import { scrapeProductUrl } from "@/lib/scrape";
 import { findPotentialDuplicates } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
+import { IMAGE_POLICY } from "@/lib/images";
 
 type FormState = {
   brand: string;
@@ -202,6 +203,9 @@ export default function ImportPage() {
           <h1 className="text-3xl font-semibold">Import from URL</h1>
           <p className="mt-2 text-white/70 max-w-2xl">
             Paste a real product or listing URL. Tagsheep will fetch the page, extract structured data, and let you save a live record with review status, source metadata, and searchable fields.
+          </p>
+          <p className="mt-2 text-sm text-white/55 max-w-2xl">
+            Current image policy: normalize uploads to {IMAGE_POLICY.format.toUpperCase()} at up to {IMAGE_POLICY.maxDimension}px. Imported remote images will follow this same storage policy when brought fully in-house.
           </p>
           <p className="mt-2 text-emerald-200">Verification preview: {verificationPreview}%</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
