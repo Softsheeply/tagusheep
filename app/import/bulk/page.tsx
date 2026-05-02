@@ -1,0 +1,178 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { prepareRecord } from "@/lib/records";
+import { scrapeProductUrl } from "@/lib/scrape";
+
+type ImportResult = {
+  url: string;
+  status: "pending" | "success" | "review" | "error";
+  message?: string;
+  recordName?: string;
+};
+
+export default function BulkImportPage() {
+  const [input, setInput] = useState("");
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState<ImportResult[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const urls = useMemo(() => {
+    return input
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }, [input]);
+
+  async function runBulkImport() {
+    if (!auth.currentUser) {
+      setMessage("Please sign in before running bulk import.");
+      return;
+    }
+    if (urls.length === 0) {
+      setMessage("Paste at least one URL.");
+      return;
+    }
+
+    setRunning(true);
+    setMessage(null);
+    const initial = urls.map((url) => ({ url, status: "pending" as const }));
+    setResults(initial);
+
+    for (const url of urls) {
+      try {
+        const data = await scrapeProductUrl(url);
+        const payload = prepareRecord({
+          ...data,
+          sourceUrl: data.sourceUrl || url,
+          verificationStatus: "pending",
+          createdBy: auth.currentUser.uid,
+          createdAt: serverTimestamp(),
+          importedAt: new Date().toISOString(),
+        });
+
+        if (!payload.imageUrl || !payload.brand) {
+          await addDoc(collection(db, "imports_review"), {
+            ...payload,
+            sourceUrl: payload.sourceUrl || url,
+            createdBy: auth.currentUser.uid,
+            createdAt: serverTimestamp(),
+            importedAt: new Date().toISOString(),
+            importStatus: "needs_review",
+          });
+          setResults((prev) => prev.map((item) => item.url === url ? { ...item, status: "review", recordName: payload.productName || payload.brand || url, message: "Saved to review queue." } : item));
+          continue;
+        }
+
+        await addDoc(collection(db, "tags"), payload);
+        setResults((prev) => prev.map((item) => item.url === url ? { ...item, status: "success", recordName: payload.productName || payload.brand || url } : item));
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Import failed.";
+        setResults((prev) => prev.map((item) => item.url === url ? { ...item, status: "error", message } : item));
+      }
+    }
+
+    setRunning(false);
+    setMessage("Bulk import finished. Strong records were saved as pending; partial records were sent to the review queue.");
+  }
+
+  const successCount = results.filter((r) => r.status === "success").length;
+  const errorCount = results.filter((r) => r.status === "error").length;
+
+  return (
+    <main className="mx-auto max-w-6xl p-6 space-y-6">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Import pipeline</p>
+          <h1 className="text-3xl font-semibold">Bulk URL import</h1>
+          <p className="mt-2 max-w-3xl text-white/70">
+            Paste many product URLs and let Tagsheep import them one by one. Successful records are saved live as <b>pending</b> so you can review them later.
+          </p>
+        </div>
+        <div className="flex gap-3 text-sm">
+          <Link href="/import" className="underline">Single import</Link>
+          <Link href="/tools" className="underline">← Back to tools</Link>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_.9fr]">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+          <label className="block space-y-2">
+            <span className="text-sm text-white/80">Paste one URL per line</span>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              rows={18}
+              placeholder="https://oldnavy.gapcanada.ca/browse/product.do?...\nhttps://example.com/product/..."
+              className="w-full rounded-2xl border border-white/12 bg-[#09111f] px-4 py-3 text-white placeholder:text-white/35 outline-none transition focus:border-emerald-300/60"
+            />
+          </label>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={runBulkImport}
+              disabled={running || urls.length === 0}
+              className="rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50"
+            >
+              {running ? "Importing…" : `Import ${urls.length} URL${urls.length === 1 ? "" : "s"}`}
+            </button>
+            <span className="text-sm text-white/55">Successful imports save immediately as pending records.</span>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            <StatCard label="Queued" value={String(urls.length)} />
+            <StatCard label="Imported" value={String(successCount)} />
+            <StatCard label="Errors" value={String(errorCount)} />
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3 max-h-[560px] overflow-auto">
+            {results.length === 0 ? (
+              <p className="text-sm text-white/60">No results yet. Paste URLs and run the importer.</p>
+            ) : (
+              results.map((result) => (
+                <div key={result.url} className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-white/90">{result.recordName || result.url}</div>
+                      <div className="truncate text-white/45 text-xs mt-1">{result.url}</div>
+                      {result.message && <div className="mt-2 text-rose-200 text-xs">{result.message}</div>}
+                    </div>
+                    <StatusPill status={result.status} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {message && <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/85">{message}</div>}
+    </main>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="text-xs uppercase tracking-[0.18em] text-white/45">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: ImportResult["status"] }) {
+  const cls = status === "success"
+    ? "border-emerald-300/35 bg-emerald-400/10 text-emerald-200"
+    : status === "review"
+    ? "border-sky-300/35 bg-sky-400/10 text-sky-200"
+    : status === "error"
+    ? "border-rose-300/35 bg-rose-400/10 text-rose-200"
+    : "border-amber-300/35 bg-amber-400/10 text-amber-200";
+
+  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${cls}`}>{status}</span>;
+}
