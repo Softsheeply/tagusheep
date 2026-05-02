@@ -5,7 +5,7 @@ import Link from "next/link";
 import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, normalizeBrand, normalizeStyleNumber, prepareRecord, type VerificationStatus, type SourceType } from "@/lib/records";
-import { findPotentialDuplicates } from "@/lib/duplicates";
+import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 
 type ReviewDoc = {
   id: string;
@@ -23,7 +23,9 @@ type ReviewDoc = {
   year?: string | null;
   verificationStatus?: VerificationStatus | null;
   duplicateOfId?: string | null;
-  [key: string]: any;
+  createdBy?: string | null;
+  createdAt?: unknown;
+  importedAt?: string | null;
 };
 
 function duplicateKey(row: Pick<ReviewDoc, "brand" | "styleNumber">) {
@@ -37,14 +39,14 @@ export default function ImportsReviewPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [duplicates, setDuplicates] = useState<Record<string, any[]>>({});
+  const [duplicates, setDuplicates] = useState<Record<string, DuplicateCandidate[]>>({});
 
   async function load() {
     setLoading(true);
     try {
       const qRef = query(collection(db, "imports_review"), orderBy("createdAt", "desc"));
       const snap = await getDocs(qRef);
-      setRows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+      setRows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ReviewDoc, "id">) })));
     } finally {
       setLoading(false);
     }
@@ -91,8 +93,8 @@ export default function ImportsReviewPage() {
         duplicateOfId: row.duplicateOfId || null,
       });
       setMessage("Draft updated.");
-    } catch (error: any) {
-      setMessage(error?.message || "Save failed.");
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Save failed.");
     } finally {
       setBusyId(null);
     }
@@ -113,8 +115,8 @@ export default function ImportsReviewPage() {
       });
       updateLocal(row.id, { duplicateOfId: duplicateId, verificationStatus: "rejected" });
       setMessage("Marked as duplicate candidate.");
-    } catch (error: any) {
-      setMessage(error?.message || "Could not mark duplicate.");
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Could not mark duplicate.");
     } finally {
       setBusyId(null);
     }
@@ -155,8 +157,8 @@ export default function ImportsReviewPage() {
       await deleteDoc(doc(db, "imports_review", row.id));
       setRows((prev) => prev.filter((item) => item.id !== row.id));
       setMessage("Import promoted to main database.");
-    } catch (error: any) {
-      setMessage(error?.message || "Approval failed.");
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Approval failed.");
     } finally {
       setBusyId(null);
     }
@@ -169,8 +171,8 @@ export default function ImportsReviewPage() {
       await deleteDoc(doc(db, "imports_review", id));
       setRows((prev) => prev.filter((item) => item.id !== id));
       setMessage("Review item removed.");
-    } catch (error: any) {
-      setMessage(error?.message || "Delete failed.");
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Delete failed.");
     } finally {
       setBusyId(null);
     }
@@ -231,7 +233,7 @@ export default function ImportsReviewPage() {
                     <Select label="Verification" value={row.verificationStatus || "needs_info"} onChange={(value) => updateLocal(row.id, { verificationStatus: value as VerificationStatus })} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
                   </div>
 
-                  <div className="text-sm text-emerald-200">Verification preview: {getVerificationPercent(row as any)}%</div>
+                  <div className="text-sm text-emerald-200">Verification preview: {getVerificationPercent(row)}%</div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     {CORE_VERIFICATION_FIELDS.map((field) => {
                       const value = row[field];
