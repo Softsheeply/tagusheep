@@ -10,6 +10,8 @@ export type TagRecord = {
   rn?: string | null;
   styleNumber?: string | null;
   garmentType?: string | null;
+  size?: string | null;
+  availableSizes?: string[];
   tags?: string[];
   category?: string | null;
   subCategory?: string | null;
@@ -53,6 +55,8 @@ export function buildSearchText(record: Partial<TagRecord>) {
     record.rn,
     record.styleNumber,
     record.garmentType,
+    record.size,
+    ...(record.availableSizes || []),
     ...(record.tags || []),
     record.category,
     record.subCategory,
@@ -78,6 +82,7 @@ export const CORE_VERIFICATION_FIELDS = [
   "rn",
   "styleNumber",
   "garmentType",
+  "size",
   "materials",
   "madeIn",
   "careText",
@@ -93,6 +98,7 @@ export const CORE_VERIFICATION_FIELD_LABELS: Record<CoreVerificationField, strin
   rn: "RN",
   styleNumber: "Style number",
   garmentType: "Garment type",
+  size: "Size",
   materials: "Materials",
   madeIn: "Made in",
   careText: "Care text",
@@ -123,6 +129,8 @@ export function prepareRecord(record: Partial<TagRecord>): Partial<TagRecord> {
   const rn = record.rn?.replace(/\D+/g, "").slice(0, 7) || null;
   const productName = safeTrim(record.productName, 200);
   const garmentType = safeTrim(record.garmentType, 120);
+  const size = safeTrim(record.size, 60);
+  const availableSizes = (record.availableSizes || []).map((v) => safeTrim(v, 30)).filter(Boolean) as string[];
   const tags = (record.tags || []).map((v) => safeTrim(v, 60)).filter(Boolean) as string[];
   const category = safeTrim(record.category, 120);
   const subCategory = safeTrim(record.subCategory, 120);
@@ -144,6 +152,8 @@ export function prepareRecord(record: Partial<TagRecord>): Partial<TagRecord> {
     styleNumber,
     productName,
     garmentType,
+    size,
+    availableSizes,
     tags,
     category,
     subCategory,

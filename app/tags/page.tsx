@@ -14,6 +14,8 @@ type TagDoc = {
   rn?: string | null;
   styleNumber?: string | null;
   garmentType?: string | null;
+  size?: string | null;
+  availableSizes?: string[];
   tags?: string[];
   category?: string | null;
   gender?: string | null;
@@ -136,6 +138,7 @@ function TagsPageInner() {
   const [colorFilter, setColorFilter] = useState("");
   const [materialFilter, setMaterialFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
+  const [sizeFilter, setSizeFilter] = useState("");
   const [minVerified, setMinVerified] = useState("0");
   const [admin, setAdmin] = useState(false);
   const [exactStyleHits, setExactStyleHits] = useState<TagDoc[]>([]);
@@ -244,6 +247,8 @@ function TagsPageInner() {
         d.rn ?? "",
         d.styleNumber ?? "",
         d.garmentType ?? "",
+        d.size ?? "",
+        ...(d.availableSizes || []),
         ...(d.tags || []),
         d.category ?? "",
         d.gender ?? "",
@@ -268,16 +273,19 @@ function TagsPageInner() {
       const matchColor = colorFilter.trim() ? (d.color || "").toLowerCase().includes(colorFilter.trim().toLowerCase()) : true;
       const matchMaterial = materialFilter.trim() ? (d.materials || "").toLowerCase().includes(materialFilter.trim().toLowerCase()) : true;
       const matchGender = genderFilter.trim() ? (d.gender || "").toLowerCase().includes(genderFilter.trim().toLowerCase()) : true;
+      const matchSize = sizeFilter.trim()
+        ? ((d.size || "").toLowerCase().includes(sizeFilter.trim().toLowerCase()) || (d.availableSizes || []).join(" ").toLowerCase().includes(sizeFilter.trim().toLowerCase()))
+        : true;
       const matchPercent = getVerificationPercent(d) >= minVerifiedNum;
 
-      return matchText && matchRN && matchStyle && matchVerified && matchGarmentType && matchYear && matchTag && matchColor && matchMaterial && matchGender && matchPercent;
+      return matchText && matchRN && matchStyle && matchVerified && matchGarmentType && matchYear && matchTag && matchColor && matchMaterial && matchGender && matchSize && matchPercent;
     });
 
     return matched
       .map((doc) => ({ doc, score: rankDoc(doc, searchIntent) }))
       .sort((a, b) => b.score - a.score)
       .map((item) => item.doc);
-  }, [docs, searchIntent, onlyWithRN, onlyWithStyle, verifiedOnly, garmentTypeFilter, yearFilter, tagFilter, colorFilter, materialFilter, genderFilter, minVerified]);
+  }, [docs, searchIntent, onlyWithRN, onlyWithStyle, verifiedOnly, garmentTypeFilter, yearFilter, tagFilter, colorFilter, materialFilter, genderFilter, sizeFilter, minVerified]);
 
   const exactStyleMatches = useMemo(() => {
     const map = new Map<string, TagDoc>();
@@ -392,6 +400,11 @@ function TagsPageInner() {
             <span className="text-white/60">Gender / category</span>
             <input value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} placeholder="mens, womens, unisex" className="w-full rounded-xl border border-white/12 bg-[#09111f] px-3 py-2 text-white" />
           </label>
+
+          <label className="block space-y-2">
+            <span className="text-white/60">Size</span>
+            <input value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)} placeholder="M, 32, XL, one size" className="w-full rounded-xl border border-white/12 bg-[#09111f] px-3 py-2 text-white" />
+          </label>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 text-sm text-white/78">
@@ -462,6 +475,7 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
           <div className="text-white/70">RN: {d.rn || "—"}</div>
           <div className="text-white/70">Style: {d.styleNumber || "—"}</div>
           <div className="text-white/70">Type: {d.garmentType || "—"}</div>
+          <div className="text-white/70">Size: {d.size || ((d.availableSizes || []).length ? d.availableSizes?.join(", ") : "—")}</div>
           <div className="flex flex-wrap gap-2 pt-1 text-[11px] uppercase tracking-wide">
             <VerificationBadge status={d.verificationStatus} />
             <Badge subtle>{getVerificationPercent(d)}% verified</Badge>

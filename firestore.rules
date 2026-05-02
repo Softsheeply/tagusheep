@@ -35,7 +35,7 @@ service cloud.firestore {
 
     function validTagKeys(data) {
       return data.keys().hasOnly([
-        'brand', 'productName', 'rn', 'styleNumber', 'garmentType', 'tags', 'category', 'subCategory', 'gender', 'year', 'season',
+        'brand', 'productName', 'rn', 'styleNumber', 'garmentType', 'size', 'availableSizes', 'tags', 'category', 'subCategory', 'gender', 'year', 'season',
         'madeIn', 'materials', 'careText', 'color', 'notes', 'imageUrl', 'thumbnailUrl', 'extraImageUrls', 'sourceUrl', 'sourceName', 'sourceType',
         'confidence', 'verificationStatus', 'searchText', 'storagePath', 'createdBy', 'createdAt', 'importedAt'
       ]);
@@ -48,6 +48,8 @@ service cloud.firestore {
         stringOrNull(data.rn, 7) &&
         stringOrNull(data.styleNumber, 120) &&
         stringOrNull(data.garmentType, 120) &&
+        stringOrNull(data.size, 60) &&
+        stringListOrNull(data.availableSizes, 20, 30) &&
         stringListOrNull(data.tags, 25, 60) &&
         stringOrNull(data.category, 120) &&
         stringOrNull(data.subCategory, 120) &&

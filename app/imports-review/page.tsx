@@ -24,6 +24,8 @@ type ReviewDoc = {
   notes?: string | null;
   styleNumber?: string | null;
   rn?: string | null;
+  size?: string | null;
+  availableSizes?: string[];
   category?: string | null;
   year?: string | null;
   verificationStatus?: VerificationStatus | null;
@@ -151,6 +153,8 @@ export default function ImportsReviewPage() {
         notes: row.notes || null,
         styleNumber: row.styleNumber || null,
         rn: row.rn || null,
+        size: row.size || null,
+        availableSizes: row.availableSizes || [],
         category: row.category || null,
         year: row.year || null,
         verificationStatus: row.verificationStatus || "pending",
@@ -210,6 +214,8 @@ export default function ImportsReviewPage() {
         notes: row.notes || null,
         styleNumber: row.styleNumber || null,
         rn: row.rn || null,
+        size: row.size || null,
+        availableSizes: row.availableSizes || [],
         category: row.category || null,
         year: row.year || null,
         verificationStatus: (row.verificationStatus as VerificationStatus) || "pending",
@@ -217,6 +223,21 @@ export default function ImportsReviewPage() {
         createdAt: row.createdAt || serverTimestamp(),
         importedAt: row.importedAt || new Date().toISOString(),
       });
+
+      if (!payload.imageUrl) {
+        const blockedNotes = [row.notes || "", "Approval blocked: missing primary image URL."].filter(Boolean).join("\n\n");
+        await updateDoc(doc(db, "imports_review", row.id), {
+          verificationStatus: "needs_info",
+          notes: blockedNotes,
+        });
+        updateLocal(row.id, {
+          verificationStatus: "needs_info",
+          notes: blockedNotes,
+        });
+        setMessage("This import still needs a valid primary image before it can be approved into the main database.");
+        return;
+      }
+
       await addDoc(collection(db, "tags"), payload);
       await deleteDoc(doc(db, "imports_review", row.id));
       setRows((prev) => prev.filter((item) => item.id !== row.id));
@@ -286,6 +307,7 @@ export default function ImportsReviewPage() {
                     <Field label="RN" value={row.rn || ""} onChange={(value) => updateLocal(row.id, { rn: value })} />
                     <Field label="Style number" value={row.styleNumber || ""} onChange={(value) => updateLocal(row.id, { styleNumber: value })} />
                     <Field label="Category" value={row.category || ""} onChange={(value) => updateLocal(row.id, { category: value })} />
+                    <Field label="Size" value={row.size || ""} onChange={(value) => updateLocal(row.id, { size: value })} />
                     <Field label="Year" value={row.year || ""} onChange={(value) => updateLocal(row.id, { year: value })} />
                     <Field label="Source name" value={row.sourceName || ""} onChange={(value) => updateLocal(row.id, { sourceName: value })} />
                     <Field label="Image URL" value={row.imageUrl || ""} onChange={(value) => updateLocal(row.id, { imageUrl: value })} />
@@ -309,6 +331,7 @@ export default function ImportsReviewPage() {
                       );
                     })}
                   </div>
+                  <Field label="Available sizes (comma separated)" value={(row.availableSizes || []).join(", ")} onChange={(value) => updateLocal(row.id, { availableSizes: value.split(",").map((v) => v.trim()).filter(Boolean) })} />
                   <TextArea label="Notes" value={row.notes || ""} onChange={(value) => updateLocal(row.id, { notes: value })} rows={4} />
 
                   <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/75">
