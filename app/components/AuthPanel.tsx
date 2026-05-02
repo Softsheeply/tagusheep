@@ -16,6 +16,7 @@ import {
 } from "firebase/auth";
 
 type Mode = "signin" | "signup" | "reset";
+const EMAIL_AUTH_ENABLED = false;
 
 export default function AuthPanel({ compact = false }: { compact?: boolean }) {
   const [user, setUser] = useState<User | null>(auth.currentUser ?? null);
@@ -139,11 +140,13 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
               </button>
             </div>
 
-            <div className="mb-4 flex gap-2 text-sm">
-              <button onClick={() => setMode("signin")} className={tabClass(mode === "signin")}>Sign in</button>
-              <button onClick={() => setMode("signup")} className={tabClass(mode === "signup")}>Create account</button>
-              <button onClick={() => setMode("reset")} className={tabClass(mode === "reset")}>Reset</button>
-            </div>
+            {EMAIL_AUTH_ENABLED && (
+              <div className="mb-4 flex gap-2 text-sm">
+                <button onClick={() => setMode("signin")} className={tabClass(mode === "signin")}>Sign in</button>
+                <button onClick={() => setMode("signup")} className={tabClass(mode === "signup")}>Create account</button>
+                <button onClick={() => setMode("reset")} className={tabClass(mode === "reset")}>Reset</button>
+              </div>
+            )}
 
             <button
               type="button"
@@ -154,13 +157,15 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
               Continue with Google
             </button>
 
-            <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-white/35">
-              <div className="h-px flex-1 bg-white/10" />
-              <span>or</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
+            {EMAIL_AUTH_ENABLED && (
+              <>
+                <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-white/35">
+                  <div className="h-px flex-1 bg-white/10" />
+                  <span>or</span>
+                  <div className="h-px flex-1 bg-white/10" />
+                </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
+                <form onSubmit={handleSubmit} className="space-y-3">
               <label className="block space-y-2">
                 <span className="text-sm text-white/80">Email</span>
                 <input
@@ -205,7 +210,15 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
               >
                 {busy ? "Working…" : mode === "signup" ? "Create account" : mode === "reset" ? "Send reset email" : "Sign in with email"}
               </button>
-            </form>
+                </form>
+              </>
+            )}
+
+            {!EMAIL_AUTH_ENABLED && (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+                Google sign-in is the only enabled sign-in method right now.
+              </div>
+            )}
 
             {status.text && (
               <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${status.kind === "error" ? "border-rose-400/30 bg-rose-500/10 text-rose-100" : "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"}`}>
@@ -214,7 +227,7 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
             )}
 
             <p className="mt-4 text-xs text-white/45">
-              If email sign-in fails, Email/Password may still need to be enabled in Firebase Auth.
+              {EMAIL_AUTH_ENABLED ? "If email sign-in fails, Email/Password may still need to be enabled in Firebase Auth." : "Email/password sign-in is currently hidden until it is explicitly enabled and tested."}
             </p>
           </div>
         </div>
