@@ -50,7 +50,7 @@ function shuffle<T>(items: T[]) {
 
 export default function HomePage() {
   const [search, setSearch] = useState("");
-  const [browseTopics, setBrowseTopics] = useState<BrowseTopic[]>(() => shuffle(allBrowseTopics).slice(0, 6));
+  const [browseTopics, setBrowseTopics] = useState<BrowseTopic[]>(allBrowseTopics.slice(0, 6));
   const [latest, setLatest] = useState<TagDoc[]>([]);
 
   useEffect(() => {
