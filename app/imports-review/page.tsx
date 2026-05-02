@@ -13,6 +13,10 @@ type ReviewDoc = {
   productName?: string | null;
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
+  garmentType?: string | null;
+  madeIn?: string | null;
+  materials?: string | null;
+  careText?: string | null;
   sourceUrl?: string | null;
   sourceName?: string | null;
   sourceType?: SourceType | null;
@@ -233,7 +237,7 @@ export default function ImportsReviewPage() {
                     <Select label="Verification" value={row.verificationStatus || "needs_info"} onChange={(value) => updateLocal(row.id, { verificationStatus: value as VerificationStatus })} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
                   </div>
 
-                  <div className="text-sm text-emerald-200">Verification preview: {getVerificationPercent(row)}%</div>
+                  <div className="text-sm text-emerald-200">Verification preview: {getVerificationPercent({ ...row, imageUrl: row.imageUrl || "" })}%</div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     {CORE_VERIFICATION_FIELDS.map((field) => {
                       const value = row[field];

@@ -138,14 +138,8 @@ export default function UploadPage() {
     };
   }, [brand]);
 
-  useEffect(() => {
-    if (!brand) {
-      setBrandAutocomplete([]);
-    }
-    if (!rn) {
-      setRnBrandSuggestions([]);
-    }
-  }, [brand, rn]);
+  const visibleBrandAutocomplete = brand ? brandAutocomplete : [];
+  const visibleRnBrandSuggestions = rn ? rnBrandSuggestions : [];
 
   async function checkDuplicates() {
     const found = await findPotentialDuplicates(brand, styleNumber);
@@ -292,9 +286,9 @@ export default function UploadPage() {
           <Field label="Materials" value={materials} onChange={setMaterials} />
         </div>
 
-        {brandAutocomplete.length > 0 && (
+        {visibleBrandAutocomplete.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {brandAutocomplete.map((b) => (
+            {visibleBrandAutocomplete.map((b) => (
               <button key={b} type="button" onClick={() => setBrand(b)} className="text-xs rounded-full border border-white/15 px-2 py-1 hover:border-emerald-300/50 transition">
                 {b}
               </button>
@@ -303,11 +297,11 @@ export default function UploadPage() {
         )}
 
         {rnWarning && <p className="text-xs text-amber-300">{rnWarning}</p>}
-        {rn && rnBrandSuggestions.length > 0 && (
+        {rn && visibleRnBrandSuggestions.length > 0 && (
           <div>
             <p className="text-xs text-white/70 mb-1">Brands already seen for RN {rn}:</p>
             <div className="flex flex-wrap gap-2">
-              {rnBrandSuggestions.map((b) => (
+              {visibleRnBrandSuggestions.map((b) => (
                 <button key={b} type="button" onClick={() => setBrand(b)} className="text-xs rounded-full border border-white/15 px-2 py-1 hover:border-emerald-300/50 transition">
                   {b}
                 </button>
