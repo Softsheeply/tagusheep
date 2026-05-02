@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -19,32 +20,31 @@ export default function AdminGate({ title, description, children }: AdminGatePro
   useEffect(() => {
     let cancelled = false;
 
-    async function check() {
-      const uid = auth.currentUser?.uid;
-      if (!uid) {
-        if (!cancelled) {
-          setSignedIn(false);
-          setAdmin(false);
-          setLoading(false);
-        }
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (cancelled) return;
+
+      if (!user) {
+        setSignedIn(false);
+        setAdmin(false);
+        setLoading(false);
         return;
       }
 
-      if (!cancelled) setSignedIn(true);
+      setSignedIn(true);
 
       try {
-        const snap = await getDoc(doc(db, "admins", uid));
+        const snap = await getDoc(doc(db, "admins", user.uid));
         if (!cancelled) {
           setAdmin(snap.exists());
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
+    });
 
-    void check();
     return () => {
       cancelled = true;
+      unsub();
     };
   }, []);
 
