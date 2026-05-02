@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { addDoc, collection, deleteDoc, doc, getDocs, getDoc, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, normalizeBrand, normalizeStyleNumber, prepareRecord, type VerificationStatus, type SourceType } from "@/lib/records";
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 
@@ -44,11 +45,13 @@ export default function ImportsReviewPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<Record<string, DuplicateCandidate[]>>({});
+  const [authChecked, setAuthChecked] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [accessChecked, setAccessChecked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   const load = useCallback(async () => {
-    if (!auth.currentUser) {
+    if (!currentUser) {
       setRows([]);
       setLoading(false);
       setMessage("Please sign in to view the import review queue.");
@@ -73,14 +76,21 @@ export default function ImportsReviewPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [currentUser, isAdmin]);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setAuthChecked(true);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function checkAccess() {
-      const uid = auth.currentUser?.uid;
-      if (!uid) {
+      if (!currentUser) {
         if (!cancelled) {
           setAccessChecked(true);
           setIsAdmin(false);
@@ -88,18 +98,21 @@ export default function ImportsReviewPage() {
         return;
       }
 
-      const snap = await getDoc(doc(db, "admins", uid));
+      const snap = await getDoc(doc(db, "admins", currentUser.uid));
       if (!cancelled) {
         setIsAdmin(snap.exists());
         setAccessChecked(true);
       }
     }
 
-    void checkAccess();
+    if (authChecked) {
+      setAccessChecked(false);
+      void checkAccess();
+    }
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authChecked, currentUser]);
 
   useEffect(() => {
     if (accessChecked) {
@@ -240,7 +253,7 @@ export default function ImportsReviewPage() {
         <Link href="/tools" className="text-sm underline">← Back to tools</Link>
       </div>
 
-      {!accessChecked || loading ? (
+      {!authChecked || !accessChecked || loading ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">Loading review queue…</div>
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">No pending import candidates.</div>
