@@ -7,7 +7,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
 import { scrapeProductUrl } from "@/lib/scrape";
-import { findPotentialDuplicates } from "@/lib/duplicates";
+import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 
@@ -69,7 +69,7 @@ export default function ImportPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyState);
-  const [duplicates, setDuplicates] = useState<any[] | null>(null);
+  const [duplicates, setDuplicates] = useState<DuplicateCandidate[] | null>(null);
   const [hostImportedImage, setHostImportedImage] = useState(true);
   const verificationRecord: Partial<TagRecord> = {
     brand: form.brand,
@@ -128,9 +128,9 @@ export default function ImportPage() {
       });
       setDuplicates(null);
       setMessage("Imported product data. Partial records can be saved as Needs Info.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Import failed", error);
-      setMessage(error?.message || "Import failed.");
+      setMessage(error instanceof Error ? error.message : "Import failed.");
     } finally {
       setBusy(false);
     }
@@ -222,10 +222,12 @@ export default function ImportPage() {
       setForm(emptyState);
       setUrl("");
       setDuplicates(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Save live record failed", error);
-      const code = error?.code ? ` (${error.code})` : "";
-      setMessage(`${error?.message || "Save failed."}${code}`);
+      const errorWithCode = error instanceof Error ? (error as Error & { code?: string }) : null;
+      const code = errorWithCode?.code ? ` (${errorWithCode.code})` : "";
+      const message = errorWithCode?.message || "Save failed.";
+      setMessage(`${message}${code}`);
     } finally {
       setSaving(false);
     }
