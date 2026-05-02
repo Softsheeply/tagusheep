@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query, limit, startAfter, getDocs, getDoc, doc, setDoc, deleteDoc, where } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, limit, startAfter, getDocs, getDoc, doc, setDoc, deleteDoc, where, type QueryDocumentSnapshot, type DocumentData } from "firebase/firestore";
 import { getVerificationPercent, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
 
 type TagDoc = {
@@ -125,7 +125,7 @@ function TagsPageInner() {
 
   const [docs, setDocs] = useState<TagDoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastSnap, setLastSnap] = useState<any>(null);
+  const [lastSnap, setLastSnap] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [q, setQ] = useState(initialQ);
   const [onlyWithRN, setOnlyWithRN] = useState(false);
   const [onlyWithStyle, setOnlyWithStyle] = useState(false);
@@ -161,7 +161,7 @@ function TagsPageInner() {
   useEffect(() => {
     const qRef = query(collection(db, "tags"), orderBy("createdAt", "desc"), limit(60));
     const off = onSnapshot(qRef, (snap) => {
-      setDocs(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+      setDocs(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })));
       setLoading(false);
       setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
       setExhausted(snap.size < 60);
@@ -178,7 +178,7 @@ function TagsPageInner() {
       setLoadingMore(true);
       const qRef = query(collection(db, "tags"), orderBy("createdAt", "desc"), startAfter(lastSnap), limit(60));
       const snap = await getDocs(qRef);
-      const more = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const more = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
       setDocs((prev) => [...prev, ...more]);
       setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
       setExhausted(snap.size < 60);
@@ -215,8 +215,8 @@ function TagsPageInner() {
 
         if (cancelled) return;
 
-        setExactStyleHits(styleSnap ? styleSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) : []);
-        setExactRnHits(rnSnap ? rnSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) : []);
+        setExactStyleHits(styleSnap ? styleSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })) : []);
+        setExactRnHits(rnSnap ? rnSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })) : []);
       } catch {
         if (!cancelled) {
           setExactStyleHits([]);
@@ -314,8 +314,8 @@ function TagsPageInner() {
       const trashDoc = { ...d, originalId: d.id, trashedAt: new Date().toISOString(), trashedBy: me };
       await setDoc(doc(db, "trash", d.id), trashDoc);
       await deleteDoc(doc(db, "tags", d.id));
-    } catch (e) {
-      alert("Error: " + ((e as any)?.message || String(e)));
+    } catch (e: unknown) {
+      alert("Error: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusyId(null);
     }
