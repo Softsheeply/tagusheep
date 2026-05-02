@@ -17,6 +17,8 @@ type EmbeddedImage = {
   url?: string;
   imageUrl?: string;
   zoomUrl?: string;
+  src?: string;
+  link?: string;
 };
 
 function stripTags(input: string) {
@@ -92,6 +94,15 @@ function pickImages(jsonLdNodes: JsonLdNode[], html: string, fallbackImages: str
 
   const og = firstMatch(html, [/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i]);
   if (og) out.add(og);
+
+  const twitter = firstMatch(html, [/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i]);
+  if (twitter) out.add(twitter);
+
+  const imgMatches = [...html.matchAll(/<img[^>]+(?:src|data-src|data-zoom-image|data-image)=["']([^"']+)["'][^>]*>/gi)];
+  for (const match of imgMatches) {
+    const candidate = normalizeImage(match[1]);
+    if (candidate) out.add(candidate);
+  }
 
   return Array.from(out).slice(0, 8);
 }
@@ -196,6 +207,8 @@ function extractFromEmbeddedState(state: JsonObject | null) {
           if (embeddedImage.url) return normalizeImage(embeddedImage.url);
           if (embeddedImage.imageUrl) return normalizeImage(embeddedImage.imageUrl);
           if (embeddedImage.zoomUrl) return normalizeImage(embeddedImage.zoomUrl);
+          if (embeddedImage.src) return normalizeImage(embeddedImage.src);
+          if (embeddedImage.link) return normalizeImage(embeddedImage.link);
           return null;
         })
         .filter((value): value is string => Boolean(value))

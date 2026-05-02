@@ -194,13 +194,21 @@ export default function TrashPage() {
                 key={d.id}
                 className="mb-4 break-inside-avoid relative group border border-white/10 rounded overflow-hidden bg-white/5"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={d.imageUrl}
-                  alt={d.brand ?? "tag"}
-                  loading="lazy"
-                  className="w-full h-auto object-cover"
-                />
+                {d.imageUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={d.imageUrl}
+                      alt={d.brand ?? "tag"}
+                      loading="lazy"
+                      className="w-full h-auto object-cover"
+                    />
+                  </>
+                ) : (
+                  <div className="flex h-56 items-center justify-center bg-white/5 text-sm text-white/40">
+                    No image saved
+                  </div>
+                )}
                 <div className="p-2 text-sm">
                   <div className="font-medium truncate">{d.brand || "—"}</div>
                   <div className="text-white/70">RN: {d.rn || "—"}</div>

@@ -3,9 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { auth, db, storage } from "@/lib/firebase";
 import { prepareRecord } from "@/lib/records";
 import { scrapeProductUrl } from "@/lib/scrape";
+import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
+import { safeHostnameFromUrl } from "@/lib/validation";
 
 type ImportResult = {
   url: string;
@@ -45,11 +48,55 @@ export default function BulkImportPage() {
     for (const url of urls) {
       try {
         const data = await scrapeProductUrl(url);
+        const uid = auth.currentUser.uid;
+        let hostedImageUrl = data.imageUrl || "";
+        let hostedThumbnailUrl: string | null = null;
+        let hostedExtraImageUrls = (data.extraImageUrls || []).filter(Boolean);
+        let hostedStoragePath: string | null = null;
+
+        if (data.imageUrl) {
+          try {
+            const remoteFile = await fetchRemoteImageAsFile(data.imageUrl, "bulk-import-primary");
+            const normalizedFile = await normalizeUploadedImage(remoteFile);
+            const thumbnailFile = await normalizeThumbnailImage(remoteFile);
+            const baseName = `${Date.now()}_${normalizedFile.name}`;
+            const path = `tagusheep/imports/${uid}/${baseName}`;
+            const thumbPath = `tagusheep/imports/${uid}/thumb_${baseName}`;
+            const storageRef = ref(storage, path);
+            const thumbRef = ref(storage, thumbPath);
+            await uploadBytes(storageRef, normalizedFile, { contentType: IMAGE_POLICY.mimeType });
+            await uploadBytes(thumbRef, thumbnailFile, { contentType: IMAGE_POLICY.mimeType });
+            hostedImageUrl = await getDownloadURL(storageRef);
+            hostedThumbnailUrl = await getDownloadURL(thumbRef);
+            hostedStoragePath = path;
+
+            if (hostedExtraImageUrls.length > 0) {
+              const limitedExtraUrls = hostedExtraImageUrls.slice(0, IMAGE_POLICY.maxImportedImageUrlCount);
+              hostedExtraImageUrls = await Promise.all(limitedExtraUrls.map(async (extraUrl, index) => {
+                const extraFile = await fetchRemoteImageAsFile(extraUrl, `bulk-import-extra-${index + 1}`);
+                const normalizedExtra = await normalizeUploadedImage(extraFile);
+                const extraBaseName = `${Date.now()}_${index + 1}_${normalizedExtra.name}`;
+                const extraPath = `tagusheep/imports/${uid}/extra_${extraBaseName}`;
+                const extraRef = ref(storage, extraPath);
+                await uploadBytes(extraRef, normalizedExtra, { contentType: IMAGE_POLICY.mimeType });
+                return getDownloadURL(extraRef);
+              }));
+            }
+          } catch {
+            // keep original remote URLs if hosting fails during bulk import
+          }
+        }
+
         const payload = prepareRecord({
           ...data,
+          imageUrl: hostedImageUrl,
+          thumbnailUrl: hostedThumbnailUrl,
+          extraImageUrls: hostedExtraImageUrls,
           sourceUrl: data.sourceUrl || url,
+          sourceName: data.sourceName || safeHostnameFromUrl(data.sourceUrl || url),
           verificationStatus: "pending",
-          createdBy: auth.currentUser.uid,
+          storagePath: hostedStoragePath,
+          createdBy: uid,
           createdAt: serverTimestamp(),
           importedAt: new Date().toISOString(),
         });
@@ -58,7 +105,7 @@ export default function BulkImportPage() {
           await addDoc(collection(db, "imports_review"), {
             ...payload,
             sourceUrl: payload.sourceUrl || url,
-            createdBy: auth.currentUser.uid,
+            createdBy: uid,
             createdAt: serverTimestamp(),
             importedAt: new Date().toISOString(),
             importStatus: "needs_review",
