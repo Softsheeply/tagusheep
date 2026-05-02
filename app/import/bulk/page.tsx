@@ -105,6 +105,7 @@ export default function BulkImportPage() {
           await addDoc(collection(db, "imports_review"), {
             ...payload,
             sourceUrl: payload.sourceUrl || url,
+            sourceName: payload.sourceName || safeHostnameFromUrl(payload.sourceUrl || url),
             createdBy: uid,
             createdAt: serverTimestamp(),
             importedAt: new Date().toISOString(),

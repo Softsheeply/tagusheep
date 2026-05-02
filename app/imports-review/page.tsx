@@ -46,11 +46,21 @@ export default function ImportsReviewPage() {
   const [duplicates, setDuplicates] = useState<Record<string, DuplicateCandidate[]>>({});
 
   async function load() {
+    if (!auth.currentUser) {
+      setRows([]);
+      setLoading(false);
+      setMessage("Please sign in to view the import review queue.");
+      return;
+    }
+
     setLoading(true);
+    setMessage(null);
     try {
       const qRef = query(collection(db, "imports_review"), orderBy("createdAt", "desc"));
       const snap = await getDocs(qRef);
       setRows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ReviewDoc, "id">) })));
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Could not load import review queue.");
     } finally {
       setLoading(false);
     }
