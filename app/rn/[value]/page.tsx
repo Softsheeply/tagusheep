@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, limit as qlimit, onSnapshot, startAfter, getDocs, getCountFromServer, DocumentSnapshot } from "firebase/firestore";
+import { collection, query, where, orderBy, limit as qlimit, onSnapshot, startAfter, getDocs, getCountFromServer, type DocumentSnapshot, type DocumentData } from "firebase/firestore";
 
 type TagDoc = {
   id: string;
@@ -26,7 +26,7 @@ export default function RNPage() {
   const [docs, setDocs] = useState<TagDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState<number | null>(null);
-  const [lastSnap, setLastSnap] = useState<DocumentSnapshot | null>(null);
+  const [lastSnap, setLastSnap] = useState<DocumentSnapshot<DocumentData> | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exhausted, setExhausted] = useState(false);
 
@@ -48,7 +48,7 @@ export default function RNPage() {
   useEffect(() => {
     const qRef = query(collection(db, "tags"), where("rn", "==", rn), orderBy("createdAt", "desc"), qlimit(perPage));
     const off = onSnapshot(qRef, (snap) => {
-      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TagDoc[];
+      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
       setDocs(rows);
       setLoading(false);
       setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
@@ -65,7 +65,7 @@ export default function RNPage() {
       setLoadingMore(true);
       const qRef = query(collection(db, "tags"), where("rn", "==", rn), orderBy("createdAt", "desc"), startAfter(lastSnap), qlimit(perPage));
       const snap = await getDocs(qRef);
-      const more = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TagDoc[];
+      const more = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
       setDocs((prev) => [...prev, ...more]);
       setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
       setExhausted(snap.size < perPage);

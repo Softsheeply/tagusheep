@@ -14,7 +14,8 @@ import {
   startAfter,
   getDocs,
   getCountFromServer,
-  DocumentSnapshot,
+  type DocumentSnapshot,
+  type DocumentData,
 } from "firebase/firestore";
 
 type TagDoc = {
@@ -37,7 +38,7 @@ export default function BrandPage() {
   const [docs, setDocs] = useState<TagDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState<number | null>(null);
-  const [lastSnap, setLastSnap] = useState<DocumentSnapshot | null>(null);
+  const [lastSnap, setLastSnap] = useState<DocumentSnapshot<DocumentData> | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exhausted, setExhausted] = useState(false);
   const [styleFilter, setStyleFilter] = useState("");
@@ -65,7 +66,7 @@ export default function BrandPage() {
       qlimit(perPage)
     );
     const off = onSnapshot(qRef, (snap) => {
-      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TagDoc[];
+      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
       setDocs(rows);
       setLoading(false);
       setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
@@ -89,7 +90,7 @@ export default function BrandPage() {
           qlimit(perPage)
         );
         const snap = await getDocs(qRef);
-        const more = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TagDoc[];
+        const more = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
         setDocs((prev) => [...prev, ...more]);
         setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
         setExhausted(snap.size < perPage);
