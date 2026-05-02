@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import AdminGate from "@/app/components/AdminGate";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -43,7 +44,11 @@ export default function RNAuditPage() {
   const missingRn = filtered.filter((row) => !row.rn?.trim()).length;
 
   return (
-    <main className="mx-auto max-w-6xl p-6 space-y-6">
+    <AdminGate
+      title="RN audit"
+      description="Review RN coverage across the database, spot missing records, and jump into bulk cleanup."
+    >
+      <main className="mx-auto max-w-6xl p-6 space-y-6">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Admin audit</p>
@@ -99,7 +104,8 @@ export default function RNAuditPage() {
           </tbody>
         </table>
       </div>
-    </main>
+      </main>
+    </AdminGate>
   );
 }
 

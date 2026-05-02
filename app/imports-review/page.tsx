@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDocs, getDoc, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, normalizeBrand, normalizeStyleNumber, prepareRecord, type VerificationStatus, type SourceType } from "@/lib/records";
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
@@ -44,12 +44,21 @@ export default function ImportsReviewPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<Record<string, DuplicateCandidate[]>>({});
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!auth.currentUser) {
       setRows([]);
       setLoading(false);
       setMessage("Please sign in to view the import review queue.");
+      return;
+    }
+
+    if (!isAdmin) {
+      setRows([]);
+      setLoading(false);
+      setMessage("Import review is admin-only right now.");
       return;
     }
 
@@ -64,11 +73,39 @@ export default function ImportsReviewPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [isAdmin]);
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+
+    async function checkAccess() {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        if (!cancelled) {
+          setAccessChecked(true);
+          setIsAdmin(false);
+        }
+        return;
+      }
+
+      const snap = await getDoc(doc(db, "admins", uid));
+      if (!cancelled) {
+        setIsAdmin(snap.exists());
+        setAccessChecked(true);
+      }
+    }
+
+    void checkAccess();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  useEffect(() => {
+    if (accessChecked) {
+      void load();
+    }
+  }, [accessChecked, load]);
 
   const localDuplicateGroups = useMemo(() => {
     const groups = new Map<string, string[]>();
@@ -203,7 +240,7 @@ export default function ImportsReviewPage() {
         <Link href="/tools" className="text-sm underline">← Back to tools</Link>
       </div>
 
-      {loading ? (
+      {!accessChecked || loading ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">Loading review queue…</div>
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">No pending import candidates.</div>

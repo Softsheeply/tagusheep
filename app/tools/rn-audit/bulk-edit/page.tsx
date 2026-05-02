@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import AdminGate from "@/app/components/AdminGate";
 import { collection, getDocs, orderBy, query, writeBatch, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -76,7 +77,11 @@ export default function BulkEditPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-6 space-y-6">
+    <AdminGate
+      title="RN bulk edit"
+      description="Select multiple records and apply one RN value in a single Firestore batch write."
+    >
+      <main className="mx-auto max-w-6xl p-6 space-y-6">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Admin bulk tools</p>
@@ -134,6 +139,7 @@ export default function BulkEditPage() {
       </div>
 
       {message && <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/85">{message}</div>}
-    </main>
+      </main>
+    </AdminGate>
   );
 }

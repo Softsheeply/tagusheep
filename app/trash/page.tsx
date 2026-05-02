@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import AdminGate from "@/app/components/AdminGate";
 import { auth, db, storage } from "@/lib/firebase";
 import {
   collection,
@@ -159,7 +160,11 @@ export default function TrashPage() {
   }
 
   return (
-    <main className="max-w-6xl mx-auto p-6">
+    <AdminGate
+      title="Trash"
+      description="Soft-deleted tags. Admins can restore or permanently purge records."
+    >
+      <main className="max-w-6xl mx-auto p-6">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">Trash</h1>
@@ -249,7 +254,8 @@ export default function TrashPage() {
           </div>
         </>
       )}
-    </main>
+      </main>
+    </AdminGate>
   );
 }
 
