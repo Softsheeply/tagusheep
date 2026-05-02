@@ -126,8 +126,9 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1222] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 px-4 pb-6 pt-16 backdrop-blur-sm sm:pt-24">
+          <div className="mx-auto flex min-h-full w-full items-start justify-center">
+            <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1222] p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Tagsheep account</p>
@@ -229,6 +230,7 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
             <p className="mt-4 text-xs text-white/45">
               {EMAIL_AUTH_ENABLED ? "If email sign-in fails, Email/Password may still need to be enabled in Firebase Auth." : "Email/password sign-in is currently hidden until it is explicitly enabled and tested."}
             </p>
+            </div>
           </div>
         </div>
       )}
