@@ -15,7 +15,7 @@ export default function ToolsHome() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <a href="/import" className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-emerald-300/40 transition">
           <div className="font-semibold">Import from URL</div>
           <p className="text-sm text-white/70 mt-2">Fetch one product page and save a live record with source metadata.</p>
@@ -31,10 +31,6 @@ export default function ToolsHome() {
         <a href="/tools/rn-audit" className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-emerald-300/40 transition">
           <div className="font-semibold">RN audit</div>
           <p className="text-sm text-white/70 mt-2">Review RN coverage and clean up missing or inconsistent records.</p>
-        </a>
-        <a href="/trash" className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-emerald-300/40 transition">
-          <div className="font-semibold">Trash & recovery</div>
-          <p className="text-sm text-white/70 mt-2">Restore soft-deleted records or permanently purge bad entries.</p>
         </a>
       </div>
       </main>

@@ -338,7 +338,6 @@ function TagsPageInner() {
         </div>
         <div className="flex items-center gap-3 text-sm">
           <Link href="/import" className="underline opacity-80 hover:opacity-100">Import URL</Link>
-          <Link href="/trash" className="underline opacity-80 hover:opacity-100">Trash</Link>
         </div>
       </div>
 
@@ -487,7 +486,7 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
       {(admin || me === d.createdBy) && (
         <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition group-hover:opacity-100">
           <Link href={`/tag/${d.id}`} className="rounded bg-emerald-500/90 px-2 py-1 text-xs text-black hover:bg-emerald-400">Edit</Link>
-          <button disabled={busyId === d.id} onClick={() => moveToTrash(d)} className="rounded border border-amber-400 px-2 py-1 text-xs text-amber-300 hover:bg-amber-500/10 disabled:opacity-50" title="Move to Trash">
+          <button disabled={busyId === d.id} onClick={() => moveToTrash(d)} className="hidden rounded border border-amber-400 px-2 py-1 text-xs text-amber-300 hover:bg-amber-500/10 disabled:opacity-50" title="Move to Trash" aria-hidden="true">
             {busyId === d.id ? "…" : "Trash"}
           </button>
         </div>

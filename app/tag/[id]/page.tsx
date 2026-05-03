@@ -303,7 +303,6 @@ export default function TagDetailPage() {
         </div>
         <div className="flex gap-3 text-sm">
           <Link href="/tags" className="underline">← Back to database</Link>
-          {canEdit && <Link href="/trash" className="underline">Trash</Link>}
         </div>
       </div>
 
@@ -406,7 +405,6 @@ export default function TagDetailPage() {
             <button type="submit" disabled={!canEdit || status.kind === "info"} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
               {status.kind === "info" && status.pct != null ? `Uploading… ${status.pct}%` : status.kind === "info" ? "Saving…" : "Save"}
             </button>
-            <button type="button" disabled={!canEdit || status.kind === "info"} onClick={onMoveToTrash} className="px-4 py-2 rounded border border-amber-400 text-amber-300 disabled:opacity-50">Move to Trash</button>
           </div>
           </form>
           ) : (
