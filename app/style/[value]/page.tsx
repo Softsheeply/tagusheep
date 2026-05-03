@@ -13,6 +13,9 @@ type TagDoc = {
   rn?: string | null;
   styleNumber?: string | null;
   productName?: string | null;
+  color?: string | null;
+  size?: string | null;
+  availableSizes?: string[];
   verificationStatus?: string | null;
   imageUrl: string;
   thumbnailUrl?: string | null;
@@ -107,6 +110,8 @@ export default function StylePage() {
                   <div className="font-medium text-white truncate">{d.brand || "Unknown brand"}</div>
                   <div className="text-white/70 truncate">{d.productName || "—"}</div>
                   <div className="text-white/70">RN: {d.rn || "—"}</div>
+                  <div className="text-white/70">Color: {d.color || "—"}</div>
+                  <div className="text-white/70">Size: {d.size || ((d.availableSizes || []).length ? d.availableSizes?.join(", ") : "—")}</div>
                   <div className="text-white/50 text-xs uppercase tracking-wide">{d.verificationStatus || "pending"}</div>
                 </div>
               </div>

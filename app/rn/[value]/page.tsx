@@ -12,6 +12,9 @@ type TagDoc = {
   productName?: string | null;
   rn?: string | null;
   styleNumber?: string | null;
+  color?: string | null;
+  size?: string | null;
+  availableSizes?: string[];
   verificationStatus?: string | null;
   imageUrl: string;
   thumbnailUrl?: string | null;
@@ -120,6 +123,8 @@ function Card({ d }: { d: TagDoc }) {
         <div className="font-medium truncate text-white">{d.brand || "—"}</div>
         <div className="text-white/70 truncate">{d.productName || "—"}</div>
         <div className="text-white/70">Style: {d.styleNumber || "—"}</div>
+        <div className="text-white/70">Color: {d.color || "—"}</div>
+        <div className="text-white/70">Size: {d.size || ((d.availableSizes || []).length ? d.availableSizes?.join(", ") : "—")}</div>
         <div className="text-white/50 text-xs uppercase tracking-wide">{d.verificationStatus || "pending"}</div>
       </div>
     </div>

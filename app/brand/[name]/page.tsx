@@ -23,6 +23,9 @@ type TagDoc = {
   brand?: string | null;
   rn?: string | null;
   styleNumber?: string | null;
+  color?: string | null;
+  size?: string | null;
+  availableSizes?: string[];
   notes?: string | null;
   imageUrl: string;
   thumbnailUrl?: string | null;
@@ -166,6 +169,8 @@ function Card({ d }: { d: TagDoc }) {
         <div className="font-medium text-white truncate">{d.brand || "—"}</div>
         <div className="text-white/70">RN: {d.rn || "—"}</div>
         <div className="text-white/70">Style: {d.styleNumber || "—"}</div>
+        <div className="text-white/70">Color: {d.color || "—"}</div>
+        <div className="text-white/70">Size: {d.size || ((d.availableSizes || []).length ? d.availableSizes?.join(", ") : "—")}</div>
       </div>
     </div>
   );
