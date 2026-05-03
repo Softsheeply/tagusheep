@@ -314,9 +314,17 @@ export default function TagDetailPage() {
             <img src={tag.imageUrl} alt={tag.brand ?? "tag"} className="h-full w-full object-contain" />
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
-            <a href={tag.imageUrl} target="_blank" className="rounded border border-white/15 px-3 py-1 hover:border-white/40 transition">Open image</a>
-            <a href={storageLink} target="_blank" className="rounded border border-white/15 px-3 py-1 hover:border-emerald-300/50 transition">Open in Storage</a>
-            {tag.sourceUrl && <a href={tag.sourceUrl} target="_blank" className="rounded border border-white/15 px-3 py-1 hover:border-emerald-300/50 transition">View source</a>}
+            <a href={tag.imageUrl} target="_blank" rel="noreferrer" className="rounded border border-white/15 px-3 py-1 hover:border-white/40 transition">Open image</a>
+            {canEdit && (
+              <a href={storageLink} target="_blank" rel="noreferrer" className="rounded border border-white/15 px-3 py-1 hover:border-emerald-300/50 transition">
+                Open in Storage
+              </a>
+            )}
+            {tag.sourceUrl && (
+              <a href={tag.sourceUrl} target="_blank" rel="noreferrer" className="rounded border border-white/15 px-3 py-1 hover:border-emerald-300/50 transition">
+                Original source
+              </a>
+            )}
           </div>
         </div>
 
