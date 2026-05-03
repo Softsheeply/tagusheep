@@ -80,6 +80,20 @@ function inferSourceType(hostname: string): SourceType {
   return "unknown";
 }
 
+function scoreImageCandidate(url: string) {
+  const lower = url.toLowerCase();
+  let score = 0;
+
+  if (/webcontent\/.+\.(jpg|jpeg|png|webp)/i.test(lower)) score += 120;
+  if (/product|pdp|catalog|media|images|photo|zoom|large|hero|main/i.test(lower)) score += 40;
+  if (/\.(jpg|jpeg|png|webp)(\?|$)/i.test(lower)) score += 30;
+  if (/logo|icon|sprite|placeholder|favicon|badge|asset_archive/i.test(lower)) score -= 140;
+  if (/\.svg(\?|$)/i.test(lower)) score -= 200;
+  if (/\/logo\//i.test(lower)) score -= 180;
+
+  return score;
+}
+
 function pickImages(jsonLdNodes: JsonLdNode[], html: string, fallbackImages: string[] = []) {
   const out = new Set<string>();
 
@@ -104,7 +118,11 @@ function pickImages(jsonLdNodes: JsonLdNode[], html: string, fallbackImages: str
     if (candidate) out.add(candidate);
   }
 
-  return Array.from(out).slice(0, 8);
+  return Array.from(out)
+    .map((candidate) => normalizeImage(candidate))
+    .filter((candidate): candidate is string => Boolean(candidate))
+    .sort((a, b) => scoreImageCandidate(b) - scoreImageCandidate(a))
+    .slice(0, 8);
 }
 
 function extractStyleNumber(text: string) {
