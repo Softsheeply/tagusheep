@@ -21,6 +21,7 @@ export default function MobileUploadPage() {
   const [sourceUrl, setSourceUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
+  const [lastUploadSummary, setLastUploadSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -48,6 +49,12 @@ export default function MobileUploadPage() {
     setSourceUrl("");
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function resetForNextUpload() {
+    resetForm();
+    setStatus({ kind: "idle", text: null });
+    setLastUploadSummary(null);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -110,9 +117,9 @@ export default function MobileUploadPage() {
       });
 
       await addDoc(collection(db, "tags"), payload);
+      setLastUploadSummary([brand || "Unknown brand", styleNumber ? `Style ${styleNumber}` : null, rn ? `RN ${rn}` : null].filter(Boolean).join(" • "));
       setStatus({ kind: "success", text: "Uploaded. Ready for the next find." });
       resetForm();
-      setTimeout(() => setStatus({ kind: "idle", text: null }), 1800);
     } catch (error: unknown) {
       setStatus({ kind: "error", text: error instanceof Error ? error.message : String(error) });
     }
@@ -143,6 +150,20 @@ export default function MobileUploadPage() {
           </ul>
         </div>
 
+        {lastUploadSummary && status.kind === "success" && (
+          <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 text-sm text-emerald-100 space-y-3">
+            <div className="font-medium">Last upload saved</div>
+            <div className="text-emerald-100/80">{lastUploadSummary}</div>
+            <button
+              type="button"
+              onClick={resetForNextUpload}
+              className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-emerald-400/90 px-4 py-2 font-semibold text-black transition hover:bg-emerald-300"
+            >
+              Upload another find
+            </button>
+          </div>
+        )}
+
         <form onSubmit={onSubmit} className="space-y-4">
           <label className="block space-y-2">
             <span className="text-sm text-white/80">Photo</span>
@@ -154,6 +175,11 @@ export default function MobileUploadPage() {
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="w-full rounded-2xl border border-white/12 bg-[#09111f] px-4 py-4 text-white"
             />
+            <div className="flex flex-wrap gap-2 text-xs text-white/55">
+              <span className="rounded-full border border-white/10 px-2 py-1">Back camera</span>
+              <span className="rounded-full border border-white/10 px-2 py-1">Single photo</span>
+              <span className="rounded-full border border-white/10 px-2 py-1">Fast upload</span>
+            </div>
           </label>
 
           {file && (
@@ -174,18 +200,18 @@ export default function MobileUploadPage() {
           <TextArea label="Notes" value={notes} onChange={setNotes} placeholder="Vintage wash, made in USA, tag looks 90s..." rows={4} />
           <Field label="Source URL (optional)" value={sourceUrl} onChange={setSourceUrl} placeholder="Leave blank if this came from in-store thrifting" />
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="sticky bottom-3 z-40 flex flex-col gap-3 rounded-3xl border border-white/10 bg-[#0b1222]/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
             <button
               type="submit"
               disabled={!user || !file || status.kind === "info" || !!rnWarning}
-              className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50"
+              className="inline-flex min-h-14 items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50"
             >
               {status.kind === "info" && status.pct != null ? `Uploading… ${status.pct}%` : status.kind === "info" ? "Uploading…" : "Upload this find"}
             </button>
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/15 px-5 py-3 text-white transition hover:border-white/30"
+              className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-white/15 px-5 py-3 text-white transition hover:border-white/30"
             >
               Clear
             </button>

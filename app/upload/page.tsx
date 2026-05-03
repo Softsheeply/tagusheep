@@ -268,8 +268,14 @@ export default function UploadPage() {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/80 space-y-3">
         <div>Tagsheep is building a real clothing internet database. Strong records combine a clean reference image with product metadata, source provenance, and review status.</div>
-        <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-emerald-100">
-          On your phone and want the fastest flow? Use the <Link href="/mobile" className="underline">quick mobile upload</Link> for a camera-first version.
+        <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-emerald-100 space-y-2">
+          <div className="font-medium">Two upload modes</div>
+          <div>
+            On your phone and want the fastest flow? Use the <Link href="/mobile" className="underline">quick mobile upload</Link> for a camera-first version.
+          </div>
+          <div className="text-emerald-100/80">
+            Stay here if you want the fuller desktop form with more fields and a little more control.
+          </div>
         </div>
         <div className="text-emerald-200">Verification preview: {verificationPreview}%</div>
         <div>
