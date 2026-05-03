@@ -138,6 +138,26 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="mb-10 rounded-3xl border border-emerald-300/15 bg-emerald-400/8 p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Mobile upload</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Out thrifting? Use the quick phone upload.</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
+              Open Tagsheep on your phone, snap a shirt or tag, add the basics you know, and upload fast without the full desktop form.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link href="/mobile" className="inline-flex items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
+              Open quick upload
+            </Link>
+            <Link href="/upload" className="inline-flex items-center justify-center rounded-2xl border border-white/15 px-5 py-3 text-white transition hover:border-white/30">
+              Full upload form
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="mb-10">
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <div>
@@ -195,7 +215,6 @@ export default function HomePage() {
               <Link key={item.id} href={`/tag/${item.id}`} className="block rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-emerald-300/35">
                 <div className="font-semibold text-white">{item.brand || "Unknown brand"}</div>
                 <div className="text-white/70">{item.productName || "Untitled record"}</div>
-                <div className="text-xs uppercase tracking-wide text-white/45 mt-1">{item.verificationStatus || "pending"}</div>
               </Link>
             )) : (
               <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">No records yet — start uploading and importing to bring this section to life.</div>

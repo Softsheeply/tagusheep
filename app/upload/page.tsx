@@ -268,6 +268,9 @@ export default function UploadPage() {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/80 space-y-3">
         <div>Tagsheep is building a real clothing internet database. Strong records combine a clean reference image with product metadata, source provenance, and review status.</div>
+        <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-emerald-100">
+          On your phone and want the fastest flow? Use the <Link href="/mobile" className="underline">quick mobile upload</Link> for a camera-first version.
+        </div>
         <div className="text-emerald-200">Verification preview: {verificationPreview}%</div>
         <div>
           <div className="mb-2 text-xs uppercase tracking-[0.2em] text-white/45">Core 10 fields</div>
@@ -369,7 +372,7 @@ export default function UploadPage() {
           <button type="submit" disabled={!user || !file || status.kind === "info" || !!rnWarning} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
             {status.kind === "info" && status.pct != null ? `Uploading… ${status.pct}%` : status.kind === "info" ? "Saving…" : "Add record"}
           </button>
-          <Link href="/tags" className="text-sm underline">Search database</Link>
+          <Link href="/tags" className="text-sm underline">Browse tags</Link>
         </div>
       </form>
 
