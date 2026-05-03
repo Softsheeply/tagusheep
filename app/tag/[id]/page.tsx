@@ -320,11 +320,6 @@ export default function TagDetailPage() {
                 Open in Storage
               </a>
             )}
-            {tag.sourceUrl && (
-              <a href={tag.sourceUrl} target="_blank" rel="noreferrer" className="rounded border border-white/15 px-3 py-1 hover:border-emerald-300/50 transition">
-                Original source
-              </a>
-            )}
           </div>
         </div>
 
