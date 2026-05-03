@@ -16,8 +16,11 @@ type TagDoc = {
   rn?: string | null;
   styleNumber?: string | null;
   garmentType?: string | null;
+  size?: string | null;
+  availableSizes?: string[];
   tags?: string[];
   category?: string | null;
+  color?: string | null;
   year?: string | null;
   madeIn?: string | null;
   materials?: string | null;
@@ -52,6 +55,9 @@ export default function TagDetailPage() {
   const [garmentType, setGarmentType] = useState("");
   const [tags, setTags] = useState("");
   const [category, setCategory] = useState("");
+  const [color, setColor] = useState("");
+  const [size, setSize] = useState("");
+  const [availableSizes, setAvailableSizes] = useState("");
   const [year, setYear] = useState("");
   const [madeIn, setMadeIn] = useState("");
   const [materials, setMaterials] = useState("");
@@ -84,6 +90,9 @@ export default function TagDetailPage() {
       setGarmentType(data.garmentType ?? "");
       setTags((data.tags || []).join(", "));
       setCategory(data.category ?? "");
+      setColor(data.color ?? "");
+      setSize(data.size ?? "");
+      setAvailableSizes((data.availableSizes || []).join(", "));
       setYear(data.year ?? "");
       setMadeIn(data.madeIn ?? "");
       setMaterials(data.materials ?? "");
@@ -230,6 +239,9 @@ export default function TagDetailPage() {
         garmentType,
         tags: tags.split(",").map((v) => v.trim()).filter(Boolean),
         category,
+        color,
+        size,
+        availableSizes: availableSizes.split(",").map((v) => v.trim()).filter(Boolean),
         year,
         madeIn,
         materials,
@@ -319,6 +331,10 @@ export default function TagDetailPage() {
               <InfoBox label="Garment type" value={tag.garmentType} />
               <InfoBox label="Year" value={tag.year} />
             </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <InfoBox label="Color" value={tag.color} />
+              <InfoBox label="Size" value={tag.size || ((tag.availableSizes || []).length ? tag.availableSizes?.join(", ") : null)} />
+            </div>
             <InfoBox label="Tags" value={(tag.tags || []).join(", ")} />
             <div className="grid gap-2 sm:grid-cols-2">
               <InfoBox label="Category" value={tag.category} />
@@ -339,8 +355,9 @@ export default function TagDetailPage() {
           </div>
         </div>
 
-        <form onSubmit={onSave} className="space-y-4">
-          <Field label="Brand" value={brand} onChange={setBrand} />
+        {canEdit ? (
+          <form onSubmit={onSave} className="space-y-4">
+            <Field label="Brand" value={brand} onChange={setBrand} />
           {brandAutocomplete.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {brandAutocomplete.map((b) => (
@@ -365,6 +382,9 @@ export default function TagDetailPage() {
           <Field label="Garment type" value={garmentType} onChange={setGarmentType} />
           <Field label="Tags (comma separated)" value={tags} onChange={setTags} />
           <Field label="Category" value={category} onChange={setCategory} />
+          <Field label="Color" value={color} onChange={setColor} />
+          <Field label="Primary size" value={size} onChange={setSize} />
+          <Field label="Available sizes (comma separated)" value={availableSizes} onChange={setAvailableSizes} />
           <Field label="Year" value={year} onChange={setYear} />
           <Field label="Made in" value={madeIn} onChange={setMadeIn} />
           <Field label="Materials" value={materials} onChange={setMaterials} />
@@ -383,15 +403,15 @@ export default function TagDetailPage() {
             </button>
             <button type="button" disabled={!canEdit || status.kind === "info"} onClick={onMoveToTrash} className="px-4 py-2 rounded border border-amber-400 text-amber-300 disabled:opacity-50">Move to Trash</button>
           </div>
-          {!canEdit && (
-            <div className="space-y-3">
-              <p className="text-sm text-amber-300">Only the uploader or an admin can edit.</p>
-              <Link href={`/submit-info?tag=${id}`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
-                Have info on this product? Submit here
-              </Link>
-            </div>
-          )}
-        </form>
+          </form>
+        ) : (
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm text-amber-300">Only the uploader or an admin can edit this record.</p>
+            <Link href={`/submit-info?tag=${id}`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
+              Have info on this product? Submit here
+            </Link>
+          </div>
+        )}
       </div>
 
       {status.text && <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg px-4 py-2 text-sm shadow-lg border ${status.kind === "success" ? "bg-emerald-500 text-black border-emerald-400" : status.kind === "error" ? "bg-rose-500 text-white border-rose-400" : "bg-white/10 border-white/20"}`}>{status.text}</div>}

@@ -37,6 +37,9 @@ export default function UploadPage() {
   const [garmentType, setGarmentType] = useState("");
   const [tags, setTags] = useState("");
   const [category, setCategory] = useState("");
+  const [color, setColor] = useState("");
+  const [size, setSize] = useState("");
+  const [availableSizes, setAvailableSizes] = useState("");
   const [year, setYear] = useState("");
   const [madeIn, setMadeIn] = useState("");
   const [materials, setMaterials] = useState("");
@@ -55,6 +58,7 @@ export default function UploadPage() {
     rn,
     styleNumber,
     garmentType,
+    size,
     materials,
     madeIn,
     careText,
@@ -200,6 +204,9 @@ export default function UploadPage() {
         garmentType,
         tags: tags.split(",").map((v) => v.trim()).filter(Boolean),
         category,
+        color,
+        size,
+        availableSizes: availableSizes.split(",").map((v) => v.trim()).filter(Boolean),
         year,
         madeIn,
         materials,
@@ -226,6 +233,9 @@ export default function UploadPage() {
       setGarmentType("");
       setTags("");
       setCategory("");
+      setColor("");
+      setSize("");
+      setAvailableSizes("");
       setYear("");
       setMadeIn("");
       setMaterials("");
@@ -281,6 +291,9 @@ export default function UploadPage() {
           <Field label="Garment type" value={garmentType} onChange={setGarmentType} />
           <Field label="Tags (comma separated)" value={tags} onChange={setTags} />
           <Field label="Category" value={category} onChange={setCategory} />
+          <Field label="Color" value={color} onChange={setColor} />
+          <Field label="Primary size" value={size} onChange={setSize} />
+          <Field label="Available sizes (comma separated)" value={availableSizes} onChange={setAvailableSizes} />
           <Field label="Year" value={year} onChange={setYear} />
           <Field label="Made in" value={madeIn} onChange={setMadeIn} />
           <Field label="Materials" value={materials} onChange={setMaterials} />

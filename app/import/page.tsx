@@ -17,6 +17,8 @@ type FormState = {
   rn: string;
   styleNumber: string;
   garmentType: string;
+  size: string;
+  availableSizes: string;
   tags: string;
   category: string;
   subCategory: string;
@@ -43,6 +45,8 @@ const emptyState: FormState = {
   rn: "",
   styleNumber: "",
   garmentType: "",
+  size: "",
+  availableSizes: "",
   tags: "",
   category: "",
   subCategory: "",
@@ -107,6 +111,8 @@ export default function ImportPage() {
         rn: data.rn || "",
         styleNumber: data.styleNumber || "",
         garmentType: "",
+        size: data.size || "",
+        availableSizes: (data.availableSizes || []).join(", "),
         tags: "",
         category: data.category || "",
         subCategory: data.subCategory || "",
@@ -192,6 +198,8 @@ export default function ImportPage() {
         rn: form.rn,
         styleNumber: form.styleNumber,
         garmentType: form.garmentType,
+        size: form.size,
+        availableSizes: form.availableSizes.split(",").map((v) => v.trim()).filter(Boolean),
         tags: form.tags.split(",").map((v) => v.trim()).filter(Boolean),
         category: form.category,
         subCategory: form.subCategory,
@@ -289,6 +297,8 @@ export default function ImportPage() {
             <Field field="rn" label="RN" value={form.rn} onChange={(v) => update("rn", v)} />
             <Field field="styleNumber" label="Style number" value={form.styleNumber} onChange={(v) => update("styleNumber", v)} />
             <Field field="garmentType" label="Garment type" value={form.garmentType} onChange={(v) => update("garmentType", v)} />
+            <Field field="size" label="Primary size" value={form.size} onChange={(v) => update("size", v)} />
+            <Field field="availableSizes" label="Available sizes (comma separated)" value={form.availableSizes} onChange={(v) => update("availableSizes", v)} />
             <Field field="tags" label="Tags (comma separated)" value={form.tags} onChange={(v) => update("tags", v)} />
             <Field field="category" label="Category" value={form.category} onChange={(v) => update("category", v)} />
             <Field field="subCategory" label="Sub-category" value={form.subCategory} onChange={(v) => update("subCategory", v)} />
