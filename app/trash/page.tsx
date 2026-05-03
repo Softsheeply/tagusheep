@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import AdminGate from "@/app/components/AdminGate";
 import { auth, db, storage } from "@/lib/firebase";
@@ -45,20 +46,38 @@ export default function TrashPage() {
   const [exhausted, setExhausted] = useState(false);
 
   const [admin, setAdmin] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
 
   const [q, setQ] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // check admin
+  // check auth + admin
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    getDoc(doc(db, "admins", uid)).then((s) => setAdmin(s.exists()));
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setAdmin(false);
+        setAuthResolved(true);
+        setLoading(false);
+        return;
+      }
+
+      setAuthResolved(true);
+      try {
+        const snap = await getDoc(doc(db, "admins", user.uid));
+        setAdmin(snap.exists());
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsub();
   }, []);
 
   // initial live page
   useEffect(() => {
+    if (!authResolved || !admin) return;
+
     const qRef = query(
       collection(db, "trash"),
       orderBy("trashedAt", "desc"),
@@ -71,11 +90,11 @@ export default function TrashPage() {
       setExhausted(snap.size < 60);
     });
     return () => off();
-  }, []);
+  }, [authResolved, admin]);
 
   // infinite scroll
   useEffect(() => {
-    if (!loadMoreRef.current) return;
+    if (!authResolved || !admin || !loadMoreRef.current) return;
     const el = loadMoreRef.current;
     const io = new IntersectionObserver(async (entries) => {
       const [e] = entries;
@@ -96,7 +115,7 @@ export default function TrashPage() {
     }, { rootMargin: "500px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [lastSnap, loadingMore, exhausted]);
+  }, [authResolved, admin, lastSnap, loadingMore, exhausted]);
 
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
