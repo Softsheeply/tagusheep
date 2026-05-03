@@ -303,12 +303,12 @@ export default function TagDetailPage() {
         </div>
         <div className="flex gap-3 text-sm">
           <Link href="/tags" className="underline">← Back to database</Link>
-          <Link href="/trash" className="underline">Trash</Link>
+          {canEdit && <Link href="/trash" className="underline">Trash</Link>}
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-[1fr_1fr]">
-        <div className="space-y-4">
+      <div className="grid gap-6 lg:grid-cols-[minmax(320px,0.95fr)_minmax(380px,1.05fr)] items-start">
+        <div className="space-y-4 sticky top-6 self-start">
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-white p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={tag.imageUrl} alt={tag.brand ?? "tag"} className="h-full w-full object-contain" />
@@ -406,9 +406,8 @@ export default function TagDetailPage() {
           </form>
         ) : (
           <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm text-amber-300">Only the uploader or an admin can edit this record.</p>
             <Link href={`/submit-info?tag=${id}`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
-              Have info on this product? Submit here
+              Have more details on this? Submit here
             </Link>
           </div>
         )}
