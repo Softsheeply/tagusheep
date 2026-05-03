@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { auth, db, storage } from "@/lib/firebase";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, startAt, endAt, where, limit as qlimit } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { prepareRecord, type SourceType, type VerificationStatus } from "@/lib/records";
+import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import AuthPanel from "@/app/components/AuthPanel";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
@@ -22,6 +23,11 @@ export default function MobileUploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
   const [lastUploadSummary, setLastUploadSummary] = useState<string | null>(null);
+  const [duplicates, setDuplicates] = useState<DuplicateCandidate[] | null>(null);
+  const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
+  const [rnBrandSuggestions, setRnBrandSuggestions] = useState<string[]>([]);
+  const brandDebounce = useRef<number | null>(null);
+  const rnDebounce = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -48,6 +54,9 @@ export default function MobileUploadPage() {
     setNotes("");
     setSourceUrl("");
     setFile(null);
+    setDuplicates(null);
+    setBrandSuggestions([]);
+    setRnBrandSuggestions([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -56,6 +65,73 @@ export default function MobileUploadPage() {
     setStatus({ kind: "idle", text: null });
     setLastUploadSummary(null);
   }
+
+  useEffect(() => {
+    if (!brand) {
+      setBrandSuggestions([]);
+      return;
+    }
+
+    if (brandDebounce.current) window.clearTimeout(brandDebounce.current);
+    brandDebounce.current = window.setTimeout(async () => {
+      try {
+        const start = brand;
+        const end = brand + "\uf8ff";
+        const qRef = query(collection(db, "tags"), orderBy("brand"), startAt(start), endAt(end), qlimit(6));
+        const snap = await getDocs(qRef);
+        const names = Array.from(new Set(snap.docs.map((d) => (d.data().brand || "") as string).filter(Boolean))).slice(0, 6);
+        setBrandSuggestions(names);
+      } catch {
+        setBrandSuggestions([]);
+      }
+    }, 200);
+
+    return () => {
+      if (brandDebounce.current) window.clearTimeout(brandDebounce.current);
+    };
+  }, [brand]);
+
+  useEffect(() => {
+    if (!rn) {
+      setRnBrandSuggestions([]);
+      return;
+    }
+
+    if (rnDebounce.current) window.clearTimeout(rnDebounce.current);
+    rnDebounce.current = window.setTimeout(async () => {
+      try {
+        const qRef = query(collection(db, "tags"), where("rn", "==", rn), qlimit(6));
+        const snap = await getDocs(qRef);
+        const names = Array.from(new Set(snap.docs.map((d) => (d.data().brand || "") as string).filter(Boolean))).slice(0, 6);
+        setRnBrandSuggestions(names);
+      } catch {
+        setRnBrandSuggestions([]);
+      }
+    }, 200);
+
+    return () => {
+      if (rnDebounce.current) window.clearTimeout(rnDebounce.current);
+    };
+  }, [rn]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function runDuplicateCheck() {
+      if (!brand || !styleNumber) {
+        setDuplicates(null);
+        return;
+      }
+
+      const found = await findPotentialDuplicates(brand, styleNumber);
+      if (!cancelled) setDuplicates(found);
+    }
+
+    void runDuplicateCheck();
+    return () => {
+      cancelled = true;
+    };
+  }, [brand, styleNumber]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -150,6 +226,14 @@ export default function MobileUploadPage() {
           </ul>
         </div>
 
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/75">
+          <div className="font-medium text-white">Use it like an app</div>
+          <div className="mt-2 space-y-2 text-white/70">
+            <p><b>iPhone:</b> tap Share in Safari, then <b>Add to Home Screen</b>.</p>
+            <p><b>Android:</b> open the browser menu, then tap <b>Add to Home screen</b> or <b>Install app</b>.</p>
+          </div>
+        </div>
+
         {lastUploadSummary && status.kind === "success" && (
           <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 text-sm text-emerald-100 space-y-3">
             <div className="font-medium">Last upload saved</div>
@@ -195,7 +279,34 @@ export default function MobileUploadPage() {
             <Field label="Garment type" value={garmentType} onChange={setGarmentType} placeholder="T-shirt" />
           </div>
 
+          {brandSuggestions.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {brandSuggestions.map((suggestion) => (
+                <button key={suggestion} type="button" onClick={() => setBrand(suggestion)} className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/80 transition hover:border-emerald-300/50 hover:text-white">
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+
           {rnWarning && <p className="text-sm text-amber-300">{rnWarning}</p>}
+          {rnBrandSuggestions.length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/75">
+              Brands already seen for RN {rn}: {rnBrandSuggestions.join(", ")}
+            </div>
+          )}
+
+          {duplicates && duplicates.length > 0 && (
+            <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm text-amber-100 space-y-2">
+              <div className="font-medium">Possible duplicate already in Tagsheep</div>
+              {duplicates.map((dup) => (
+                <div key={dup.id} className="flex items-center justify-between gap-3 text-xs">
+                  <div className="min-w-0 truncate">{dup.brand || "Unknown brand"} — {dup.productName || dup.styleNumber || "Existing record"}</div>
+                  <Link href={`/tag/${dup.id}`} className="underline">Open</Link>
+                </div>
+              ))}
+            </div>
+          )}
 
           <TextArea label="Notes" value={notes} onChange={setNotes} placeholder="Vintage wash, made in USA, tag looks 90s..." rows={4} />
           <Field label="Source URL (optional)" value={sourceUrl} onChange={setSourceUrl} placeholder="Leave blank if this came from in-store thrifting" />
