@@ -307,7 +307,7 @@ export default function TagDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(320px,0.95fr)_minmax(380px,1.05fr)] items-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(360px,0.9fr)_minmax(420px,1.1fr)] items-start">
         <div className="space-y-4 sticky top-6 self-start">
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-white p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -318,6 +318,9 @@ export default function TagDetailPage() {
             <a href={storageLink} target="_blank" className="rounded border border-white/15 px-3 py-1 hover:border-emerald-300/50 transition">Open in Storage</a>
             {tag.sourceUrl && <a href={tag.sourceUrl} target="_blank" className="rounded border border-white/15 px-3 py-1 hover:border-emerald-300/50 transition">View source</a>}
           </div>
+        </div>
+
+        <div className="space-y-4">
           <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="grid gap-2 sm:grid-cols-2">
               <InfoBox label="Brand" value={tag.brand} href={tag.brand ? `/brand/${encodeURIComponent(tag.brand)}` : undefined} />
@@ -353,9 +356,8 @@ export default function TagDetailPage() {
               {tag.sourceName && <Badge subtle>{tag.sourceName}</Badge>}
             </div>
           </div>
-        </div>
 
-        {canEdit ? (
+          {canEdit ? (
           <form onSubmit={onSave} className="space-y-4">
             <Field label="Brand" value={brand} onChange={setBrand} />
           {brandAutocomplete.length > 0 && (
@@ -404,13 +406,14 @@ export default function TagDetailPage() {
             <button type="button" disabled={!canEdit || status.kind === "info"} onClick={onMoveToTrash} className="px-4 py-2 rounded border border-amber-400 text-amber-300 disabled:opacity-50">Move to Trash</button>
           </div>
           </form>
-        ) : (
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <Link href={`/submit-info?tag=${id}`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
-              Have more details on this? Submit here
-            </Link>
-          </div>
-        )}
+          ) : (
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <Link href={`/submit-info?tag=${id}`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
+                Have more details on this? Submit here
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {status.text && <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg px-4 py-2 text-sm shadow-lg border ${status.kind === "success" ? "bg-emerald-500 text-black border-emerald-400" : status.kind === "error" ? "bg-rose-500 text-white border-rose-400" : "bg-white/10 border-white/20"}`}>{status.text}</div>}
