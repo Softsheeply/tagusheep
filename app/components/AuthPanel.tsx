@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { auth, google } from "@/lib/firebase";
 import {
   browserLocalPersistence,
@@ -27,8 +28,10 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState<{ kind: "idle" | "error" | "success" | "info"; text: string | null }>({ kind: "idle", text: null });
   const [busy, setBusy] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setPersistence(auth, browserLocalPersistence).catch(() => {});
     const unsub = onAuthStateChanged(auth, setUser);
     return () => unsub();
@@ -125,10 +128,10 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
         Sign in
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)}>
+      {open && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)}>
           <div className="flex min-h-full items-start justify-center overflow-y-auto px-4 pb-6 pt-12 sm:items-center sm:pt-20">
-            <div className="relative z-[201] my-auto w-full max-w-md min-h-fit rounded-3xl border border-white/10 bg-[#0b1222] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="relative z-[10000] my-auto w-full max-w-md min-h-fit rounded-3xl border border-white/10 bg-[#0b1222] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Tagsheep account</p>
@@ -232,7 +235,8 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
             </p>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
