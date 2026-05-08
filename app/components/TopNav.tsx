@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useState } from "react";
@@ -19,7 +18,8 @@ export default function TopNav() {
     <nav className="sticky top-0 z-40 border-b border-white/10 bg-white/5 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" className="flex items-center gap-3">
-          <Image src="/badges/tagiconglass.png" alt="Tagsheep icon" width={34} height={34} className="h-[34px] w-[34px] object-contain" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/badges/tagiconglass.png" alt="Tagsheep icon" className="h-[34px] w-[34px] object-contain" />
           <span className="bg-gradient-to-r from-emerald-300 via-sky-300 to-white bg-clip-text font-semibold tracking-wide text-transparent">Tagsheep</span>
         </Link>
         <div className="flex items-center gap-3 text-sm">
