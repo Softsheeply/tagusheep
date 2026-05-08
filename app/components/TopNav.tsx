@@ -25,6 +25,7 @@ export default function TopNav() {
           <Link href="/tags" className="transition hover:text-emerald-300">Browse</Link>
           <Link href="/upload" className="transition hover:text-emerald-300">Upload</Link>
           {user && <Link href="/mobile" className="transition hover:text-emerald-300">Quick upload</Link>}
+          {user && <Link href="/profile" className="transition hover:text-emerald-300">Profile</Link>}
           {user && <Link href="/import" className="transition hover:text-emerald-300">Import URL</Link>}
           {user && <Link href="/tools" className="transition hover:text-emerald-300">Tools</Link>}
           <AuthPanel compact />
