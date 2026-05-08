@@ -28,6 +28,21 @@ import AuthPanel from "@/app/components/AuthPanel";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 
+async function uploadSupplementalImages(files: File[], uid: string) {
+  const uploaded: string[] = [];
+
+  for (const file of files.slice(0, 5)) {
+    const normalized = await normalizeUploadedImage(file);
+    const baseName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${normalized.name}`;
+    const path = `tagusheep/uploads/${uid}/extra_${baseName}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, normalized, { contentType: IMAGE_POLICY.mimeType });
+    uploaded.push(await getDownloadURL(storageRef));
+  }
+
+  return uploaded;
+}
+
 export default function UploadPage() {
   const [user, setUser] = useState<User | null>(auth.currentUser ?? null);
   const [brand, setBrand] = useState("");
@@ -49,6 +64,7 @@ export default function UploadPage() {
   const [sourceType, setSourceType] = useState<SourceType>("manual");
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>("pending");
   const [file, setFile] = useState<File | null>(null);
+  const [extraFiles, setExtraFiles] = useState<File[]>([]);
 
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[] | null>(null);
@@ -63,6 +79,7 @@ export default function UploadPage() {
     madeIn,
     careText,
     imageUrl: file ? "has-image" : "",
+    extraImageUrls: extraFiles.length ? extraFiles.map(() => "has-extra-image") : [],
     sourceUrl,
   };
   const verificationPreview = getVerificationPercent(verificationRecord);
@@ -195,6 +212,7 @@ export default function UploadPage() {
       const imageUrl = await getDownloadURL(storageRef);
       await uploadBytes(thumbRef, thumbnail, { contentType: IMAGE_POLICY.mimeType });
       const thumbnailUrl = await getDownloadURL(thumbRef);
+      const extraImageUrls = extraFiles.length ? await uploadSupplementalImages(extraFiles, user.uid) : [];
 
       const payload = prepareRecord({
         brand,
@@ -215,6 +233,7 @@ export default function UploadPage() {
         imageUrl,
         thumbnailUrl,
         storagePath: path,
+        extraImageUrls,
         sourceUrl,
         sourceName: safeHostnameFromUrl(sourceUrl),
         sourceType,
@@ -245,6 +264,7 @@ export default function UploadPage() {
       setSourceType("manual");
       setVerificationStatus("pending");
       setFile(null);
+      setExtraFiles([]);
       const input = document.getElementById("fileInput") as HTMLInputElement | null;
       if (input) input.value = "";
       setTimeout(() => setStatus({ kind: "idle", text: null }), 1200);
@@ -275,6 +295,9 @@ export default function UploadPage() {
           </div>
           <div className="text-emerald-100/80">
             Stay here if you want the fuller desktop form with more fields and a little more control.
+          </div>
+          <div className="rounded-lg border border-emerald-200/20 bg-black/15 px-3 py-2 text-sm text-emerald-50">
+            Best practice: upload a clear <b>tag photo</b> and include the <b>style number</b> whenever possible. That makes records much easier to track and confirm later.
           </div>
         </div>
         <div className="text-emerald-200">Verification preview: {verificationPreview}%</div>
@@ -353,6 +376,12 @@ export default function UploadPage() {
           <input id="fileInput" type="file" accept="image/*" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           <p className="mt-2 text-xs text-white/70">Best result: one clean label image on a white background, centered and easy to read. Uploads are normalized to {IMAGE_POLICY.format.toUpperCase()} at up to {IMAGE_POLICY.maxDimension}px.</p>
           {file && <p className="text-xs mt-1">Selected: <b>{file.name}</b></p>}
+        </div>
+
+        <div className="rounded border border-dashed border-white/20 p-4">
+          <input type="file" accept="image/*" multiple className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setExtraFiles(Array.from(e.target.files || []).slice(0, 5))} />
+          <p className="mt-2 text-xs text-white/70">Optional: add up to 5 extra images for care labels, RN closeups, alternate tags, or garment details.</p>
+          {extraFiles.length > 0 && <p className="text-xs mt-1">Extra: <b>{extraFiles.map((f) => f.name).join(", ")}</b></p>}
         </div>
 
         <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/75 space-y-2">

@@ -12,6 +12,21 @@ import AuthPanel from "@/app/components/AuthPanel";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 
+async function uploadSupplementalImages(files: File[], uid: string) {
+  const uploaded: string[] = [];
+
+  for (const file of files.slice(0, 3)) {
+    const normalized = await normalizeUploadedImage(file);
+    const baseName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${normalized.name}`;
+    const path = `tagusheep/uploads/${uid}/extra_${baseName}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, normalized, { contentType: IMAGE_POLICY.mimeType });
+    uploaded.push(await getDownloadURL(storageRef));
+  }
+
+  return uploaded;
+}
+
 export default function MobileUploadPage() {
   const [user, setUser] = useState<User | null>(auth.currentUser ?? null);
   const [brand, setBrand] = useState("");
@@ -21,6 +36,7 @@ export default function MobileUploadPage() {
   const [notes, setNotes] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [extraFiles, setExtraFiles] = useState<File[]>([]);
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
   const [lastUploadSummary, setLastUploadSummary] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[] | null>(null);
@@ -45,6 +61,7 @@ export default function MobileUploadPage() {
         : rn.length > 7
           ? "RN looks too long."
           : null;
+  const styleNumberMissing = styleNumber.trim().length === 0;
 
   function resetForm() {
     setBrand("");
@@ -54,6 +71,7 @@ export default function MobileUploadPage() {
     setNotes("");
     setSourceUrl("");
     setFile(null);
+    setExtraFiles([]);
     setDuplicates(null);
     setBrandSuggestions([]);
     setRnBrandSuggestions([]);
@@ -147,6 +165,10 @@ export default function MobileUploadPage() {
       setStatus({ kind: "error", text: rnWarning });
       return;
     }
+    if (styleNumberMissing) {
+      setStatus({ kind: "error", text: "Style number is required for quick uploads so records stay trackable and easier to confirm." });
+      return;
+    }
 
     try {
       setStatus({ kind: "info", text: "Preparing image…" });
@@ -174,6 +196,7 @@ export default function MobileUploadPage() {
       const imageUrl = await getDownloadURL(storageRef);
       await uploadBytes(thumbRef, thumbnail, { contentType: IMAGE_POLICY.mimeType });
       const thumbnailUrl = await getDownloadURL(thumbRef);
+      const extraImageUrls = extraFiles.length ? await uploadSupplementalImages(extraFiles, user.uid) : [];
 
       const payload = prepareRecord({
         brand,
@@ -184,6 +207,7 @@ export default function MobileUploadPage() {
         imageUrl,
         thumbnailUrl,
         storagePath: path,
+        extraImageUrls,
         sourceUrl,
         sourceName: safeHostnameFromUrl(sourceUrl),
         sourceType: "manual" as SourceType,
@@ -209,7 +233,7 @@ export default function MobileUploadPage() {
             <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Phone-friendly upload</p>
             <h1 className="mt-1 text-3xl font-semibold">Quick thrift upload</h1>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              Snap a shirt, add the basics, and keep moving. This page is meant for phones while you are out thrifting.
+              Snap the tag, capture the style number, add the basics, and keep moving. This page is meant for phones while you are out thrifting.
             </p>
           </div>
           {!user && <AuthPanel compact />}
@@ -218,9 +242,9 @@ export default function MobileUploadPage() {
         <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
           Best for fast uploads:
           <ul className="mt-2 list-disc space-y-1 pl-5 text-emerald-100/85">
-            <li>one clear photo</li>
+            <li>one clear tag photo, not just the whole shirt</li>
             <li>brand</li>
-            <li>style number</li>
+            <li>style number required</li>
             <li>RN if visible</li>
             <li>quick notes</li>
           </ul>
@@ -250,7 +274,7 @@ export default function MobileUploadPage() {
 
         <form onSubmit={onSubmit} className="space-y-4">
           <label className="block space-y-2">
-            <span className="text-sm text-white/80">Photo</span>
+            <span className="text-sm text-white/80">Tag photo</span>
             <input
               ref={fileInputRef}
               type="file"
@@ -261,8 +285,8 @@ export default function MobileUploadPage() {
             />
             <div className="flex flex-wrap gap-2 text-xs text-white/55">
               <span className="rounded-full border border-white/10 px-2 py-1">Back camera</span>
-              <span className="rounded-full border border-white/10 px-2 py-1">Single photo</span>
-              <span className="rounded-full border border-white/10 px-2 py-1">Fast upload</span>
+              <span className="rounded-full border border-white/10 px-2 py-1">Tag close-up</span>
+              <span className="rounded-full border border-white/10 px-2 py-1">Style number first</span>
             </div>
           </label>
 
@@ -272,12 +296,36 @@ export default function MobileUploadPage() {
             </div>
           )}
 
+          <label className="block space-y-2">
+            <span className="text-sm text-white/80">Extra photos (optional)</span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => setExtraFiles(Array.from(e.target.files || []).slice(0, 3))}
+              className="w-full rounded-2xl border border-white/12 bg-[#09111f] px-4 py-4 text-white"
+            />
+            <p className="text-xs text-white/55">Add up to 3 more images for care labels, RN closeups, or extra tag detail.</p>
+          </label>
+
+          {extraFiles.length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/80">
+              Extra: <b>{extraFiles.map((f) => f.name).join(", ")}</b>
+            </div>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Brand" value={brand} onChange={setBrand} placeholder="Nike" />
-            <Field label="Style number" value={styleNumber} onChange={setStyleNumber} placeholder="ABC123" />
+            <Field label="Style number *" value={styleNumber} onChange={setStyleNumber} placeholder="ABC123" />
             <Field label="RN" value={rn} onChange={(value) => setRn(value.replace(/\D+/g, ""))} placeholder="66170" inputMode="numeric" />
             <Field label="Garment type" value={garmentType} onChange={setGarmentType} placeholder="T-shirt" />
           </div>
+
+          {styleNumberMissing && (
+            <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+              Quick upload works best when you photograph the tag and capture the style number. Please add it before uploading.
+            </div>
+          )}
 
           {brandSuggestions.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -314,7 +362,7 @@ export default function MobileUploadPage() {
           <div className="sticky bottom-3 z-40 flex flex-col gap-3 rounded-3xl border border-white/10 bg-[#0b1222]/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
             <button
               type="submit"
-              disabled={!user || !file || status.kind === "info" || !!rnWarning}
+              disabled={!user || !file || status.kind === "info" || !!rnWarning || styleNumberMissing}
               className="inline-flex min-h-14 items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50"
             >
               {status.kind === "info" && status.pct != null ? `Uploading… ${status.pct}%` : status.kind === "info" ? "Uploading…" : "Upload this find"}
