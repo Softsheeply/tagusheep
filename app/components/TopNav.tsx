@@ -17,10 +17,10 @@ export default function TopNav() {
   return (
     <nav className="sticky top-0 z-40 border-b border-white/10 bg-white/5 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/badges/tagiconglass.png" alt="Tagsheep icon" className="h-[44px] w-[44px] object-contain" />
-          <span className="bg-gradient-to-r from-emerald-300 via-sky-300 to-white bg-clip-text text-lg font-semibold tracking-wide text-transparent">Tagsheep</span>
+          <img src="/badges/tagiconglass.png" alt="Tagsheep icon" className="h-[56px] w-[56px] object-contain" />
+          <span className="bg-gradient-to-r from-emerald-300 via-sky-300 to-white bg-clip-text text-xl font-semibold tracking-wide text-transparent">Tagsheep</span>
         </Link>
         <div className="flex items-center gap-3 text-sm">
           <Link href="/tags" className="transition hover:text-emerald-300">Browse</Link>
