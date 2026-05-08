@@ -333,8 +333,8 @@ function TagsPageInner() {
     <main className="max-w-6xl mx-auto p-6">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Tagsheep database</p>
-          <h1 className="text-2xl font-semibold">Search clothing records</h1>
+          <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Tagsheep archive</p>
+          <h1 className="text-2xl font-semibold">Browse clothing tags</h1>
         </div>
         <div className="flex items-center gap-3 text-sm">
           <Link href="/import" className="underline opacity-80 hover:opacity-100">Import URL</Link>
@@ -475,11 +475,13 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
           <div className="text-white/70">Style: {d.styleNumber || "—"}</div>
           <div className="text-white/70">Type: {d.garmentType || "—"}</div>
           <div className="text-white/70">Size: {d.size || ((d.availableSizes || []).length ? d.availableSizes?.join(", ") : "—")}</div>
-          <div className="flex flex-wrap gap-2 pt-1 text-[11px] uppercase tracking-wide">
-            <VerificationBadge status={d.verificationStatus} />
-            <Badge subtle>{getVerificationPercent(d)}% verified</Badge>
-            {d.sourceType && <Badge subtle>{d.sourceType}</Badge>}
-          </div>
+          {admin && (
+            <div className="flex flex-wrap gap-2 pt-1 text-[11px] uppercase tracking-wide">
+              <VerificationBadge status={d.verificationStatus} />
+              <Badge subtle>{getVerificationPercent(d)}% verified</Badge>
+              {d.sourceType && <Badge subtle>{d.sourceType}</Badge>}
+            </div>
+          )}
         </div>
       </Link>
 

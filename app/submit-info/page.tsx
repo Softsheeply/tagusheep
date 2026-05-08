@@ -63,7 +63,7 @@ function SubmitInfoInner() {
         </label>
         <div className="flex gap-3">
           <button type="submit" disabled={!canSubmit} className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black disabled:opacity-50">Submit info</button>
-          <Link href="/tags" className="rounded-xl border border-white/15 px-4 py-2 text-white">Back to database</Link>
+          <Link href={tagId ? `/tag/${tagId}` : "/tags"} className="rounded-xl border border-white/15 px-4 py-2 text-white">{tagId ? "Back to tag" : "Browse tags"}</Link>
         </div>
       </form>
 

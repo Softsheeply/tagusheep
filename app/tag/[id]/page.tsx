@@ -302,7 +302,7 @@ export default function TagDetailPage() {
           <h1 className="text-2xl font-semibold">{tag.brand || "Unknown brand"}</h1>
         </div>
         <div className="flex gap-3 text-sm">
-          <Link href="/tags" className="underline">← Back to database</Link>
+          <Link href="/tags" className="underline">← Browse tags</Link>
         </div>
       </div>
 
@@ -351,12 +351,14 @@ export default function TagDetailPage() {
             </div>
             <InfoBox label="Care text" value={tag.careText} multiline />
             <InfoBox label="Notes" value={tag.notes} multiline />
-            <div className="flex flex-wrap gap-2 pt-2 text-[11px] uppercase tracking-wide">
-              <VerificationBadge status={tag.verificationStatus} />
-              <Badge subtle>{getVerificationPercent(tag)}% verified</Badge>
-              {tag.sourceType && <Badge subtle>{tag.sourceType}</Badge>}
-              {tag.sourceName && <Badge subtle>{tag.sourceName}</Badge>}
-            </div>
+            {canEdit && (
+              <div className="flex flex-wrap gap-2 pt-2 text-[11px] uppercase tracking-wide">
+                <VerificationBadge status={tag.verificationStatus} />
+                <Badge subtle>{getVerificationPercent(tag)}% verified</Badge>
+                {tag.sourceType && <Badge subtle>{tag.sourceType}</Badge>}
+                {tag.sourceName && <Badge subtle>{tag.sourceName}</Badge>}
+              </div>
+            )}
           </div>
 
           {canEdit ? (

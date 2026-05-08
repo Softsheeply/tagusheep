@@ -22,7 +22,7 @@ export default function TopNav() {
           <span className="font-semibold tracking-wide">Tagsheep</span>
         </Link>
         <div className="flex items-center gap-3 text-sm">
-          <Link href="/tags" className="transition hover:text-emerald-300">Database</Link>
+          <Link href="/tags" className="transition hover:text-emerald-300">Browse</Link>
           <Link href="/upload" className="transition hover:text-emerald-300">Upload</Link>
           {user && <Link href="/mobile" className="transition hover:text-emerald-300">Quick upload</Link>}
           {user && <Link href="/import" className="transition hover:text-emerald-300">Import URL</Link>}
