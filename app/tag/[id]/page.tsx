@@ -32,6 +32,7 @@ type TagDoc = {
   verificationStatus?: VerificationStatus | null;
   imageUrl: string;
   thumbnailUrl?: string | null;
+  extraImageUrls?: string[];
   storagePath?: string | null;
   createdBy?: string | null;
   createdAt?: unknown;
@@ -312,6 +313,24 @@ export default function TagDetailPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={tag.imageUrl} alt={tag.brand ?? "tag"} className="h-full w-full object-contain" />
           </div>
+
+          {tag.extraImageUrls && tag.extraImageUrls.length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-white/45">Extra detail photos</div>
+                <p className="mt-1 text-sm text-white/65">Additional tag angles, RN closeups, care labels, or supporting garment details.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {tag.extraImageUrls.map((url, index) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-white/10 bg-white/5 transition hover:border-white/25">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`${tag.brand || "tag"} detail ${index + 1}`} className="aspect-square w-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2 text-sm">
             <a href={tag.imageUrl} target="_blank" rel="noreferrer" className="rounded border border-white/15 px-3 py-1 hover:border-white/40 transition">Open image</a>
             {canEdit && (
