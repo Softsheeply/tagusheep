@@ -20,10 +20,16 @@ function SubmitInfoInner() {
   const [details, setDetails] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState<string | null>(null);
-  const canSubmit = useMemo(() => details.trim().length > 0, [details]);
+  const signedIn = !!auth.currentUser;
+  const canSubmit = useMemo(() => signedIn && details.trim().length > 0, [signedIn, details]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!signedIn) {
+      setStatus("Please sign in before submitting extra info.");
+      return;
+    }
+
     try {
       await addDoc(collection(db, "submissions"), {
         productRef: tagId || null,
@@ -52,6 +58,11 @@ function SubmitInfoInner() {
       </div>
 
       <form onSubmit={onSubmit} className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+        {!signedIn && (
+          <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+            Sign in first to submit product corrections or extra details.
+          </div>
+        )}
         {tagId && <div className="text-sm text-white/60">Related record: <code>{tagId}</code></div>}
         <label className="block space-y-2">
           <span className="text-sm text-white/80">What should be added or corrected?</span>
