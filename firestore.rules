@@ -87,8 +87,8 @@ service cloud.firestore {
     }
 
     match /trash/{trashId} {
-      allow read: if signedIn();
-      allow create: if isAdmin() || (signedIn() && request.resource.data.trashedBy == request.auth.uid);
+      allow read: if isAdmin();
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
@@ -104,7 +104,7 @@ service cloud.firestore {
     }
 
     match /submissions/{submissionId} {
-      allow create: if true;
+      allow create: if signedIn();
       allow read, update, delete: if isAdmin();
     }
   }
