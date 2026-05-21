@@ -35,6 +35,18 @@ firebase deploy --only firestore:indexes
 firebase deploy --only storage
 ```
 
+### 4. Configure Storage CORS for browser uploads
+
+If uploads from localhost or your live website stall at 0% and the browser console mentions CORS or preflight failure, apply the bucket CORS config.
+
+For localhost development and normal browser uploads, use:
+
+```powershell
+gsutil cors set storage.cors.json gs://tagusheep-72229.appspot.com
+```
+
+If `gsutil` is unavailable, install Google Cloud SDK first.
+
 ## Firebase Console checks
 
 ### Authentication

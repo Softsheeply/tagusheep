@@ -48,6 +48,10 @@ export function normalizeBrand(value?: string | null) {
   return cleaned || null;
 }
 
+export function normalizeRn(value?: string | null) {
+  return value?.replace(/\D+/g, "").slice(0, 7) || null;
+}
+
 export function buildSearchText(record: Partial<TagRecord>) {
   const parts = [
     record.brand,
@@ -126,7 +130,7 @@ export function getVerificationPercent(record: Partial<TagRecord>) {
 export function prepareRecord(record: Partial<TagRecord>): Partial<TagRecord> {
   const brand = normalizeBrand(record.brand);
   const styleNumber = normalizeStyleNumber(record.styleNumber);
-  const rn = record.rn?.replace(/\D+/g, "").slice(0, 7) || null;
+  const rn = normalizeRn(record.rn);
   const productName = safeTrim(record.productName, 200);
   const garmentType = safeTrim(record.garmentType, 120);
   const size = safeTrim(record.size, 60);

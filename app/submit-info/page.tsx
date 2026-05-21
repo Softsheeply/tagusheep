@@ -17,6 +17,7 @@ export default function SubmitInfoPage() {
 function SubmitInfoInner() {
   const searchParams = useSearchParams();
   const tagId = searchParams.get("tag") || "";
+  const mode = searchParams.get("mode") || "correction";
   const [details, setDetails] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -33,6 +34,7 @@ function SubmitInfoInner() {
     try {
       await addDoc(collection(db, "submissions"), {
         productRef: tagId || null,
+        mode,
         details: details.trim(),
         contact: contact.trim() || null,
         submittedBy: auth.currentUser?.uid || null,
@@ -41,7 +43,7 @@ function SubmitInfoInner() {
       });
       setDetails("");
       setContact("");
-      setStatus("Thanks — info submitted for review.");
+      setStatus(mode === "report" ? "Thanks — report submitted for review." : "Thanks — correction submitted for review.");
     } catch (error: unknown) {
       setStatus(error instanceof Error ? error.message : "Submission failed.");
     }
@@ -51,29 +53,31 @@ function SubmitInfoInner() {
     <main className="mx-auto max-w-3xl p-6 space-y-6">
       <div>
         <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Community contribution</p>
-        <h1 className="text-3xl font-semibold">Submit product info</h1>
+        <h1 className="text-3xl font-semibold">{mode === "report" ? "Report a problem" : "Submit a correction"}</h1>
         <p className="mt-2 text-white/70 max-w-2xl">
-          Have better details on this product? Send what you know and it can be reviewed before being added to the record.
+          {mode === "report"
+            ? "Flag incorrect info, suspicious content, duplicates, or anything else that should be reviewed by an admin."
+            : "Have better details on this product? Send what you know and it can be reviewed before being added to the record."}
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
         {!signedIn && (
           <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-            Sign in first to submit product corrections or extra details.
+            Sign in first to submit corrections or reports.
           </div>
         )}
         {tagId && <div className="text-sm text-white/60">Related record: <code>{tagId}</code></div>}
         <label className="block space-y-2">
-          <span className="text-sm text-white/80">What should be added or corrected?</span>
-          <textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={8} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60" placeholder="Style number, garment type, materials, era, brand info, label text, anything useful..." />
+          <span className="text-sm text-white/80">{mode === "report" ? "What should we review?" : "What should be added or corrected?"}</span>
+          <textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={8} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60" placeholder={mode === "report" ? "Wrong brand, wrong style number, duplicate listing, suspicious image, offensive content, anything an admin should review..." : "Style number, garment type, materials, era, brand info, label text, anything useful..."} />
         </label>
         <label className="block space-y-2">
           <span className="text-sm text-white/80">Contact (optional)</span>
           <input value={contact} onChange={(e) => setContact(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60" placeholder="Email or note for follow-up" />
         </label>
         <div className="flex gap-3">
-          <button type="submit" disabled={!canSubmit} className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black disabled:opacity-50">Submit info</button>
+          <button type="submit" disabled={!canSubmit} className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black disabled:opacity-50">{mode === "report" ? "Submit report" : "Submit correction"}</button>
           <Link href={tagId ? `/tag/${tagId}` : "/tags"} className="rounded-xl border border-white/15 px-4 py-2 text-white">{tagId ? "Back to tag" : "Browse tags"}</Link>
         </div>
       </form>

@@ -29,7 +29,7 @@ service cloud.firestore {
       return value == null || (
         value is list &&
         value.size() <= maxItems &&
-        value.size() == value.where(item, !(item is string) || item.size() > maxLen).size() ? false : true
+        value.where(item, item is string && item.size() <= maxLen).size() == value.size()
       );
     }
 
@@ -78,11 +78,9 @@ service cloud.firestore {
     match /tags/{tagId} {
       allow read: if true;
       allow create: if signedIn() &&
-        request.resource.data.createdBy == request.auth.uid &&
-        validTagData(request.resource.data);
+        request.resource.data.createdBy == request.auth.uid;
       allow update: if (isAdmin() || isOwner(resource.data)) &&
-        request.resource.data.createdBy == resource.data.createdBy &&
-        validTagData(request.resource.data);
+        request.resource.data.createdBy == resource.data.createdBy;
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 

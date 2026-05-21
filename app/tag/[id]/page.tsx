@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { auth, db, storage } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
-import { prepareRecord, getVerificationPercent, type SourceType, type VerificationStatus } from "@/lib/records";
+import { buildSearchText, getVerificationPercent, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 
@@ -232,30 +232,67 @@ export default function TagDetailPage() {
         storagePath = newPath;
       }
 
-      const payload = prepareRecord({
-        brand,
-        productName,
-        rn,
-        styleNumber,
-        garmentType,
-        tags: tags.split(",").map((v) => v.trim()).filter(Boolean),
-        category,
-        color,
-        size,
-        availableSizes: availableSizes.split(",").map((v) => v.trim()).filter(Boolean),
-        year,
-        madeIn,
-        materials,
-        careText,
-        notes,
-        sourceUrl,
-        sourceName: safeHostnameFromUrl(sourceUrl),
-        sourceType,
-        verificationStatus,
+      const cleanBrand = normalizeBrand(brand);
+      const cleanStyleNumber = normalizeStyleNumber(styleNumber);
+      const cleanRn = normalizeRn(rn);
+      const cleanProductName = productName.trim() || null;
+      const cleanGarmentType = garmentType.trim() || null;
+      const cleanTags = tags.split(",").map((v) => v.trim()).filter(Boolean).slice(0, 25);
+      const cleanCategory = category.trim() || null;
+      const cleanColor = color.trim() || null;
+      const cleanSize = size.trim() || null;
+      const cleanAvailableSizes = availableSizes.split(",").map((v) => v.trim()).filter(Boolean).slice(0, 20);
+      const cleanYear = year.trim() || null;
+      const cleanMadeIn = madeIn.trim() || null;
+      const cleanMaterials = materials.trim() || null;
+      const cleanCareText = careText.trim() || null;
+      const cleanNotes = notes.trim() || null;
+      const cleanSourceUrl = sourceUrl.trim() || null;
+      const cleanSourceName = safeHostnameFromUrl(cleanSourceUrl || "") || null;
+
+      const payload: Record<string, unknown> = {
         imageUrl,
         thumbnailUrl,
+        sourceType,
+        verificationStatus,
+        searchText: buildSearchText({
+          brand: cleanBrand,
+          productName: cleanProductName,
+          rn: cleanRn,
+          styleNumber: cleanStyleNumber,
+          garmentType: cleanGarmentType,
+          size: cleanSize,
+          category: cleanCategory,
+          year: cleanYear,
+          madeIn: cleanMadeIn,
+          materials: cleanMaterials,
+          careText: cleanCareText,
+          color: cleanColor,
+          notes: cleanNotes,
+          sourceName: cleanSourceName,
+        }),
         storagePath,
-      });
+        createdBy: tag.createdBy || auth.currentUser?.uid || null,
+        createdAt: tag.createdAt || null,
+      };
+
+      if (cleanBrand) payload.brand = cleanBrand;
+      if (cleanProductName) payload.productName = cleanProductName;
+      if (cleanRn) payload.rn = cleanRn;
+      if (cleanStyleNumber) payload.styleNumber = cleanStyleNumber;
+      if (cleanGarmentType) payload.garmentType = cleanGarmentType;
+      if (cleanSize) payload.size = cleanSize;
+      if (cleanCategory) payload.category = cleanCategory;
+      if (cleanYear) payload.year = cleanYear;
+      if (cleanMadeIn) payload.madeIn = cleanMadeIn;
+      if (cleanMaterials) payload.materials = cleanMaterials;
+      if (cleanCareText) payload.careText = cleanCareText;
+      if (cleanColor) payload.color = cleanColor;
+      if (cleanNotes) payload.notes = cleanNotes;
+      if (cleanSourceUrl) payload.sourceUrl = cleanSourceUrl;
+      if (cleanSourceName) payload.sourceName = cleanSourceName;
+      if (cleanTags.length > 0) payload.tags = cleanTags;
+      if (cleanAvailableSizes.length > 0) payload.availableSizes = cleanAvailableSizes;
 
       await updateDoc(doc(db, "tags", id), payload);
       setTag({ ...(tag as TagDoc), ...(payload as TagDoc) });
@@ -370,14 +407,13 @@ export default function TagDetailPage() {
             </div>
             <InfoBox label="Care text" value={tag.careText} multiline />
             <InfoBox label="Notes" value={tag.notes} multiline />
-            {canEdit && (
-              <div className="flex flex-wrap gap-2 pt-2 text-[11px] uppercase tracking-wide">
-                <VerificationBadge status={tag.verificationStatus} />
-                <Badge subtle>{getVerificationPercent(tag)}% verified</Badge>
-                {tag.sourceType && <Badge subtle>{tag.sourceType}</Badge>}
-                {tag.sourceName && <Badge subtle>{tag.sourceName}</Badge>}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2 pt-2 text-[11px] uppercase tracking-wide">
+              <VerificationBadge status={tag.verificationStatus} />
+              <Badge subtle>{getVerificationPercent(tag)}% verified</Badge>
+              {tag.sourceType && <Badge subtle>{tag.sourceType}</Badge>}
+              {tag.sourceName && <Badge subtle>{tag.sourceName}</Badge>}
+              {tag.createdBy && <Badge subtle>community submitted</Badge>}
+            </div>
           </div>
 
           {canEdit ? (
@@ -422,16 +458,22 @@ export default function TagDetailPage() {
           </div>
           <input type="file" accept="image/*" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
           <p className="text-xs text-white/60">Replacement uploads are normalized to {IMAGE_POLICY.format.toUpperCase()} at up to {IMAGE_POLICY.maxDimension}px.</p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button type="submit" disabled={!canEdit || status.kind === "info"} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
               {status.kind === "info" && status.pct != null ? `Uploading… ${status.pct}%` : status.kind === "info" ? "Saving…" : "Save"}
+            </button>
+            <button type="button" onClick={onMoveToTrash} disabled={!canEdit || status.kind === "info"} className="px-4 py-2 rounded border border-rose-300/35 text-rose-200 disabled:opacity-50">
+              Move to Trash
             </button>
           </div>
           </form>
           ) : (
             <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <Link href={`/submit-info?tag=${id}`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
-                Have more details on this? Submit here
+              <Link href={`/submit-info?tag=${id}&mode=correction`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
+                Submit a correction
+              </Link>
+              <Link href={`/submit-info?tag=${id}&mode=report`} className="inline-block rounded-xl border border-rose-300/35 px-4 py-2 text-sm text-rose-200 hover:bg-rose-400/10 transition">
+                Report a problem
               </Link>
             </div>
           )}

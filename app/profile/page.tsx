@@ -123,8 +123,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
-              <Link href="/mobile" className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black">Quick upload</Link>
-              <Link href="/upload" className="rounded-xl border border-white/15 px-4 py-2 text-white">Full upload</Link>
+              <Link href="/upload" className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black">Submit a tag</Link>
               <Link href="/tags" className="rounded-xl border border-white/15 px-4 py-2 text-white">Browse tags</Link>
             </div>
           </div>

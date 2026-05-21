@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { collection, getCountFromServer, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 const quickSearches = ["Louis Vuitton", "RN 66170", "vintage hat", "1970s dress"];
@@ -19,12 +19,6 @@ const allBrowseTopics = [
   { title: "Outerwear", href: "/tags?q=jacket", note: "Coats, shells, padded labels, seasonal clues" },
 ];
 
-const outfitSlots = [
-  { title: "Pants", query: "pants" },
-  { title: "Shirt", query: "shirt" },
-  { title: "Hat", query: "hat" },
-  { title: "Accessory", query: "accessory" },
-];
 
 type TagDoc = {
   id: string;
@@ -52,15 +46,20 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [browseTopics, setBrowseTopics] = useState<BrowseTopic[]>(allBrowseTopics.slice(0, 6));
   const [latest, setLatest] = useState<TagDoc[]>([]);
+  const [totalTags, setTotalTags] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         const qRef = query(collection(db, "tags"), orderBy("createdAt", "desc"), limit(20));
         const snap = await getDocs(qRef);
-        setLatest(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })));
+        const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
+        setLatest(rows);
+        const countSnap = await getCountFromServer(collection(db, "tags"));
+        setTotalTags(countSnap.data().count);
       } catch {
         setLatest([]);
+        setTotalTags(null);
       }
     })();
   }, []);
@@ -70,19 +69,7 @@ export default function HomePage() {
     return q ? `/tags?q=${encodeURIComponent(q)}` : "/tags";
   }, [search]);
 
-  const outfitCards = useMemo(() => {
-    return outfitSlots.map((slot) => {
-      const match = latest.find((item) => {
-        const hay = `${item.productName || ""} ${item.garmentType || ""} ${(item.tags || []).join(" ")} ${item.category || ""}`.toLowerCase();
-        return hay.includes(slot.query);
-      });
-      return { ...slot, match };
-    });
-  }, [latest]);
-
-  const latestNews = useMemo(() => {
-    return latest.slice(0, 3);
-  }, [latest]);
+  const latestNews = useMemo(() => latest.slice(0, 5), [latest]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -109,9 +96,17 @@ export default function HomePage() {
             .
           </h1>
 
-          <p className="mx-auto max-w-3xl text-base leading-7 text-white/82 sm:text-lg">
-            Tagsheep is a community-built clothing tag database for thrifters, resellers, and vintage hunters.
+          <p className="mx-auto max-w-2xl text-base leading-7 text-white/70 sm:text-lg">
+            Find any clothing tag by brand, RN number, or style number. Built by resellers and thrifters, for resellers and thrifters.
           </p>
+
+          {totalTags !== null && totalTags > 0 && (
+            <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-3 text-sm sm:text-base">
+              <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-white/88">
+                <span className="font-semibold text-white">{totalTags.toLocaleString()}</span> tags in the database
+              </div>
+            </div>
+          )}
 
           <div className="mx-auto max-w-3xl rounded-[28px] border border-white/10 bg-white/6 p-4 shadow-[0_20px_90px_rgba(0,0,0,0.28)] backdrop-blur-sm">
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -141,20 +136,15 @@ export default function HomePage() {
       <section className="mb-10 rounded-3xl border border-emerald-300/15 bg-emerald-400/8 p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Mobile upload</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">Out thrifting? Use the quick phone upload.</h2>
+            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Contribute</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Found a tag? Submit it.</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
-              Open Tagsheep on your phone, snap a shirt or tag, add the basics you know, and upload fast without the full desktop form.
+              Photo, brand, and RN or style number is all you need. Works on your phone or desktop — the same form, reviewed before it goes live.
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/mobile" className="inline-flex items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
-              Open quick upload
-            </Link>
-            <Link href="/upload" className="inline-flex items-center justify-center rounded-2xl border border-white/15 px-5 py-3 text-white transition hover:border-white/30">
-              Full upload form
-            </Link>
-          </div>
+          <Link href="/upload" className="inline-flex items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
+            Submit a tag
+          </Link>
         </div>
       </section>
 
@@ -179,49 +169,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mb-10 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
-        <div className="rounded-2xl border border-white/10 bg-white/6 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.2)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200/90">Outfit of the day</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Build an outfit from the database</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/78 sm:text-base">
-            As records go in, this section starts using real images from the archive. If a slot has no matching record yet, it still gives you a place to start filling the database.
-          </p>
-
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {outfitCards.map((slot) => (
-              <Link key={slot.title} href={slot.match ? `/tag/${slot.match.id}` : `/tags?q=${encodeURIComponent(slot.query)}`} className="rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:border-emerald-300/35">
-                <div className="mb-3 aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-white/5 flex items-center justify-center text-white/35 text-sm">
-                  {slot.match?.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={slot.match.imageUrl} alt={slot.match.productName || slot.title} className="h-full w-full object-contain bg-white" />
-                  ) : (
-                    <span>{slot.title} image here later</span>
-                  )}
-                </div>
-                <div className="text-lg font-semibold text-white">{slot.title}</div>
-                <p className="mt-2 text-sm leading-6 text-white/70">
-                  {slot.match ? `${slot.match.brand || "Unknown brand"} — ${slot.match.productName || "View record"}` : `Browse ${slot.title.toLowerCase()} records and start filling this slot.`}
-                </p>
+      {latestNews.length > 0 && (
+        <section className="mb-10">
+          <div className="mb-4">
+            <p className="text-xs uppercase tracking-[0.22em] text-sky-200/80">Live activity</p>
+            <h2 className="mt-1 text-2xl font-semibold text-white">Recent records</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {latestNews.map((item) => (
+              <Link key={item.id} href={`/tag/${item.id}`} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 transition hover:border-emerald-300/35 hover:bg-white/7">
+                {item.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.imageUrl} alt={item.brand || "Tag"} className="mb-3 h-32 w-full rounded-xl object-contain bg-white/5" />
+                )}
+                <div className="font-semibold text-white">{item.brand || "Unknown brand"}</div>
+                <div className="mt-0.5 text-sm text-white/55">{item.productName || item.garmentType || "View record"}</div>
               </Link>
             ))}
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/6 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.2)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200/90">Latest in Tagsheep</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Recent records</h2>
-          <div className="mt-4 space-y-3 text-sm leading-6 text-white/78">
-            {latestNews.length ? latestNews.map((item) => (
-              <Link key={item.id} href={`/tag/${item.id}`} className="block rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-emerald-300/35">
-                <div className="font-semibold text-white">{item.brand || "Unknown brand"}</div>
-                <div className="text-white/70">{item.productName || "Untitled record"}</div>
-              </Link>
-            )) : (
-              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">No records yet — start uploading and importing to bring this section to life.</div>
-            )}
+          <div className="mt-4 text-center">
+            <Link href="/tags" className="text-sm text-white/50 underline hover:text-white/80">Browse all records →</Link>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </main>
   );
 }

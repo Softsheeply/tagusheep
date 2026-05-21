@@ -475,13 +475,12 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
           <div className="text-white/70">Style: {d.styleNumber || "—"}</div>
           <div className="text-white/70">Type: {d.garmentType || "—"}</div>
           <div className="text-white/70">Size: {d.size || ((d.availableSizes || []).length ? d.availableSizes?.join(", ") : "—")}</div>
-          {admin && (
-            <div className="flex flex-wrap gap-2 pt-1 text-[11px] uppercase tracking-wide">
-              <VerificationBadge status={d.verificationStatus} />
-              <Badge subtle>{getVerificationPercent(d)}% verified</Badge>
-              {d.sourceType && <Badge subtle>{d.sourceType}</Badge>}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2 pt-1 text-[11px] uppercase tracking-wide">
+            <VerificationBadge status={d.verificationStatus} />
+            <Badge subtle>{getVerificationPercent(d)}% verified</Badge>
+            {d.sourceType && <Badge subtle>{d.sourceType}</Badge>}
+            {d.createdBy && <Badge subtle>community submitted</Badge>}
+          </div>
         </div>
       </Link>
 

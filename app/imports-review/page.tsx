@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { addDoc, collection, deleteDoc, doc, getDocs, getDoc, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, normalizeBrand, normalizeStyleNumber, prepareRecord, type VerificationStatus, type SourceType } from "@/lib/records";
@@ -51,6 +51,7 @@ export default function ImportsReviewPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [accessChecked, setAccessChecked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     if (!currentUser) {
@@ -72,7 +73,9 @@ export default function ImportsReviewPage() {
     try {
       const qRef = query(collection(db, "imports_review"), orderBy("createdAt", "desc"));
       const snap = await getDocs(qRef);
-      setRows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ReviewDoc, "id">) })));
+      const loadedRows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ReviewDoc, "id">) }));
+      setRows(loadedRows);
+      setExpandedIds(Object.fromEntries(loadedRows.map((row, index) => [row.id, index < 3])));
     } catch (error: unknown) {
       setMessage(error instanceof Error ? error.message : "Could not load import review queue.");
     } finally {
@@ -134,8 +137,30 @@ export default function ImportsReviewPage() {
     return groups;
   }, [rows]);
 
+  const queueStats = useMemo(() => {
+    const stats = { total: rows.length, pending: 0, needsInfo: 0, rejected: 0, withImage: 0 };
+    for (const row of rows) {
+      const s = row.verificationStatus || "pending";
+      if (s === "pending") stats.pending++;
+      if (s === "needs_info") stats.needsInfo++;
+      if (s === "rejected") stats.rejected++;
+      if (row.imageUrl) stats.withImage++;
+    }
+    return stats;
+  }, [rows]);
+
   function updateLocal(id: string, patch: Partial<ReviewDoc>) {
     setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+  }
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  function removeRow(id: string) {
+    setRows((prev) => prev.filter((item) => item.id !== id));
+    setExpandedIds((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setDuplicates((prev) => { const next = { ...prev }; delete next[id]; return next; });
   }
 
   async function saveDraft(row: ReviewDoc) {
@@ -169,7 +194,7 @@ export default function ImportsReviewPage() {
   }
 
   async function checkDuplicates(row: ReviewDoc) {
-    const found = await findPotentialDuplicates(row.brand, row.styleNumber);
+    const found = await findPotentialDuplicates(row.brand, row.styleNumber, row.rn);
     setDuplicates((prev) => ({ ...prev, [row.id]: found }));
   }
 
@@ -199,6 +224,7 @@ export default function ImportsReviewPage() {
       setMessage("This row is marked as a duplicate. Clear that first or discard it.");
       return;
     }
+
     setBusyId(row.id);
     setMessage(null);
     try {
@@ -240,7 +266,7 @@ export default function ImportsReviewPage() {
 
       await addDoc(collection(db, "tags"), payload);
       await deleteDoc(doc(db, "imports_review", row.id));
-      setRows((prev) => prev.filter((item) => item.id !== row.id));
+      removeRow(row.id);
       setMessage("Import promoted to main database.");
     } catch (error: unknown) {
       setMessage(error instanceof Error ? error.message : "Approval failed.");
@@ -254,7 +280,7 @@ export default function ImportsReviewPage() {
     setMessage(null);
     try {
       await deleteDoc(doc(db, "imports_review", id));
-      setRows((prev) => prev.filter((item) => item.id !== id));
+      removeRow(id);
       setMessage("Review item removed.");
     } catch (error: unknown) {
       setMessage(error instanceof Error ? error.message : "Delete failed.");
@@ -280,10 +306,19 @@ export default function ImportsReviewPage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">No pending import candidates.</div>
       ) : (
         <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <StatCard label="Total in queue" value={queueStats.total} />
+            <StatCard label="Pending" value={queueStats.pending} />
+            <StatCard label="Needs info" value={queueStats.needsInfo} />
+            <StatCard label="Rejected / dupes" value={queueStats.rejected} />
+            <StatCard label="With image" value={queueStats.withImage} />
+          </div>
+
           {rows.map((row) => {
             const localGroup = localDuplicateGroups.get(duplicateKey(row)) || [];
             const hasLocalDuplicates = localGroup.length > 1;
             const externalDuplicates = duplicates[row.id] || [];
+            const expanded = !!expandedIds[row.id];
 
             return (
               <div key={row.id} className="grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 lg:grid-cols-[320px_1fr]">
@@ -301,38 +336,63 @@ export default function ImportsReviewPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Brand" value={row.brand || ""} onChange={(value) => updateLocal(row.id, { brand: value })} />
-                    <Field label="Product name" value={row.productName || ""} onChange={(value) => updateLocal(row.id, { productName: value })} />
-                    <Field label="RN" value={row.rn || ""} onChange={(value) => updateLocal(row.id, { rn: value })} />
-                    <Field label="Style number" value={row.styleNumber || ""} onChange={(value) => updateLocal(row.id, { styleNumber: value })} />
-                    <Field label="Category" value={row.category || ""} onChange={(value) => updateLocal(row.id, { category: value })} />
-                    <Field label="Size" value={row.size || ""} onChange={(value) => updateLocal(row.id, { size: value })} />
-                    <Field label="Year" value={row.year || ""} onChange={(value) => updateLocal(row.id, { year: value })} />
-                    <Field label="Source name" value={row.sourceName || ""} onChange={(value) => updateLocal(row.id, { sourceName: value })} />
-                    <Field label="Image URL" value={row.imageUrl || ""} onChange={(value) => updateLocal(row.id, { imageUrl: value })} />
-                    <Field label="Source URL" value={row.sourceUrl || ""} onChange={(value) => updateLocal(row.id, { sourceUrl: value })} />
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <QueueBadge tone="neutral">{row.verificationStatus || "pending"}</QueueBadge>
+                      {row.brand && <QueueBadge tone="subtle">Brand: {row.brand}</QueueBadge>}
+                      {row.styleNumber && <QueueBadge tone="subtle">Style: {row.styleNumber}</QueueBadge>}
+                      {row.rn && <QueueBadge tone="subtle">RN: {row.rn}</QueueBadge>}
+                      {row.createdBy && <QueueBadge tone="subtle">By: {row.createdBy.slice(0, 8)}…</QueueBadge>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(row.id)}
+                      className="rounded-lg border border-white/15 px-3 py-1 text-xs text-white/80 transition hover:border-emerald-300/40 hover:text-white"
+                    >
+                      {expanded ? "Collapse details" : "Expand details"}
+                    </button>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Select label="Source type" value={row.sourceType || "unknown"} onChange={(value) => updateLocal(row.id, { sourceType: value as SourceType })} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
-                    <Select label="Verification" value={row.verificationStatus || "needs_info"} onChange={(value) => updateLocal(row.id, { verificationStatus: value as VerificationStatus })} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
-                  </div>
+                  {!expanded ? (
+                    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
+                      Expand details to edit fields, inspect verification coverage, and fine-tune this submission before approval.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="Brand" value={row.brand || ""} onChange={(value) => updateLocal(row.id, { brand: value })} />
+                        <Field label="Product name" value={row.productName || ""} onChange={(value) => updateLocal(row.id, { productName: value })} />
+                        <Field label="RN" value={row.rn || ""} onChange={(value) => updateLocal(row.id, { rn: value })} />
+                        <Field label="Style number" value={row.styleNumber || ""} onChange={(value) => updateLocal(row.id, { styleNumber: value })} />
+                        <Field label="Category" value={row.category || ""} onChange={(value) => updateLocal(row.id, { category: value })} />
+                        <Field label="Size" value={row.size || ""} onChange={(value) => updateLocal(row.id, { size: value })} />
+                        <Field label="Year" value={row.year || ""} onChange={(value) => updateLocal(row.id, { year: value })} />
+                        <Field label="Source name" value={row.sourceName || ""} onChange={(value) => updateLocal(row.id, { sourceName: value })} />
+                        <Field label="Image URL" value={row.imageUrl || ""} onChange={(value) => updateLocal(row.id, { imageUrl: value })} />
+                        <Field label="Source URL" value={row.sourceUrl || ""} onChange={(value) => updateLocal(row.id, { sourceUrl: value })} />
+                      </div>
 
-                  <div className="text-sm text-emerald-200">Verification preview: {getVerificationPercent({ ...row, imageUrl: row.imageUrl || "" })}%</div>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {CORE_VERIFICATION_FIELDS.map((field) => {
-                      const value = row[field];
-                      const filled = Array.isArray(value) ? value.length > 0 : typeof value === "string" ? value.trim().length > 0 : value != null;
-                      return (
-                        <span key={field} className={`rounded-full border px-2 py-1 ${filled ? "border-emerald-300/35 bg-emerald-400/10 text-emerald-100" : "border-white/10 text-white/45"}`}>
-                          {filled ? "✓ " : ""}{CORE_VERIFICATION_FIELD_LABELS[field]}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  <Field label="Available sizes (comma separated)" value={(row.availableSizes || []).join(", ")} onChange={(value) => updateLocal(row.id, { availableSizes: value.split(",").map((v) => v.trim()).filter(Boolean) })} />
-                  <TextArea label="Notes" value={row.notes || ""} onChange={(value) => updateLocal(row.id, { notes: value })} rows={4} />
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Select label="Source type" value={row.sourceType || "unknown"} onChange={(value) => updateLocal(row.id, { sourceType: value as SourceType })} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
+                        <Select label="Verification" value={row.verificationStatus || "needs_info"} onChange={(value) => updateLocal(row.id, { verificationStatus: value as VerificationStatus })} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
+                      </div>
+
+                      <div className="text-sm text-emerald-200">Verification preview: {getVerificationPercent({ ...row, imageUrl: row.imageUrl || "" })}%</div>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {CORE_VERIFICATION_FIELDS.map((field) => {
+                          const value = row[field];
+                          const filled = Array.isArray(value) ? value.length > 0 : typeof value === "string" ? value.trim().length > 0 : value != null;
+                          return (
+                            <span key={field} className={`rounded-full border px-2 py-1 ${filled ? "border-emerald-300/35 bg-emerald-400/10 text-emerald-100" : "border-white/10 text-white/45"}`}>
+                              {filled ? "✓ " : ""}{CORE_VERIFICATION_FIELD_LABELS[field]}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <Field label="Available sizes (comma separated)" value={(row.availableSizes || []).join(", ")} onChange={(value) => updateLocal(row.id, { availableSizes: value.split(",").map((v) => v.trim()).filter(Boolean) })} />
+                      <TextArea label="Notes" value={row.notes || ""} onChange={(value) => updateLocal(row.id, { notes: value })} rows={4} />
+                    </>
+                  )}
 
                   <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/75">
                     <div className="flex flex-wrap items-center gap-2">
@@ -342,7 +402,7 @@ export default function ImportsReviewPage() {
                       ) : duplicates[row.id] ? (
                         <span className="text-emerald-200">No database duplicates found</span>
                       ) : (
-                        <span className="text-white/55">Checks brand + style number against existing records.</span>
+                        <span className="text-white/55">Checks likely duplicates using brand + style number before approval.</span>
                       )}
                     </div>
 
@@ -366,6 +426,7 @@ export default function ImportsReviewPage() {
                           <div className="min-w-0">
                             <div className="truncate">{dup.brand || "Unknown brand"} — {dup.productName || "No title"}</div>
                             <div className="text-xs text-amber-100/70">Style: {dup.styleNumber || "—"}</div>
+                            {dup.matchReason && <div className="text-xs text-amber-100/70">Matched by {dup.matchReason}</div>}
                           </div>
                           <div className="flex items-center gap-2">
                             <button onClick={() => markAsDuplicate(row, dup.id)} disabled={busyId === row.id} className="rounded-lg border border-amber-200/40 px-2 py-1 text-xs text-amber-50 disabled:opacity-50">Mark duplicate</button>
@@ -376,10 +437,10 @@ export default function ImportsReviewPage() {
                     </div>
                   ) : null}
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-black/20 p-3">
                     <button onClick={() => saveDraft(row)} disabled={busyId === row.id} className="rounded-xl border border-white/20 px-4 py-2 text-white disabled:opacity-50">Save draft</button>
-                    <button onClick={() => approve(row)} disabled={busyId === row.id || !!row.duplicateOfId} className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black disabled:opacity-50">Approve</button>
-                    <button onClick={() => discard(row.id)} disabled={busyId === row.id} className="rounded-xl border border-rose-300/35 px-4 py-2 text-rose-200 disabled:opacity-50">Discard</button>
+                    <button onClick={() => approve(row)} disabled={busyId === row.id || !!row.duplicateOfId} className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black disabled:opacity-50">Approve + Next</button>
+                    <button onClick={() => discard(row.id)} disabled={busyId === row.id} className="rounded-xl border border-rose-300/35 px-4 py-2 text-rose-200 disabled:opacity-50">Discard + Next</button>
                   </div>
                 </div>
               </div>
@@ -391,6 +452,19 @@ export default function ImportsReviewPage() {
       {message && <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/85">{message}</div>}
     </main>
   );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="text-xs uppercase tracking-[0.18em] text-white/45">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-white">{value.toLocaleString()}</div>
+    </div>
+  );
+}
+
+function QueueBadge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "subtle" }) {
+  return <span className={`rounded-full border px-2 py-1 ${tone === "subtle" ? "border-white/10 text-white/65" : "border-emerald-300/35 bg-emerald-400/10 text-emerald-100"}`}>{children}</span>;
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {

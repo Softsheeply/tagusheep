@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { auth, google } from "@/lib/firebase";
 import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
+  getRedirectResult,
   onAuthStateChanged,
   sendPasswordResetEmail,
   setPersistence,
@@ -29,11 +30,31 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
   const [status, setStatus] = useState<{ kind: "idle" | "error" | "success" | "info"; text: string | null }>({ kind: "idle", text: null });
   const [busy, setBusy] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const preferRedirect = useMemo(() => {
+    if (typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    return /iPhone|iPad|iPod|Android/i.test(ua);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
     setPersistence(auth, browserLocalPersistence).catch(() => {});
-    const unsub = onAuthStateChanged(auth, setUser);
+    void getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          setUser(result.user);
+          setOpen(false);
+          setStatus({ kind: "success", text: "Signed in." });
+        }
+      })
+      .catch((e: unknown) => {
+        const authError = e instanceof Error ? (e as Error & { code?: string }) : null;
+        setStatus({ kind: "error", text: friendlyAuthError(authError?.code, authError?.message) });
+      });
+    const unsub = onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser);
+      if (nextUser) setOpen(false);
+    });
     return () => unsub();
   }, []);
 
@@ -41,6 +62,12 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
     try {
       setBusy(true);
       setStatus({ kind: "idle", text: null });
+
+      if (preferRedirect) {
+        await signInWithRedirect(auth, google);
+        return;
+      }
+
       await signInWithPopup(auth, google);
       setOpen(false);
     } catch (e: unknown) {

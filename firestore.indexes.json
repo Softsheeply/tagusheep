@@ -23,13 +23,6 @@
         { "fieldPath": "styleNumber", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "trash",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "trashedAt", "order": "DESCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []
