@@ -417,7 +417,16 @@ function TagsPageInner() {
       {loading ? (
         <SkeletonMasonry />
       ) : exactStyleMatches.length === 0 && exactRnMatches.length === 0 && generalResults.length === 0 ? (
-        <p className="mt-6 text-white/80">No records found.</p>
+        <div className="mt-8 space-y-4 text-center">
+          <p className="text-white/60">No records found for <b className="text-white">{q}</b>.</p>
+          <p className="text-sm text-white/45">This tag isn&apos;t in the database yet.</p>
+          <Link
+            href={`/upload?${new URLSearchParams({ ...(searchIntent.normalizedRn ? { rn: searchIntent.normalizedRn } : {}), ...(searchIntent.normalizedStyle ? { styleNumber: searchIntent.normalizedStyle } : {}), ...(q && !searchIntent.normalizedRn && !searchIntent.normalizedStyle ? { brand: q } : {}) }).toString()}`}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
+          >
+            Be the first to submit this tag
+          </Link>
+        </div>
       ) : (
         <>
           {exactStyleMatches.length > 0 && (
@@ -464,9 +473,19 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
   return (
     <div className="group relative mb-4 break-inside-avoid">
       <Link href={`/tag/${d.id}`} className="block overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition hover:border-white/20 hover:shadow-md">
-        <div className="aspect-[4/5] bg-white overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full object-contain" />
+        <div className="aspect-[4/5] overflow-hidden">
+          {d.thumbnailUrl || d.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full bg-white object-contain" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 bg-white/[0.03] p-4 text-center">
+              <svg className="h-8 w-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
+              <div>
+                <div className="text-xs text-white/40">No photo yet</div>
+                <div className="mt-1 text-[11px] font-medium text-emerald-400/80">Be the first to snap this tag →</div>
+              </div>
+            </div>
+          )}
         </div>
         <div className="space-y-1 p-3 text-sm">
           <div className="font-medium truncate text-white">{d.brand || "Unknown brand"}</div>

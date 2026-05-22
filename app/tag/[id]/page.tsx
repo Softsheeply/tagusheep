@@ -346,10 +346,26 @@ export default function TagDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(360px,0.9fr)_minmax(420px,1.1fr)] items-start">
         <div className="space-y-4 sticky top-6 self-start">
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={tag.imageUrl} alt={tag.brand ?? "tag"} className="h-full w-full object-contain" />
-          </div>
+          {tag.imageUrl ? (
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={tag.imageUrl} alt={tag.brand ?? "tag"} className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-emerald-300/20 bg-emerald-400/8 p-6 text-center space-y-3">
+              <svg className="mx-auto h-10 w-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
+              <div>
+                <div className="font-medium text-white">No photo for this tag yet</div>
+                <p className="mt-1 text-sm text-white/60">Own this item or seen it before? Be the first to snap the label.</p>
+              </div>
+              <Link
+                href={`/upload?${new URLSearchParams({ ...(tag.brand ? { brand: tag.brand } : {}), ...(tag.rn ? { rn: tag.rn } : {}), ...(tag.styleNumber ? { styleNumber: tag.styleNumber } : {}) }).toString()}`}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-300"
+              >
+                Submit a photo
+              </Link>
+            </div>
+          )}
 
           {tag.extraImageUrls && tag.extraImageUrls.length > 0 && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">

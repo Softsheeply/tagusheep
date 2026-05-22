@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { auth, db, storage } from "@/lib/firebase";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
 import { addDoc, collection, getDocs, limit as qlimit, orderBy, query, serverTimestamp, startAt, endAt, where } from "firebase/firestore";
@@ -11,14 +12,15 @@ import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicat
 import { safeHostnameFromUrl } from "@/lib/validation";
 
 export default function UploadPage() {
+  const params = useSearchParams();
   const [user, setUser] = useState<User | null>(auth.currentUser ?? null);
 
   // Required
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [brand, setBrand] = useState("");
-  const [rn, setRn] = useState("");
-  const [styleNumber, setStyleNumber] = useState("");
+  const [brand, setBrand] = useState(params.get("brand") ?? "");
+  const [rn, setRn] = useState(params.get("rn") ?? "");
+  const [styleNumber, setStyleNumber] = useState(params.get("styleNumber") ?? "");
 
   // Optional
   const [showOptional, setShowOptional] = useState(false);
