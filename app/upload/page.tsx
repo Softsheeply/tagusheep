@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { auth, db, storage } from "@/lib/firebase";
@@ -11,7 +11,11 @@ import { buildSearchText, normalizeBrand, normalizeRn, normalizeStyleNumber, typ
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
 
-export default function UploadPage() {
+export default function UploadPageWrapper() {
+  return <Suspense><UploadPage /></Suspense>;
+}
+
+function UploadPage() {
   const params = useSearchParams();
   const [user, setUser] = useState<User | null>(auth.currentUser ?? null);
 
