@@ -28,6 +28,7 @@ type ReviewDoc = {
   availableSizes?: string[];
   category?: string | null;
   year?: string | null;
+  color?: string | null;
   verificationStatus?: VerificationStatus | null;
   duplicateOfId?: string | null;
   createdBy?: string | null;
@@ -196,6 +197,32 @@ export default function ImportsReviewPage() {
   async function checkDuplicates(row: ReviewDoc) {
     const found = await findPotentialDuplicates(row.brand, row.styleNumber, row.rn);
     setDuplicates((prev) => ({ ...prev, [row.id]: found }));
+  }
+
+  async function mergeAsVariant(row: ReviewDoc, targetId: string) {
+    setBusyId(row.id);
+    setMessage(null);
+    try {
+      const targetSnap = await getDoc(doc(db, "tags", targetId));
+      if (!targetSnap.exists()) {
+        setMessage("Target record not found.");
+        return;
+      }
+      const target = targetSnap.data();
+      const existingExtras: string[] = Array.isArray(target.extraImageUrls) ? target.extraImageUrls : [];
+      const newExtras = row.imageUrl ? [...existingExtras, row.imageUrl] : existingExtras;
+      await updateDoc(doc(db, "tags", targetId), {
+        extraImageUrls: newExtras,
+        ...(row.color && !target.color ? { color: row.color } : {}),
+      });
+      await deleteDoc(doc(db, "imports_review", row.id));
+      removeRow(row.id);
+      setMessage("Merged as variant — photo added to existing record.");
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Merge failed.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function markAsDuplicate(row: ReviewDoc, duplicateId: string) {
@@ -429,6 +456,7 @@ export default function ImportsReviewPage() {
                             {dup.matchReason && <div className="text-xs text-amber-100/70">Matched by {dup.matchReason}</div>}
                           </div>
                           <div className="flex items-center gap-2">
+                            <button onClick={() => mergeAsVariant(row, dup.id)} disabled={busyId === row.id} className="rounded-lg border border-sky-300/40 bg-sky-400/10 px-2 py-1 text-xs text-sky-100 disabled:opacity-50">Merge variant</button>
                             <button onClick={() => markAsDuplicate(row, dup.id)} disabled={busyId === row.id} className="rounded-lg border border-amber-200/40 px-2 py-1 text-xs text-amber-50 disabled:opacity-50">Mark duplicate</button>
                             <Link href={`/tag/${dup.id}`} className="underline text-xs">Open</Link>
                           </div>

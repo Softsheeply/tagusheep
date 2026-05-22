@@ -68,6 +68,7 @@ export default function TagDetailPage() {
   const [sourceType, setSourceType] = useState<SourceType>("unknown");
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>("pending");
 
+  const [similarTags, setSimilarTags] = useState<(TagDoc & { id: string })[]>([]);
   const [rnBrandSuggestions, setRnBrandSuggestions] = useState<string[]>([]);
   const [brandAutocomplete, setBrandAutocomplete] = useState<string[]>([]);
   const rnDebounce = useRef<number | null>(null);
@@ -107,12 +108,23 @@ export default function TagDetailPage() {
       const uid = auth.currentUser?.uid ?? null;
       if (uid && uid === data.createdBy) {
         setCanEdit(true);
-        return;
-      }
-      if (uid) {
+      } else if (uid) {
         const adminSnap = await getDoc(doc(db, "admins", uid));
-        setCanEdit(adminSnap.exists());
+        if (adminSnap.exists()) setCanEdit(true);
       }
+
+      // Load similar tags (same RN, or same brand if no RN)
+      try {
+        const similarQ = data.rn
+          ? query(collection(db, "tags"), where("rn", "==", data.rn), qlimit(7))
+          : data.brand
+            ? query(collection(db, "tags"), where("brand", "==", data.brand), qlimit(7))
+            : null;
+        if (similarQ) {
+          const simSnap = await getDocs(similarQ);
+          setSimilarTags(simSnap.docs.filter((d) => d.id !== snap.id).slice(0, 6).map((d) => ({ id: d.id, ...(d.data() as TagDoc) })));
+        }
+      } catch {}
     })();
   }, [id]);
 
@@ -333,18 +345,14 @@ export default function TagDetailPage() {
   const storageLink = consoleStorageUrl(projectId, bucket, tag.storagePath);
 
   return (
-    <main className="max-w-6xl mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Tagsheep record</p>
-          <h1 className="text-2xl font-semibold">{tag.brand || "Unknown brand"}</h1>
-        </div>
-        <div className="flex gap-3 text-sm">
-          <Link href="/tags" className="underline">← Browse tags</Link>
-        </div>
+    <main className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6">
+      <div className="flex items-center gap-3 text-sm text-white/50">
+        <Link href="/tags" className="transition hover:text-white">← Browse</Link>
+        <span>/</span>
+        <span className="text-white/80">{tag.brand || "Tag"}</span>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(360px,0.9fr)_minmax(420px,1.1fr)] items-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(340px,0.85fr)_minmax(420px,1.15fr)] items-start">
         <div className="space-y-4 sticky top-6 self-start">
           {tag.imageUrl ? (
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white p-4">
@@ -394,43 +402,81 @@ export default function TagDetailPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <InfoBox label="Brand" value={tag.brand} href={tag.brand ? `/brand/${encodeURIComponent(tag.brand)}` : undefined} />
-              <InfoBox label="RN" value={tag.rn} href={tag.rn ? `/rn/${encodeURIComponent(tag.rn)}` : undefined} />
+        <div className="space-y-5">
+          {/* ── Identity hero ── */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-white/40">Brand</div>
+              <h1 className="mt-1 text-3xl font-bold text-white leading-tight">{tag.brand || "Unknown brand"}</h1>
+              {tag.productName && <div className="mt-1 text-base text-white/60">{tag.productName}</div>}
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <InfoBox label="Product name" value={tag.productName} />
-              <InfoBox label="Style number" value={tag.styleNumber} href={tag.styleNumber ? `/style/${encodeURIComponent(tag.styleNumber)}` : undefined} />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <InfoBox label="Garment type" value={tag.garmentType} />
-              <InfoBox label="Year" value={tag.year} />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <InfoBox label="Color" value={tag.color} />
-              <InfoBox label="Size" value={tag.size || ((tag.availableSizes || []).length ? tag.availableSizes?.join(", ") : null)} />
-            </div>
-            <InfoBox label="Tags" value={(tag.tags || []).join(", ")} />
-            <div className="grid gap-2 sm:grid-cols-2">
-              <InfoBox label="Category" value={tag.category} />
-              <InfoBox label="Made in" value={tag.madeIn} />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <InfoBox label="Materials" value={tag.materials} />
-              <InfoBox label="Source" value={tag.sourceName} />
-            </div>
-            <InfoBox label="Care text" value={tag.careText} multiline />
-            <InfoBox label="Notes" value={tag.notes} multiline />
-            <div className="flex flex-wrap gap-2 pt-2 text-[11px] uppercase tracking-wide">
-              <VerificationBadge status={tag.verificationStatus} />
-              <Badge subtle>{getVerificationPercent(tag)}% verified</Badge>
-              {tag.sourceType && <Badge subtle>{tag.sourceType}</Badge>}
-              {tag.sourceName && <Badge subtle>{tag.sourceName}</Badge>}
-              {tag.createdBy && <Badge subtle>community submitted</Badge>}
-            </div>
+
+            {(tag.rn || tag.styleNumber) && (
+              <div className="flex flex-wrap gap-3">
+                {tag.rn && (
+                  <Link href={`/rn/${tag.rn}`} className="group rounded-xl border border-emerald-300/25 bg-emerald-400/8 px-4 py-2.5 transition hover:border-emerald-300/50 hover:bg-emerald-400/12">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-emerald-300/60">RN Number</div>
+                    <div className="mt-0.5 text-xl font-semibold text-emerald-200">{tag.rn}</div>
+                  </Link>
+                )}
+                {tag.styleNumber && (
+                  <Link href={`/style/${encodeURIComponent(tag.styleNumber)}`} className="group rounded-xl border border-sky-300/25 bg-sky-400/8 px-4 py-2.5 transition hover:border-sky-300/50 hover:bg-sky-400/12">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-sky-300/60">Style Number</div>
+                    <div className="mt-0.5 text-xl font-semibold text-sky-200">{tag.styleNumber}</div>
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* ── Details grid ── */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            <Meta label="Garment type" value={tag.garmentType} />
+            <Meta label="Year / Era" value={tag.year} />
+            <Meta label="Color" value={tag.color} />
+            <Meta label="Size" value={tag.size || ((tag.availableSizes || []).length ? tag.availableSizes?.join(", ") : null)} />
+            <Meta label="Made in" value={tag.madeIn} />
+            <Meta label="Category" value={tag.category} />
+          </div>
+
+          {tag.materials && (
+            <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.15em] text-white/40">Materials</div>
+              <div className="text-sm text-white/80">{tag.materials}</div>
+            </div>
+          )}
+          {tag.careText && (
+            <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.15em] text-white/40">Care text</div>
+              <div className="text-sm leading-relaxed text-white/80 whitespace-pre-wrap">{tag.careText}</div>
+            </div>
+          )}
+          {tag.notes && (
+            <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.15em] text-white/40">Notes</div>
+              <div className="text-sm leading-relaxed text-white/80 whitespace-pre-wrap">{tag.notes}</div>
+            </div>
+          )}
+
+          {/* ── Badges ── */}
+          <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-wide">
+            <VerificationBadge status={tag.verificationStatus} />
+            <Badge subtle>{getVerificationPercent(tag)}% verified</Badge>
+            {tag.sourceType && <Badge subtle>{tag.sourceType}</Badge>}
+            {tag.createdBy && <Badge subtle>community submitted</Badge>}
+          </div>
+
+          {/* ── Community CTAs (non-admin) ── */}
+          {!canEdit && (
+            <div className="flex flex-wrap gap-3 pt-1 text-sm">
+              <Link href={`/submit-info?tag=${id}&mode=correction`} className="rounded-xl border border-emerald-300/30 px-4 py-2 text-emerald-200 transition hover:bg-emerald-400/10">
+                Submit a correction
+              </Link>
+              <Link href={`/submit-info?tag=${id}&mode=report`} className="rounded-xl border border-rose-300/30 px-4 py-2 text-rose-200 transition hover:bg-rose-400/10">
+                Report a problem
+              </Link>
+            </div>
+          )}
 
           {canEdit ? (
           <form onSubmit={onSave} className="space-y-4">
@@ -483,18 +529,39 @@ export default function TagDetailPage() {
             </button>
           </div>
           </form>
-          ) : (
-            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <Link href={`/submit-info?tag=${id}&mode=correction`} className="inline-block rounded-xl border border-emerald-300/35 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 transition">
-                Submit a correction
-              </Link>
-              <Link href={`/submit-info?tag=${id}&mode=report`} className="inline-block rounded-xl border border-rose-300/35 px-4 py-2 text-sm text-rose-200 hover:bg-rose-400/10 transition">
-                Report a problem
-              </Link>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
+
+      {/* ── Similar tags ── */}
+      {similarTags.length > 0 && (
+        <section>
+          <div className="mb-4">
+            <p className="text-xs uppercase tracking-[0.22em] text-white/40">
+              {tag.rn ? `Other tags with RN ${tag.rn}` : `Other ${tag.brand || "brand"} tags`}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {similarTags.map((s) => (
+              <Link key={s.id} href={`/tag/${s.id}`} className="group rounded-2xl border border-white/10 bg-white/5 overflow-hidden transition hover:border-white/25">
+                <div className="aspect-[4/5] overflow-hidden">
+                  {s.thumbnailUrl || s.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.thumbnailUrl || s.imageUrl} alt={s.brand ?? "tag"} loading="lazy" className="h-full w-full bg-white object-contain" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center bg-white/[0.03] text-xs text-white/25">No photo</div>
+                  )}
+                </div>
+                <div className="p-2.5 text-xs">
+                  <div className="truncate font-medium text-white">{s.brand || "—"}</div>
+                  {s.color && <div className="truncate text-white/50">{s.color}</div>}
+                  {s.styleNumber && <div className="truncate text-white/40">Style: {s.styleNumber}</div>}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {status.text && <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg px-4 py-2 text-sm shadow-lg border ${status.kind === "success" ? "bg-emerald-500 text-black border-emerald-400" : status.kind === "error" ? "bg-rose-500 text-white border-rose-400" : "bg-white/10 border-white/20"}`}>{status.text}</div>}
     </main>
@@ -513,9 +580,13 @@ function Select({ label, value, onChange, options }: { label: string; value: str
   return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
 }
 
-function InfoBox({ label, value, href, multiline = false }: { label: string; value?: string | null; href?: string; multiline?: boolean }) {
-  const content = value?.trim() ? value : "—";
-  return <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[11px] uppercase tracking-[0.18em] text-white/45">{label}</div>{href && value ? <Link href={href} className="mt-1 block text-white underline-offset-4 hover:underline">{content}</Link> : <div className={`mt-1 text-white ${multiline ? "whitespace-pre-wrap text-sm leading-6" : ""}`}>{content}</div>}</div>;
+function Meta({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
+      <div className="text-[10px] uppercase tracking-[0.15em] text-white/35">{label}</div>
+      <div className="mt-0.5 truncate text-sm text-white">{value?.trim() || <span className="text-white/30">—</span>}</div>
+    </div>
+  );
 }
 
 function Badge({ children, subtle = false }: { children: React.ReactNode; subtle?: boolean }) {

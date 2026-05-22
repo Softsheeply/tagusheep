@@ -94,7 +94,15 @@ export default function RNPage() {
       {loading ? (
         <SkeletonMasonry />
       ) : docs.length === 0 ? (
-        <p className="mt-6 text-white/80">No records for this RN yet.</p>
+        <div className="mt-8 space-y-4 text-center">
+          <p className="text-white/60">No records for RN <b className="text-white">{rn}</b> yet.</p>
+          <Link
+            href={`/upload?rn=${encodeURIComponent(rn)}`}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
+          >
+            Submit a tag with this RN
+          </Link>
+        </div>
       ) : (
         <>
           <div className="mt-6 columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 [column-fill:balance]">
@@ -114,9 +122,16 @@ function Card({ d }: { d: TagDoc }) {
   return (
     <div className="mb-4 break-inside-avoid border border-white/10 rounded-2xl overflow-hidden bg-white/5 hover:shadow-md hover:border-white/20 transition">
       <Link href={`/tag/${d.id}`} className="block">
-        <div className="aspect-[4/5] bg-white overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full object-contain" />
+        <div className="aspect-[4/5] overflow-hidden">
+          {d.thumbnailUrl || d.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full bg-white object-contain" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 bg-white/[0.03] text-center p-3">
+              <div className="text-xs text-white/30">No photo</div>
+              <div className="text-[11px] text-emerald-400/70">Submit one →</div>
+            </div>
+          )}
         </div>
       </Link>
       <div className="p-3 text-sm space-y-1">
