@@ -44,12 +44,13 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
         if (result?.user) {
           setUser(result.user);
           setOpen(false);
-          setStatus({ kind: "success", text: "Signed in." });
         }
       })
       .catch((e: unknown) => {
         const authError = e instanceof Error ? (e as Error & { code?: string }) : null;
-        setStatus({ kind: "error", text: friendlyAuthError(authError?.code, authError?.message) });
+        const msg = friendlyAuthError(authError?.code, authError?.message);
+        setStatus({ kind: "error", text: msg });
+        setOpen(true);
       });
     const unsub = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);

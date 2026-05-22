@@ -8,7 +8,6 @@ import { addDoc, collection, getDocs, limit as qlimit, orderBy, query, serverTim
 import { ref, getDownloadURL, uploadBytes } from "firebase/storage";
 import { buildSearchText, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType } from "@/lib/records";
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
-import AuthPanel from "@/app/components/AuthPanel";
 import { safeHostnameFromUrl } from "@/lib/validation";
 
 export default function UploadPage() {
@@ -193,12 +192,11 @@ export default function UploadPage() {
 
       {/* Sign-in gate */}
       {!user && (
-        <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-5 space-y-3">
+        <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-5 py-4">
           <div className="font-medium text-amber-100">Sign in to submit tags</div>
-          <p className="text-sm text-amber-100/75">
-            Your submission goes into a review queue. Once approved it appears in search for everyone.
+          <p className="mt-1 text-sm text-amber-100/75">
+            Use the <b>Sign in</b> button at the top right. Once approved your submission appears in search for everyone.
           </p>
-          <AuthPanel compact />
         </div>
       )}
 
