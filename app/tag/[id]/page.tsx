@@ -417,6 +417,9 @@ export default function TagDetailPage() {
                   <Link href={`/rn/${tag.rn}`} className="group rounded-xl border border-emerald-300/25 bg-emerald-400/8 px-4 py-2.5 transition hover:border-emerald-300/50 hover:bg-emerald-400/12">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-emerald-300/60">RN Number</div>
                     <div className="mt-0.5 text-xl font-semibold text-emerald-200">{tag.rn}</div>
+                    {estimateRnYear(tag.rn) && (
+                      <div className="mt-1 text-[10px] text-emerald-300/50">Registered circa {estimateRnYear(tag.rn)}</div>
+                    )}
                   </Link>
                 )}
                 {tag.styleNumber && (
@@ -578,6 +581,15 @@ function TextArea({ label, value, onChange, rows = 4 }: { label: string; value: 
 
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
   return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
+}
+
+function estimateRnYear(rn?: string | null): number | null {
+  if (!rn) return null;
+  const n = parseInt(rn, 10);
+  if (isNaN(n) || n < 1000) return null;
+  const year = Math.round((n - 13670) / 2635 + 1959);
+  const now = new Date().getFullYear();
+  return year >= 1952 && year <= now ? year : null;
 }
 
 function Meta({ label, value }: { label: string; value?: string | null }) {

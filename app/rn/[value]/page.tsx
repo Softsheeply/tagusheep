@@ -80,13 +80,22 @@ export default function RNPage() {
 
   const title = useMemo(() => (rn || "Unknown RN"), [rn]);
 
+  const rnYear = useMemo(() => {
+    const n = parseInt(rn, 10);
+    if (isNaN(n) || n < 1000) return null;
+    const year = Math.round((n - 13670) / 2635 + 1959);
+    const now = new Date().getFullYear();
+    return year >= 1952 && year <= now ? year : null;
+  }, [rn]);
+
   return (
     <main className="max-w-6xl mx-auto p-6">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">RN index</p>
-          <h1 className="text-2xl font-semibold">RN: {title}</h1>
+          <h1 className="text-2xl font-semibold">RN {title}</h1>
           <p className="text-sm text-white/70">{count == null ? "Counting…" : `${count} matching record${count === 1 ? "" : "s"}`}</p>
+          {rnYear && <p className="mt-1 text-sm text-emerald-300/60">RN registered circa {rnYear} — garments made {rnYear} or later</p>}
         </div>
         <Link href="/tags" className="text-sm underline">← Back to database</Link>
       </div>
