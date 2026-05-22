@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { auth, google } from "@/lib/firebase";
 import {
@@ -30,11 +30,6 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
   const [status, setStatus] = useState<{ kind: "idle" | "error" | "success" | "info"; text: string | null }>({ kind: "idle", text: null });
   const [busy, setBusy] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const preferRedirect = useMemo(() => {
-    if (typeof navigator === "undefined") return false;
-    const ua = navigator.userAgent || "";
-    return /iPhone|iPad|iPod|Android/i.test(ua);
-  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -63,12 +58,6 @@ export default function AuthPanel({ compact = false }: { compact?: boolean }) {
     try {
       setBusy(true);
       setStatus({ kind: "idle", text: null });
-
-      if (preferRedirect) {
-        await signInWithRedirect(auth, google);
-        return;
-      }
-
       await signInWithPopup(auth, google);
       setOpen(false);
     } catch (e: unknown) {
