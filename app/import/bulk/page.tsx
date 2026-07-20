@@ -154,7 +154,7 @@ export default function BulkImportPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               rows={18}
-              placeholder="https://oldnavy.gapcanada.ca/browse/product.do?...\nhttps://example.com/product/..."
+              placeholder={"https://oldnavy.gapcanada.ca/browse/product.do?...\nhttps://example.com/product/..."}
               className="w-full rounded-2xl border border-white/12 bg-[#09111f] px-4 py-3 text-white placeholder:text-white/35 outline-none transition focus:border-emerald-300/60"
             />
           </label>

@@ -41,6 +41,7 @@ type TrashDoc = {
 export default function TrashPage() {
   const [docs, setDocs] = useState<TrashDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [lastSnap, setLastSnap] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exhausted, setExhausted] = useState(false);
@@ -83,12 +84,20 @@ export default function TrashPage() {
       orderBy("trashedAt", "desc"),
       limit(60)
     );
-    const off = onSnapshot(qRef, (snap) => {
-      setDocs(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TrashDoc, "id">) })));
-      setLoading(false);
-      setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
-      setExhausted(snap.size < 60);
-    });
+    const off = onSnapshot(
+      qRef,
+      (snap) => {
+        setDocs(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TrashDoc, "id">) })));
+        setLoading(false);
+        setLoadError(false);
+        setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
+        setExhausted(snap.size < 60);
+      },
+      () => {
+        setLoading(false);
+        setLoadError(true);
+      }
+    );
     return () => off();
   }, [authResolved, admin]);
 
@@ -207,6 +216,17 @@ export default function TrashPage() {
 
       {loading ? (
         <SkeletonGrid />
+      ) : loadError ? (
+        <div className="mt-8 space-y-4 text-center">
+          <p className="text-white/60">Couldn&apos;t load trash. Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
+          >
+            Retry
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
         <p className="mt-6 text-white/80">Trash is empty.</p>
       ) : (

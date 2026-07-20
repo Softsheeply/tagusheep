@@ -5,18 +5,11 @@ import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { buildContributorStats, getUnlockedBadges, type ContributorStats } from "@/lib/badges";
+import { buildContributorStats, getUnlockedBadges } from "@/lib/badges";
 import type { TagRecord } from "@/lib/records";
-import AuthPanel from "@/app/components/AuthPanel";
 
 type ContributorRecord = Pick<TagRecord, "brand" | "rn" | "styleNumber" | "imageUrl" | "verificationStatus"> & {
   id?: string;
-};
-
-const EMPTY_STATS: ContributorStats = {
-  uploadCount: 0,
-  verifiedCount: 0,
-  highQualityCount: 0,
 };
 
 export default function ProfilePage() {
@@ -71,12 +64,11 @@ export default function ProfilePage() {
             Track your uploads, badge progress, and the quality of the records you have added to Tagsheep.
           </p>
         </div>
-        {!user && <AuthPanel compact />}
       </div>
 
       {!user ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/75">
-          Sign in to see your contributor stats and unlocked badges.
+          Use the <b className="text-white">Sign in</b> button at the top right to see your contributor stats and unlocked badges.
         </div>
       ) : loading ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/75">Loading your profile…</div>

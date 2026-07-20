@@ -28,6 +28,7 @@ export default function RNPage() {
 
   const [docs, setDocs] = useState<TagDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [count, setCount] = useState<number | null>(null);
   const [lastSnap, setLastSnap] = useState<DocumentSnapshot<DocumentData> | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -50,13 +51,21 @@ export default function RNPage() {
 
   useEffect(() => {
     const qRef = query(collection(db, "tags"), where("rn", "==", rn), orderBy("createdAt", "desc"), qlimit(perPage));
-    const off = onSnapshot(qRef, (snap) => {
-      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
-      setDocs(rows);
-      setLoading(false);
-      setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
-      setExhausted(snap.size < perPage);
-    });
+    const off = onSnapshot(
+      qRef,
+      (snap) => {
+        const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
+        setDocs(rows);
+        setLoading(false);
+        setLoadError(false);
+        setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
+        setExhausted(snap.size < perPage);
+      },
+      () => {
+        setLoading(false);
+        setLoadError(true);
+      }
+    );
     return () => off();
   }, [rn]);
 
@@ -102,6 +111,17 @@ export default function RNPage() {
 
       {loading ? (
         <SkeletonMasonry />
+      ) : loadError ? (
+        <div className="mt-8 space-y-4 text-center">
+          <p className="text-white/60">Couldn&apos;t load records. Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
+          >
+            Retry
+          </button>
+        </div>
       ) : docs.length === 0 ? (
         <div className="mt-8 space-y-4 text-center">
           <p className="text-white/60">No records for RN <b className="text-white">{rn}</b> yet.</p>

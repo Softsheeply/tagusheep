@@ -127,6 +127,7 @@ function TagsPageInner() {
 
   const [docs, setDocs] = useState<TagDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [lastSnap, setLastSnap] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [q, setQ] = useState(initialQ);
   const [onlyWithRN, setOnlyWithRN] = useState(false);
@@ -163,12 +164,20 @@ function TagsPageInner() {
 
   useEffect(() => {
     const qRef = query(collection(db, "tags"), orderBy("createdAt", "desc"), limit(60));
-    const off = onSnapshot(qRef, (snap) => {
-      setDocs(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })));
-      setLoading(false);
-      setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
-      setExhausted(snap.size < 60);
-    });
+    const off = onSnapshot(
+      qRef,
+      (snap) => {
+        setDocs(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })));
+        setLoading(false);
+        setLoadError(false);
+        setLastSnap(snap.docs[snap.docs.length - 1] ?? null);
+        setExhausted(snap.size < 60);
+      },
+      () => {
+        setLoading(false);
+        setLoadError(true);
+      }
+    );
     return () => off();
   }, []);
 
@@ -416,6 +425,17 @@ function TagsPageInner() {
 
       {loading ? (
         <SkeletonMasonry />
+      ) : loadError ? (
+        <div className="mt-8 space-y-4 text-center">
+          <p className="text-white/60">Couldn&apos;t load tags. Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
+          >
+            Retry
+          </button>
+        </div>
       ) : exactStyleMatches.length === 0 && exactRnMatches.length === 0 && generalResults.length === 0 ? (
         <div className="mt-8 space-y-4 text-center">
           <p className="text-white/60">No records found for <b className="text-white">{q}</b>.</p>

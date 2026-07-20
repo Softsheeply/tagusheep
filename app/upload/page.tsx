@@ -79,7 +79,7 @@ function UploadPage() {
   }
 
   useEffect(() => {
-    if (!brand) { setBrandSuggestions([]); return; }
+    if (!brand) return;
     if (brandDebounce.current) window.clearTimeout(brandDebounce.current);
     brandDebounce.current = window.setTimeout(async () => {
       try {
@@ -91,7 +91,7 @@ function UploadPage() {
   }, [brand]);
 
   useEffect(() => {
-    if (!rn || rnWarning) { setRnBrandSuggestions([]); return; }
+    if (!rn || rnWarning) return;
     if (rnDebounce.current) window.clearTimeout(rnDebounce.current);
     rnDebounce.current = window.setTimeout(async () => {
       try {
@@ -101,6 +101,9 @@ function UploadPage() {
     }, 220);
     return () => { if (rnDebounce.current) window.clearTimeout(rnDebounce.current); };
   }, [rn, rnWarning]);
+
+  const visibleBrandSuggestions = brand ? brandSuggestions : [];
+  const visibleRnBrandSuggestions = rn && !rnWarning ? rnBrandSuggestions : [];
 
   function resetForm() {
     clearFile();
@@ -254,9 +257,9 @@ function UploadPage() {
 
           <div className="space-y-1.5">
             <Field label="Brand" value={brand} onChange={setBrand} placeholder="Nike, Levi's, Ralph Lauren…" required />
-            {brandSuggestions.length > 0 && (
+            {visibleBrandSuggestions.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1">
-                {brandSuggestions.map((b) => (
+                {visibleBrandSuggestions.map((b) => (
                   <button key={b} type="button" onClick={() => { setBrand(b); setBrandSuggestions([]); }}
                     className="rounded-full border border-white/15 px-2.5 py-0.5 text-xs transition hover:border-emerald-300/50 hover:text-emerald-200">
                     {b}
@@ -270,11 +273,11 @@ function UploadPage() {
             <div className="space-y-1.5">
               <Field label="RN number" value={rn} onChange={(v) => setRn(v.replace(/\D+/g, ""))} placeholder="66170" inputMode="numeric" />
               {rnWarning && <p className="text-xs text-amber-300">{rnWarning}</p>}
-              {rnBrandSuggestions.length > 0 && (
+              {visibleRnBrandSuggestions.length > 0 && (
                 <div>
                   <p className="text-xs text-white/45">This RN is linked to:</p>
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {rnBrandSuggestions.map((b) => (
+                    {visibleRnBrandSuggestions.map((b) => (
                       <button key={b} type="button" onClick={() => { setBrand(b); setRnBrandSuggestions([]); }}
                         className="rounded-full border border-white/15 px-2.5 py-0.5 text-xs transition hover:border-emerald-300/50 hover:text-emerald-200">
                         {b}

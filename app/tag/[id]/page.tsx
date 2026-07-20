@@ -45,6 +45,7 @@ export default function TagDetailPage() {
 
   const [tag, setTag] = useState<TagDoc | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [newFile, setNewFile] = useState<File | null>(null);
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
@@ -77,7 +78,14 @@ export default function TagDetailPage() {
   useEffect(() => {
     if (!id) return;
     (async () => {
-      const snap = await getDoc(doc(db, "tags", id));
+      let snap;
+      try {
+        snap = await getDoc(doc(db, "tags", id));
+      } catch {
+        setLoading(false);
+        setLoadError(true);
+        return;
+      }
       if (!snap.exists()) {
         setTag(null);
         setLoading(false);
@@ -109,8 +117,10 @@ export default function TagDetailPage() {
       if (uid && uid === data.createdBy) {
         setCanEdit(true);
       } else if (uid) {
-        const adminSnap = await getDoc(doc(db, "admins", uid));
-        if (adminSnap.exists()) setCanEdit(true);
+        try {
+          const adminSnap = await getDoc(doc(db, "admins", uid));
+          if (adminSnap.exists()) setCanEdit(true);
+        } catch {}
       }
 
       // Load similar tags (same RN, or same brand if no RN)
@@ -338,6 +348,20 @@ export default function TagDetailPage() {
   }
 
   if (loading) return <main className="max-w-3xl mx-auto p-6">Loading…</main>;
+  if (loadError) {
+    return (
+      <main className="max-w-3xl mx-auto space-y-4 p-6 text-center">
+        <p className="text-white/60">Couldn&apos;t load this tag. Check your connection and try again.</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
+        >
+          Retry
+        </button>
+      </main>
+    );
+  }
   if (!tag) return <main className="max-w-3xl mx-auto p-6">Not found.</main>;
 
   const projectId = process.env.NEXT_PUBLIC_FB_PROJECT_ID!;
