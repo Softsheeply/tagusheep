@@ -9,13 +9,18 @@ import { prepareRecord } from "@/lib/records";
 import { scrapeProductUrl } from "@/lib/scrape";
 import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 import { safeHostnameFromUrl } from "@/lib/validation";
+import { findPotentialDuplicates } from "@/lib/duplicates";
 
 type ImportResult = {
   url: string;
-  status: "pending" | "success" | "review" | "error";
+  status: "pending" | "success" | "review" | "duplicate" | "error";
   message?: string;
   recordName?: string;
 };
+
+// Each item does a scrape + one or more image fetch/uploads, so keep this
+// small enough not to hammer source sites or blow through storage quota bursts.
+const BATCH_SIZE = 3;
 
 export default function BulkImportPage() {
   const [input, setInput] = useState("");
@@ -45,10 +50,11 @@ export default function BulkImportPage() {
     const initial = urls.map((url) => ({ url, status: "pending" as const }));
     setResults(initial);
 
-    for (const url of urls) {
+    const uid = auth.currentUser.uid;
+
+    async function importOne(url: string) {
       try {
         const data = await scrapeProductUrl(url);
-        const uid = auth.currentUser.uid;
         let hostedImageUrl = data.imageUrl || "";
         let hostedThumbnailUrl: string | null = null;
         let hostedExtraImageUrls = (data.extraImageUrls || []).filter(Boolean);
@@ -112,7 +118,22 @@ export default function BulkImportPage() {
             importStatus: "needs_review",
           });
           setResults((prev) => prev.map((item) => item.url === url ? { ...item, status: "review", recordName: payload.productName || payload.brand || url, message: "Saved to review queue." } : item));
-          continue;
+          return;
+        }
+
+        const duplicates = await findPotentialDuplicates(payload.brand, payload.styleNumber, payload.rn);
+        if (duplicates.length > 0) {
+          await addDoc(collection(db, "imports_review"), {
+            ...payload,
+            sourceUrl: payload.sourceUrl || url,
+            sourceName: payload.sourceName || safeHostnameFromUrl(payload.sourceUrl || url),
+            createdBy: uid,
+            createdAt: serverTimestamp(),
+            importedAt: new Date().toISOString(),
+            importStatus: "possible_duplicate",
+          });
+          setResults((prev) => prev.map((item) => item.url === url ? { ...item, status: "duplicate", recordName: payload.productName || payload.brand || url, message: `Matches an existing record (${duplicates[0].matchReason}). Sent to review queue.` } : item));
+          return;
         }
 
         await addDoc(collection(db, "tags"), payload);
@@ -123,11 +144,17 @@ export default function BulkImportPage() {
       }
     }
 
+    for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+      const batch = urls.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(importOne));
+    }
+
     setRunning(false);
-    setMessage("Bulk import finished. Strong records were saved as pending; partial records were sent to the review queue.");
+    setMessage("Bulk import finished. Strong records were saved as pending; partial records and possible duplicates were sent to the review queue.");
   }
 
   const successCount = results.filter((r) => r.status === "success").length;
+  const duplicateCount = results.filter((r) => r.status === "duplicate").length;
   const errorCount = results.filter((r) => r.status === "error").length;
 
   return (
@@ -137,7 +164,7 @@ export default function BulkImportPage() {
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Import pipeline</p>
           <h1 className="text-3xl font-semibold">Bulk URL import</h1>
           <p className="mt-2 max-w-3xl text-white/70">
-            Paste many product URLs and let Tagsheep import them one by one. Successful records are saved live as <b>pending</b> so you can review them later.
+            Paste many product URLs and Tagsheep will import them a few at a time. Clean records save live as <b>pending</b>; partial records and possible duplicates go to the review queue instead.
           </p>
         </div>
         <div className="flex gap-3 text-sm">
@@ -172,9 +199,10 @@ export default function BulkImportPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             <StatCard label="Queued" value={String(urls.length)} />
             <StatCard label="Imported" value={String(successCount)} />
+            <StatCard label="Duplicates" value={String(duplicateCount)} />
             <StatCard label="Errors" value={String(errorCount)} />
           </div>
 
@@ -218,6 +246,8 @@ function StatusPill({ status }: { status: ImportResult["status"] }) {
     ? "border-emerald-300/35 bg-emerald-400/10 text-emerald-200"
     : status === "review"
     ? "border-sky-300/35 bg-sky-400/10 text-sky-200"
+    : status === "duplicate"
+    ? "border-violet-300/35 bg-violet-400/10 text-violet-200"
     : status === "error"
     ? "border-rose-300/35 bg-rose-400/10 text-rose-200"
     : "border-amber-300/35 bg-amber-400/10 text-amber-200";
