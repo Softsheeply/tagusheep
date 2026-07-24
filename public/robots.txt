@@ -1,5 +1,18 @@
 User-agent: *
-Disallow: /
+Allow: /
+Disallow: /api/
+Disallow: /trash
+Disallow: /export
+Disallow: /tools
+Disallow: /import
+Disallow: /imports-review
+Disallow: /submissions-review
+Disallow: /admin-test
+Disallow: /storage-test
+Disallow: /signin
+Disallow: /profile
 
 User-agent: Google-adstxt
 Disallow:
+
+Sitemap: https://tagsheep.com/sitemap.xml
