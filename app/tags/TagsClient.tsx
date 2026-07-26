@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query, limit, startAfter, getDocs, getDoc, doc, setDoc, deleteDoc, where, type QueryDocumentSnapshot, type DocumentData } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, limit, startAfter, getDocs, getDoc, doc, setDoc, deleteDoc, increment, serverTimestamp, where, type QueryDocumentSnapshot, type DocumentData } from "firebase/firestore";
 import { getVerificationPercent, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
 
 type TagDoc = {
@@ -321,6 +321,33 @@ function TagsPageInner() {
   const highlightedIds = useMemo(() => new Set([...exactStyleMatches, ...exactRnMatches].map((d) => d.id)), [exactStyleMatches, exactRnMatches]);
   const generalResults = useMemo(() => filtered.filter((d) => !highlightedIds.has(d.id)), [filtered, highlightedIds]);
 
+  const hasNoResults = exactStyleMatches.length === 0 && exactRnMatches.length === 0 && generalResults.length === 0;
+
+  // Signed-in-only zero-result searches are a demand signal for what to source
+  // next; debounced so we only log a query once the user settles on it.
+  useEffect(() => {
+    const trimmed = q.trim();
+    if (loading || !hasNoResults || trimmed.length < 2 || !auth.currentUser) return;
+
+    const timer = window.setTimeout(() => {
+      const normalizedQuery = trimmed.toLowerCase().slice(0, 200);
+      const missId = normalizedQuery.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 300) || "query";
+      setDoc(
+        doc(db, "search_misses", missId),
+        {
+          query: trimmed.slice(0, 200),
+          normalizedQuery,
+          count: increment(1),
+          firstSearchedAt: serverTimestamp(),
+          lastSearchedAt: serverTimestamp(),
+        },
+        { merge: true }
+      ).catch(() => {});
+    }, 1500);
+
+    return () => window.clearTimeout(timer);
+  }, [q, loading, hasNoResults]);
+
   async function moveToTrash(d: TagDoc) {
     if (busyId) return;
     if (!admin && me !== d.createdBy) return;
@@ -436,7 +463,7 @@ function TagsPageInner() {
             Retry
           </button>
         </div>
-      ) : exactStyleMatches.length === 0 && exactRnMatches.length === 0 && generalResults.length === 0 ? (
+      ) : hasNoResults ? (
         <div className="mt-8 space-y-4 text-center">
           <p className="text-white/60">No records found for <b className="text-white">{q}</b>.</p>
           <p className="text-sm text-white/45">This tag isn&apos;t in the database yet.</p>

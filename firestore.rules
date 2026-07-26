@@ -90,6 +90,19 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    function validSearchMissData(data) {
+      return data.keys().hasOnly(['query', 'normalizedQuery', 'count', 'firstSearchedAt', 'lastSearchedAt']) &&
+        data.query is string && data.query.size() <= 200 &&
+        data.normalizedQuery is string && data.normalizedQuery.size() <= 200 &&
+        data.count is number && data.count >= 1 && data.count <= 1000000;
+    }
+
+    match /search_misses/{missId} {
+      allow read: if isAdmin();
+      allow create, update: if signedIn() && validSearchMissData(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
     match /imports_review/{importId} {
       allow read: if isAdmin() || isOwner(resource.data);
       allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
