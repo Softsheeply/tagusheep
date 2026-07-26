@@ -91,7 +91,7 @@ service cloud.firestore {
     }
 
     match /imports_review/{importId} {
-      allow read: if signedIn();
+      allow read: if isAdmin() || isOwner(resource.data);
       allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isAdmin() || isOwner(resource.data);
     }
