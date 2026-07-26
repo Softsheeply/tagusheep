@@ -29,6 +29,8 @@ export default function BulkEditPage() {
         const qRef = query(collection(db, "tags"), orderBy("createdAt", "desc"));
         const snap = await getDocs(qRef);
         setRows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BulkRecord, "id">) })));
+      } catch {
+        setMessage("Couldn't load records. Check your connection and try refreshing.");
       } finally {
         setLoading(false);
       }

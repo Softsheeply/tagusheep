@@ -18,6 +18,7 @@ type AuditRecord = {
 export default function RNAuditPage() {
   const [rows, setRows] = useState<AuditRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -26,6 +27,8 @@ export default function RNAuditPage() {
         const qRef = query(collection(db, "tags"), orderBy("createdAt", "desc"));
         const snap = await getDocs(qRef);
         setRows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<AuditRecord, "id">) })));
+      } catch {
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -68,6 +71,12 @@ export default function RNAuditPage() {
         <StatCard label="With RN" value={loading ? "…" : String(withRn)} />
         <StatCard label="Missing RN" value={loading ? "…" : String(missingRn)} />
       </div>
+
+      {loadError && (
+        <div className="rounded-2xl border border-rose-300/25 bg-rose-500/10 p-4 text-sm text-rose-100">
+          Couldn&apos;t load records. Check your connection and try refreshing.
+        </div>
+      )}
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <input
