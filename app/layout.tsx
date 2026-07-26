@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import TopNav from "./components/TopNav";
+import { getSiteUrl } from "@/lib/site";
+
+const title = "Tagsheep";
+const description = "Tagsheep is a community-built clothing tag database for thrifters, resellers, and vintage hunters. Look up any brand, RN number, or style number.";
 
 export const metadata: Metadata = {
-  title: "Tagsheep",
-  description: "Tagsheep is a community-built clothing tag database for thrifters, resellers, and vintage hunters.",
+  metadataBase: new URL(getSiteUrl()),
+  title,
+  description,
   applicationName: "Tagsheep",
   appleWebApp: {
     capable: true,
@@ -17,6 +22,19 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
     apple: "/favicon.ico",
+  },
+  openGraph: {
+    title,
+    description,
+    siteName: "Tagsheep",
+    type: "website",
+    images: [{ url: "/badges/tagiconglass.png", width: 1254, height: 1254 }],
+  },
+  twitter: {
+    card: "summary",
+    title,
+    description,
+    images: ["/badges/tagiconglass.png"],
   },
 };
 
