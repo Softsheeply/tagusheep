@@ -39,13 +39,17 @@ firebase deploy --only storage
 
 If uploads from localhost or your live website stall at 0% and the browser console mentions CORS or preflight failure, apply the bucket CORS config.
 
-For localhost development and normal browser uploads, use:
+**Before deploying**, edit `storage.cors.json` and make sure the `origin` list includes every domain the site is actually served from -- your final production domain, `www` variant if used, and any Vercel preview/production `*.vercel.app` URL you rely on.
+
+Then apply it:
 
 ```powershell
-gsutil cors set storage.cors.json gs://tagusheep-72229.appspot.com
+gsutil cors set storage.cors.json gs://tagusheep-72229.firebasestorage.app
 ```
 
-If `gsutil` is unavailable, install Google Cloud SDK first.
+Note: newer Firebase projects get a default bucket named `<project-id>.firebasestorage.app`, not the older `<project-id>.appspot.com` convention. Run `gcloud storage buckets list` (after `gcloud config set project tagusheep-72229`) if you're ever unsure which bucket name is real -- using the wrong one fails with "404 The specified bucket does not exist."
+
+If `gsutil` is unavailable, install Google Cloud SDK first. Re-run this command every time the origin list changes -- it does not auto-deploy with the rest of the app.
 
 ## Firebase Console checks
 
@@ -63,7 +67,7 @@ Confirm database is enabled.
 
 ### Storage
 Confirm the storage bucket exists and matches:
-- `tagusheep-72229.appspot.com`
+- `tagusheep-72229.firebasestorage.app`
 
 ## Website deployment
 

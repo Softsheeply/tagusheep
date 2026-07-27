@@ -235,7 +235,7 @@ export default function CsvImportPage() {
             <b>brand</b> + (<b>styleNumber</b> or <b>rn</b>) — rows missing both are skipped automatically.
           </div>
           <div className="mt-1 text-xs text-emerald-100/60">
-            All columns: {TEMPLATE_HEADERS.join(", ")}. Headers are matched flexibly — "Style Number", "style_number", "style" all work.
+            All columns: {TEMPLATE_HEADERS.join(", ")}. Headers are matched flexibly — &ldquo;Style Number&rdquo;, &ldquo;style_number&rdquo;, &ldquo;style&rdquo; all work.
           </div>
         </div>
 

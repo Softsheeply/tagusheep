@@ -68,7 +68,7 @@ export const BADGES: BadgeDef[] = [
     key: "5000-uploads",
     title: "5000 Uploads",
     description: "Added 5000 records to Tagsheep.",
-    image: "/badges/5000uploads (1).png",
+    image: "/badges/5000uploads.png",
     unlocked: (stats) => stats.uploadCount >= 5000,
   },
   {

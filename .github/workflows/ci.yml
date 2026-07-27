@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholder values so the build's static generation step (which
+          # touches Firebase at module init) succeeds without real secrets.
+          # This only verifies the app compiles and renders -- it does not
+          # deploy anything.
+          NEXT_PUBLIC_FB_API_KEY: ci-placeholder-api-key
+          NEXT_PUBLIC_FB_AUTH_DOMAIN: ci-placeholder.firebaseapp.com
+          NEXT_PUBLIC_FB_PROJECT_ID: ci-placeholder-project
+          NEXT_PUBLIC_FB_STORAGE_BUCKET: ci-placeholder-project.appspot.com
+          NEXT_PUBLIC_FB_APP_ID: "1:0000000000:web:0000000000000000000000"

@@ -9,9 +9,11 @@ service firebase.storage {
       return request.auth != null && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
     }
 
-    match /tagusheep/uploads/{allPaths=**} {
+    match /tagusheep/uploads/{uid}/{allPaths=**} {
       allow read: if true;
-      allow write: if true;
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+      allow delete: if (signedIn() && request.auth.uid == uid) || isAdmin();
     }
 
     match /tagusheep/imports/{uid}/{allPaths=**} {

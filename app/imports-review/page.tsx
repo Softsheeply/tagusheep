@@ -14,7 +14,11 @@ type ReviewDoc = {
   productName?: string | null;
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
+  extraImageUrls?: string[];
   garmentType?: string | null;
+  subCategory?: string | null;
+  gender?: string | null;
+  season?: string | null;
   madeIn?: string | null;
   materials?: string | null;
   careText?: string | null;
@@ -26,9 +30,11 @@ type ReviewDoc = {
   rn?: string | null;
   size?: string | null;
   availableSizes?: string[];
+  tags?: string[];
   category?: string | null;
   year?: string | null;
   color?: string | null;
+  storagePath?: string | null;
   verificationStatus?: VerificationStatus | null;
   duplicateOfId?: string | null;
   createdBy?: string | null;
@@ -255,12 +261,25 @@ export default function ImportsReviewPage() {
     setBusyId(row.id);
     setMessage(null);
     try {
+      // Built as an explicit allowlist rather than spreading ...row: the raw
+      // imports_review document can carry bookkeeping-only fields (id,
+      // importStatus, duplicateOfId, bulkImported, etc.) that aren't valid
+      // on a tags document and would fail Firestore's schema validation.
       const payload = prepareRecord({
-        ...row,
         imageUrl: row.imageUrl || "",
         thumbnailUrl: row.thumbnailUrl || null,
+        extraImageUrls: row.extraImageUrls || [],
         brand: row.brand || null,
         productName: row.productName || null,
+        garmentType: row.garmentType || null,
+        subCategory: row.subCategory || null,
+        gender: row.gender || null,
+        season: row.season || null,
+        madeIn: row.madeIn || null,
+        materials: row.materials || null,
+        careText: row.careText || null,
+        color: row.color || null,
+        storagePath: row.storagePath || null,
         sourceUrl: row.sourceUrl || null,
         sourceName: row.sourceName || null,
         sourceType: row.sourceType || null,
@@ -269,6 +288,7 @@ export default function ImportsReviewPage() {
         rn: row.rn || null,
         size: row.size || null,
         availableSizes: row.availableSizes || [],
+        tags: row.tags || [],
         category: row.category || null,
         year: row.year || null,
         verificationStatus: (row.verificationStatus as VerificationStatus) || "pending",
