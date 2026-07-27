@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import SmartImage from "@/app/components/SmartImage";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, limit as qlimit, onSnapshot, startAfter, getDocs, getCountFromServer, type DocumentSnapshot, type DocumentData } from "firebase/firestore";
 
@@ -151,10 +152,9 @@ function Card({ d }: { d: TagDoc }) {
   return (
     <div className="mb-4 break-inside-avoid border border-white/10 rounded-2xl overflow-hidden bg-white/5 hover:shadow-md hover:border-white/20 transition">
       <Link href={`/tag/${d.id}`} className="block">
-        <div className="aspect-[4/5] overflow-hidden">
+        <div className="relative aspect-[4/5] overflow-hidden">
           {d.thumbnailUrl || d.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full bg-white object-contain" />
+            <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="bg-white object-contain" />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 bg-white/[0.03] text-center p-3">
               <div className="text-xs text-white/30">No photo</div>

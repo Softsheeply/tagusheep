@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
+import SmartImage from "@/app/components/SmartImage";
 import { auth, db } from "@/lib/firebase";
 import { buildContributorStats, getUnlockedBadges } from "@/lib/badges";
 import type { TagRecord } from "@/lib/records";
@@ -97,8 +98,7 @@ export default function ProfilePage() {
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {unlockedBadges.map((badge) => (
                   <div key={badge.key} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={badge.image} alt={badge.title} className="mb-3 h-24 w-24 object-contain" />
+                    <SmartImage src={badge.image} alt={badge.title} width={96} height={96} className="mb-3 h-24 w-24 object-contain" />
                     <div className="font-semibold text-white">{badge.title}</div>
                     <p className="mt-1 text-sm text-white/65">{badge.description}</p>
                   </div>
