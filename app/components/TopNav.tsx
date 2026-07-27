@@ -25,6 +25,7 @@ export default function TopNav() {
 
         <div className="flex items-center gap-1 text-sm sm:gap-2">
           <NavLink href="/tags">Browse</NavLink>
+          <NavLink href="/leaderboard">Leaderboard</NavLink>
           <NavLink href="/upload">Submit a tag</NavLink>
           {user && <NavLink href="/tools">Tools</NavLink>}
           {user && <NavLink href="/profile">Profile</NavLink>}
