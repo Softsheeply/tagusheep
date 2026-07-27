@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import TopNav from "./components/TopNav";
 import { getSiteUrl } from "@/lib/site";
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TopNav />
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
