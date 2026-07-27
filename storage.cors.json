@@ -4,7 +4,8 @@
       "http://localhost:3000",
       "http://127.0.0.1:3000",
       "https://tagsheep.com",
-      "https://www.tagsheep.com"
+      "https://www.tagsheep.com",
+      "https://tagusheep.vercel.app"
     ],
     "method": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
     "responseHeader": [
