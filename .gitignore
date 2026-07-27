@@ -33,6 +33,10 @@ firestore-debug.log
 firebase-debug.log
 ui-debug.log
 
+# playwright
+/test-results/
+/playwright-report/
+
 # env files (can opt-in for committing if needed)
 .env*
 
