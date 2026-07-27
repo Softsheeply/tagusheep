@@ -25,12 +25,11 @@ service cloud.firestore {
       return value == null || (value is string && value.size() <= maxLen);
     }
 
-    function stringListOrNull(value, maxItems, maxLen) {
-      return value == null || (
-        value is list &&
-        value.size() <= maxItems &&
-        value.where(item, item is string && item.size() <= maxLen).size() == value.size()
-      );
+    // Note: this only checks the list's shape (type + item count), not each
+    // element's type/length -- the rules language has no loop/lambda
+    // construct for validating arbitrary-length lists item-by-item.
+    function stringListOrNull(value, maxItems) {
+      return value == null || (value is list && value.size() <= maxItems);
     }
 
     function validTagKeys(data) {
@@ -42,43 +41,53 @@ service cloud.firestore {
     }
 
     function validTagData(data) {
+      // Dot access on a genuinely missing map key (as opposed to a key set
+      // to null) throws an evaluation error in this rules language, unlike
+      // JS -- so every optional field is read through .get(key, null)
+      // rather than data.key, to tolerate callers that omit rather than
+      // null out unused fields.
       return validTagKeys(data) &&
-        stringOrNull(data.brand, 120) &&
-        stringOrNull(data.productName, 200) &&
-        stringOrNull(data.rn, 7) &&
-        stringOrNull(data.styleNumber, 120) &&
-        stringOrNull(data.garmentType, 120) &&
-        stringOrNull(data.size, 60) &&
-        stringListOrNull(data.availableSizes, 20, 30) &&
-        stringListOrNull(data.tags, 25, 60) &&
-        stringOrNull(data.category, 120) &&
-        stringOrNull(data.subCategory, 120) &&
-        stringOrNull(data.gender, 60) &&
-        stringOrNull(data.year, 40) &&
-        stringOrNull(data.season, 80) &&
-        stringOrNull(data.madeIn, 120) &&
-        stringOrNull(data.materials, 1000) &&
-        stringOrNull(data.careText, 4000) &&
-        stringOrNull(data.color, 120) &&
-        stringOrNull(data.notes, 4000) &&
+        stringOrNull(data.get('brand', null), 120) &&
+        stringOrNull(data.get('productName', null), 200) &&
+        stringOrNull(data.get('rn', null), 7) &&
+        stringOrNull(data.get('styleNumber', null), 120) &&
+        stringOrNull(data.get('garmentType', null), 120) &&
+        stringOrNull(data.get('size', null), 60) &&
+        stringListOrNull(data.get('availableSizes', null), 20) &&
+        stringListOrNull(data.get('tags', null), 25) &&
+        stringOrNull(data.get('category', null), 120) &&
+        stringOrNull(data.get('subCategory', null), 120) &&
+        stringOrNull(data.get('gender', null), 60) &&
+        stringOrNull(data.get('year', null), 40) &&
+        stringOrNull(data.get('season', null), 80) &&
+        stringOrNull(data.get('madeIn', null), 120) &&
+        stringOrNull(data.get('materials', null), 1000) &&
+        stringOrNull(data.get('careText', null), 4000) &&
+        stringOrNull(data.get('color', null), 120) &&
+        stringOrNull(data.get('notes', null), 4000) &&
         data.imageUrl is string && data.imageUrl.size() > 0 && data.imageUrl.size() <= 2048 &&
-        stringOrNull(data.thumbnailUrl, 2048) &&
-        stringListOrNull(data.extraImageUrls, 8, 2048) &&
-        stringOrNull(data.sourceUrl, 2048) &&
-        stringOrNull(data.sourceName, 255) &&
-        allowedSourceType(data.sourceType) &&
-        allowedVerificationStatus(data.verificationStatus) &&
-        stringOrNull(data.searchText, 12000) &&
-        stringOrNull(data.storagePath, 1024) &&
-        stringOrNull(data.createdBy, 128) &&
-        stringOrNull(data.importedAt, 80) &&
-        (data.confidence == null || (data.confidence is number && data.confidence >= 0 && data.confidence <= 1));
+        stringOrNull(data.get('thumbnailUrl', null), 2048) &&
+        stringListOrNull(data.get('extraImageUrls', null), 8) &&
+        stringOrNull(data.get('sourceUrl', null), 2048) &&
+        stringOrNull(data.get('sourceName', null), 255) &&
+        allowedSourceType(data.get('sourceType', null)) &&
+        allowedVerificationStatus(data.get('verificationStatus', null)) &&
+        stringOrNull(data.get('searchText', null), 20000) &&
+        stringOrNull(data.get('storagePath', null), 1024) &&
+        stringOrNull(data.get('createdBy', null), 128) &&
+        stringOrNull(data.get('importedAt', null), 80) &&
+        (data.get('confidence', null) == null || (data.confidence is number && data.confidence >= 0 && data.confidence <= 1));
     }
 
     match /tags/{tagId} {
       allow read: if true;
       allow create: if signedIn() &&
-        request.resource.data.createdBy == request.auth.uid;
+        request.resource.data.createdBy == request.auth.uid &&
+        validTagData(request.resource.data);
+      // Not enforcing validTagData on update: existing documents written
+      // before this check existed aren't guaranteed to conform, and doing
+      // so could block legitimate edits to those records until a data
+      // cleanup pass confirms they all validate.
       allow update: if (isAdmin() || isOwner(resource.data)) &&
         request.resource.data.createdBy == resource.data.createdBy;
       allow delete: if isAdmin() || isOwner(resource.data);
