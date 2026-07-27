@@ -1,5 +1,6 @@
 // lib/firebase.ts
 import { initializeApp, getApps } from "firebase/app";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -15,6 +16,19 @@ const firebaseConfig = {
 };
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+
+// App Check is opt-in via env var so this is a no-op until a reCAPTCHA v3
+// site key exists (Firebase Console -> App Check -> register a web app) and
+// enforcement is turned on there. Only runs in the browser, and only once
+// per app instance (React strict mode / HMR would otherwise double-init).
+const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim();
+if (typeof window !== "undefined" && recaptchaSiteKey && !(app as unknown as { _appCheckInitialized?: boolean })._appCheckInitialized) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+  (app as unknown as { _appCheckInitialized?: boolean })._appCheckInitialized = true;
+}
 
 // Auth / DB
 export const auth = getAuth(app);
