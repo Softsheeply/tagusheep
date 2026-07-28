@@ -108,6 +108,51 @@ Create a Sentry project at sentry.io, grab its DSN from Project Settings,
 and its org/project slugs and an auth token (Settings → Auth Tokens) if you
 want sourcemap upload too.
 
+## Seeding the database from an open dataset
+
+`scripts/import-secondhand-dataset.mjs` imports the [Clothing Dataset for
+Second-Hand Fashion](https://zenodo.org/records/13788681) (CC-BY 4.0, commercial use
+permitted with attribution) — ~31,600 garments, each with a front photo, back photo,
+and a close-up of the brand label, annotated by professional second-hand sorters.
+
+The dataset carries **brand, material, colour, pattern, size and condition, but no RN
+or style number** (it was built for sorting garments, not identifying them). The script
+therefore runs OCR over each brand-label photo — the same extraction the `/upload` form
+uses — to recover RN, style number, made-in and composition from what's actually printed
+on the label. Dataset annotations win over OCR where both exist, since the dataset's
+material readings come from an NIR scanner.
+
+```bash
+# 1. Inspect first -- touches nothing, reports the real folder layout and JSON keys
+node scripts/import-secondhand-dataset.mjs --inspect --dataset ./clothing-dataset
+
+# 2. Dry run -- full pipeline including OCR, no writes
+node --env-file=.env.local scripts/import-secondhand-dataset.mjs \
+  --dataset ./clothing-dataset --limit 20 --dry-run
+
+# 3. Real import
+TAGSHEEP_IMPORT_EMAIL=you@example.com TAGSHEEP_IMPORT_PASSWORD=... \
+node --env-file=.env.local scripts/import-secondhand-dataset.mjs \
+  --dataset ./clothing-dataset --limit 2000
+```
+
+Run from the repo root — OCR loads its language data from `public/tesseract/`.
+
+Notes:
+- **Start with `--inspect`.** The field mapping is written against the dataset's published
+  documentation, not a copy that was opened and verified. Inspect prints the actual JSON
+  keys and how they map, so a mismatch is a one-line fix in `FIELD_ALIASES` rather than a
+  bad import.
+- Only the brand-label photo is uploaded by default. `--with-garment-photos` also uploads
+  the front/back shots — roughly triples storage use, and Firebase's free tier is 5 GB.
+- Imported records are written with `sourceType: "archive"` plus attribution in
+  `sourceName`/`sourceUrl`/`notes`. They're **excluded from the contributor leaderboard**,
+  which ranks people who actually photographed tags.
+- Progress is checkpointed to `<dataset>/.tagsheep-import-progress.json`, so the run is
+  resumable and safe to interrupt.
+- Writes go through the normal client SDK and the same Firestore/Storage rules a browser
+  would hit — no service account, no rule bypass.
+
 ## Production smoke test checklist
 
 After deploy, test:

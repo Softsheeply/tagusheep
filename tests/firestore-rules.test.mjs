@@ -105,6 +105,44 @@ test("tags: create missing imageUrl is rejected", async () => {
   await assertFails(addDoc(collection(ctxFor(OWNER_UID), "tags"), { brand: "Test", createdBy: OWNER_UID }));
 });
 
+// Guards scripts/import-secondhand-dataset.mjs: it writes a much wider
+// document than the upload form does (archive source fields, OCR-recovered
+// identifiers, storage paths), and a single non-allowlisted key or an
+// over-length value would reject every write in the run.
+test("tags: the dataset importer's full payload shape is accepted", async () => {
+  await assertSucceeds(
+    addDoc(collection(ctxFor(OWNER_UID), "tags"), {
+      imageUrl: "https://example.com/label.jpg",
+      thumbnailUrl: "https://example.com/label.jpg",
+      storagePath: `tagusheep/imports/${OWNER_UID}/1700000000_label_item.jpg`,
+      extraImageUrls: ["https://example.com/front.jpg", "https://example.com/back.jpg"],
+      brand: "Acme Denim",
+      garmentType: "Jeans",
+      color: "Blue",
+      size: "M",
+      materials: "Cotton",
+      rn: "6617012", // 7 chars exactly -- the rules cap
+      styleNumber: "ABC-1234",
+      madeIn: "USA",
+      notes: "Imported from the Clothing Dataset for Second-Hand Fashion, licensed CC-BY 4.0.",
+      sourceType: "archive",
+      sourceName: "Clothing Dataset for Second-Hand Fashion (CC-BY 4.0)",
+      sourceUrl: "https://zenodo.org/records/13788681",
+      verificationStatus: "pending",
+      searchText: "acme denim 6617012 abc-1234 jeans blue cotton usa",
+      createdBy: OWNER_UID,
+      importedAt: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    })
+  );
+});
+
+test("tags: an 8-digit rn is rejected (importer must clamp to 7)", async () => {
+  await assertFails(
+    addDoc(collection(ctxFor(OWNER_UID), "tags"), validTagPayload({ rn: "12345678" }))
+  );
+});
+
 test("tags: owner can update their own record even with a pre-validation shape", async () => {
   let id;
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
