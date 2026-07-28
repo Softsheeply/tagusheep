@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
@@ -16,4 +17,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Safe to wrap unconditionally: without SENTRY_ORG/SENTRY_PROJECT/
+// SENTRY_AUTH_TOKEN set, the plugin just skips sourcemap upload rather than
+// failing the build -- same no-op-until-configured pattern as instrumentation
+// .ts and instrumentation-client.ts.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: true,
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+  },
+});
