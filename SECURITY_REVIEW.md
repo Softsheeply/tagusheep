@@ -1,125 +1,92 @@
-# Tagsheep Security Review Starter
+# Tagsheep Security Review
 
-Date: 2026-05-08
+Date: 2026-07-28 (updated; original review 2026-05-08)
 
 ## Overall read
 
 Tagsheep is in better shape than a lot of early Firebase apps.
 
-The repo already has:
-- `firestore.rules`
-- `storage.rules`
+The repo has:
+- `firestore.rules` — with a real schema validator (`validTagData`) enforced on `tags` creates
+- `storage.rules` — writes scoped to the authenticated owner's own uid path
 - `firebase.json`
+- A CI-run rules test suite (`npm run test:rules`, 26 cases against the real emulator)
 
-Public UI hiding is **not** the only protection here. The Firebase rules do real work.
+Public UI hiding is **not** the only protection here. The Firebase rules do real work, and they're
+now verified by an automated test suite rather than by inspection alone.
 
-## What looks good
+## Current state by collection
 
-### Firestore: `tags`
+### `tags`
 - public reads are allowed intentionally
 - writes require sign-in
 - `createdBy` must match `request.auth.uid` on create
-- owner/admin update gating exists
-- owner/admin delete gating exists
-- update rules prevent changing `createdBy`
-- tag payload shape is validated pretty thoroughly
+- owner/admin update gating; update rules prevent changing `createdBy`
+- owner/admin delete gating
+- create payload is validated against an explicit key allowlist and per-field type/length checks
+  (`validTagData` in `firestore.rules`)
+- **not yet enforced on update** — pre-validation documents aren't guaranteed to conform;
+  `scripts/audit-tags-schema.mjs` exists to check live data before flipping that on
 
-### Firestore: `submissions`
-- public create is allowed intentionally
-- read/update/delete are admin-only
+### `trash`
+- read/create/update/delete: admin-only
+- (previously: any signed-in user could read all trashed records, and create only checked
+  `trashedBy == uid` with no ownership check on the source record — both fixed)
 
-### Firestore: `admins`
-- no writes from client
-- read requires sign-in
+### `search_misses`
+- create/update: any signed-in user, payload-validated
+- read/delete: admin-only
+
+### `imports_review`
+- read: owner or admin
+- create: signed-in, `createdBy` must match caller
+- update/delete: owner or admin
+
+### `admins`
+- read: any signed-in user
+- write: never allowed from a client (`allow write: if false`)
+
+### `submissions`
+- create: any signed-in user (previously `if true` — public/unauthenticated create was closed)
+- read/update/delete: admin-only
 
 ### Storage
-- uploads are namespaced by uid
-- only the matching signed-in uid can create/update inside their own path
+- uploads are namespaced by uid; only the matching signed-in uid can create/update inside their
+  own path
 - delete allows owner or admin
-- default deny fallback exists
+- default deny fallback
+- reads are fully public (intentional — this is a public tag image archive)
 
-## Main risks / follow-ups
+## Known residual risks
 
-### 1. Trash collection reads are too broad
-Current rule:
-- `/trash/{trashId}` read: any signed-in user
+### 1. No rate limiting on public-create endpoints (`tags`, `submissions`, `search_misses`)
+Sign-in is required, but there's nothing stopping a single account from writing at high volume.
+Firebase App Check is scaffolded (`lib/firebase.ts`, gated behind
+`NEXT_PUBLIC_RECAPTCHA_SITE_KEY`) but not yet enforced — see the App Check section of PR #2's
+description for the remaining activation steps (register the web app, create a reCAPTCHA v3 site
+key, verify real traffic sends valid tokens, then flip enforcement on in the Firebase console).
 
-That means any signed-in contributor can read all trashed records.
+### 2. `tags` update isn't schema-validated
+An owner or admin can currently write any shape of update to an existing `tags` document, not just
+one that passes `validTagData`. Run `scripts/audit-tags-schema.mjs` against production data before
+enabling the same check on `update` — if any live document doesn't conform, enabling it first would
+lock out edits to that record until it's cleaned up.
 
-### Recommendation
-Change trash reads to admin-only unless there is a product reason not to.
-
-Suggested rule direction:
-- `allow read: if isAdmin();`
-
----
-
-### 2. Trash create validation is weak
-Current rule:
-- `/trash/{trashId}` create: admin OR signed-in user if `trashedBy == request.auth.uid`
-
-This does **not** validate that the user actually owns the source record they are trashing.
-The UI tries to enforce owner/admin, but rules should enforce that too.
-
-### Recommendation
-Either:
-- make trash writes admin-only
-- or require source-record ownership by looking up the original tag document
-
-Safer simple option:
-- only admins can create trash docs
-
-If owners should still soft-delete their own records, add stricter checks tying the trash doc to the original tag.
-
----
-
-### 3. Submission spam risk
-Current rule:
-- `/submissions` create: `if true`
-
-This is easy to use, but it also means anyone can spam the collection.
-
-### Recommendation
-At minimum, consider one of:
-- require sign-in for submissions
-- add App Check later
-- add rate limiting via server/API if abuse appears
-
-If you want low-friction public submissions for now, keep it, but treat it as a known risk.
-
----
-
-### 4. Storage read is fully public
-Current rule:
-- uploaded images are publicly readable
-
-This is probably intentional for a public tag archive, but it is worth stating clearly.
-
-### Recommendation
-Keep if desired, but know that uploaded source images are public URLs by design.
-
----
-
-### 5. Client-side admin checks still exist in UI
-The UI uses `canEdit` / `admin` checks in several places.
-
-This is fine for user experience, because the Firebase rules backstop the real permissions. But future features should continue following that pattern:
-- hide in UI for UX
-- enforce in rules for real security
+### 3. Client-side admin checks still exist in UI
+The UI uses `canEdit` / `admin` checks in several places for UX (hiding buttons a user can't use).
+This is fine because the Firebase rules backstop the real permissions — but future features should
+keep following that pattern: hide in UI for UX, enforce in rules for real security.
 
 ## Good next security moves
 
-1. Restrict `/trash` reads to admins
-2. Tighten `/trash` create rules
-3. Decide whether `/submissions` should stay public-write
-4. Consider App Check later if public abuse becomes a problem
-5. Add a quick deploy checklist for rules whenever new collections are introduced
+1. Decide on App Check enforcement timeline once real traffic is confirmed sending valid tokens
+2. Run the tags-schema audit script and consider enabling `validTagData` on `update`
+3. Consider error monitoring (e.g. Sentry) for visibility into rule-rejection patterns that might
+   indicate abuse attempts, not just bugs
 
 ## Quick verdict
 
-Current state is **not wide open**.
-
-Biggest actionable issues right now:
-- trash readability
-- trash create strictness
-- submission spam exposure
+Current state is **not wide open**. The three issues flagged in the original review (trash
+readability, trash create strictness, submission spam exposure) are resolved and covered by the
+automated rules test suite. Remaining work is about defense-in-depth (rate limiting, update-time
+validation) rather than open holes.

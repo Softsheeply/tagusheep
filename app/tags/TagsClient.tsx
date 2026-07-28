@@ -379,7 +379,7 @@ function TagsPageInner() {
       </div>
 
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.2)] space-y-4">
-        <input className="w-full rounded-xl border border-white/12 bg-[#09111f] p-3 text-white placeholder:text-white/40 outline-none transition focus:border-emerald-300/60" placeholder="Search brand, product name, RN, style number, category, year, source..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" aria-label="Search tags" className="w-full rounded-xl border border-white/12 bg-[#09111f] p-3 text-white placeholder:text-white/40 outline-none transition focus:border-emerald-300/60" placeholder="Search brand, product name, RN, style number, category, year, source..." value={q} onChange={(e) => setQ(e.target.value)} />
 
         {searchIntent.exactIdentifierQuery && (
           <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/5 px-4 py-3 text-sm text-emerald-100">
@@ -553,7 +553,7 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
       {(admin || me === d.createdBy) && (
         <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition group-hover:opacity-100">
           <Link href={`/tag/${d.id}`} className="rounded bg-emerald-500/90 px-2 py-1 text-xs text-black hover:bg-emerald-400">Edit</Link>
-          <button disabled={busyId === d.id} onClick={() => moveToTrash(d)} className="hidden rounded border border-amber-400 px-2 py-1 text-xs text-amber-300 hover:bg-amber-500/10 disabled:opacity-50" title="Move to Trash" aria-hidden="true">
+          <button disabled={busyId === d.id} onClick={() => moveToTrash(d)} className="rounded border border-amber-400 px-2 py-1 text-xs text-amber-300 hover:bg-amber-500/10 disabled:opacity-50" title="Move to Trash">
             {busyId === d.id ? "…" : "Trash"}
           </button>
         </div>

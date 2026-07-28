@@ -80,6 +80,8 @@ export default function RNAuditPage() {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <input
+          type="search"
+          aria-label="Search records"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search brand, product name, RN, style number..."

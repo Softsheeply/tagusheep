@@ -97,12 +97,15 @@ export default function BulkEditPage() {
 
       <div className="grid gap-4 md:grid-cols-[1fr_auto_auto] rounded-2xl border border-white/10 bg-white/5 p-4">
         <input
+          type="search"
+          aria-label="Search records"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search brand, product, RN, style number..."
           className="rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white placeholder:text-white/40 outline-none transition focus:border-emerald-300/60"
         />
         <input
+          aria-label="New RN"
           value={newRn}
           onChange={(e) => setNewRn(e.target.value)}
           placeholder="New RN"
