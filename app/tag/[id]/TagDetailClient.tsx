@@ -545,7 +545,7 @@ export default function TagDetailClient() {
             <Select label="Source type" value={sourceType} onChange={(v) => setSourceType(v as SourceType)} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
             <Select label="Verification status" value={verificationStatus} onChange={(v) => setVerificationStatus(v as VerificationStatus)} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
           </div>
-          <input type="file" accept="image/*" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
+          <input type="file" accept="image/*" aria-label="Replace image" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
           <p className="text-xs text-white/60">Replacement uploads are normalized to {IMAGE_POLICY.format.toUpperCase()} at up to {IMAGE_POLICY.maxDimension}px.</p>
           <div className="flex gap-2 flex-wrap">
             <button type="submit" disabled={!canEdit || status.kind === "info"} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">

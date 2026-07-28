@@ -207,6 +207,8 @@ export default function TrashPage() {
 
       <div className="mt-3">
         <input
+          type="search"
+          aria-label="Search trash"
           className="w-full border rounded p-2 text-black"
           placeholder="Search brand or RN…"
           value={q}

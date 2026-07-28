@@ -111,6 +111,8 @@ export default function HomePage() {
           <div className="mx-auto max-w-3xl rounded-[28px] border border-white/10 bg-white/6 p-4 shadow-[0_20px_90px_rgba(0,0,0,0.28)] backdrop-blur-sm">
             <div className="flex flex-col gap-3 sm:flex-row">
               <input
+                type="search"
+                aria-label="Search Tagsheep"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search Louis Vuitton, RN, style number, vintage hat, 1970s dress..."

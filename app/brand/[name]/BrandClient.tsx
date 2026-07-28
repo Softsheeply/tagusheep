@@ -140,6 +140,8 @@ export default function BrandClient() {
 
       <div className="mt-4">
         <input
+          type="search"
+          aria-label={`Filter ${brand} by style number, RN, or notes`}
           value={styleFilter}
           onChange={(e) => setStyleFilter(e.target.value)}
           placeholder={`Filter ${brand} by style number, RN, or notes…`}
