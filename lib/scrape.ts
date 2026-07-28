@@ -125,7 +125,7 @@ function pickImages(jsonLdNodes: JsonLdNode[], html: string, fallbackImages: str
     .slice(0, 8);
 }
 
-function extractStyleNumber(text: string) {
+export function extractStyleNumber(text: string) {
   return firstMatch(text, [
     /style(?:\s+number|\s+no\.?|)\s*[:#-]?\s*([A-Z0-9\-\/ ]{4,})/i,
     /model(?:\s+code|\s+number|)\s*[:#-]?\s*([A-Z0-9\-\/ ]{4,})/i,
@@ -136,25 +136,25 @@ function extractStyleNumber(text: string) {
   ]);
 }
 
-function extractRn(text: string) {
+export function extractRn(text: string) {
   return firstMatch(text, [/\bRN\s*#?\s*(\d{3,8})\b/i]);
 }
 
-function extractMadeIn(text: string) {
+export function extractMadeIn(text: string) {
   return firstMatch(text, [/made\s+in\s+([a-zA-Z ]{3,40})/i]);
 }
 
-function extractYear(text: string) {
+export function extractYear(text: string) {
   return firstMatch(text, [/\b(19\d{2}|20\d{2})\b/]);
 }
 
-function extractCategory(text: string) {
+export function extractCategory(text: string) {
   return firstMatch(text, [
     /\b(t-?shirt|tee|hoodie|sweatshirt|dress|jeans|pants|shorts|jacket|coat|sweater|tank|legging|activewear|shirt|top)\b/i,
   ]);
 }
 
-function extractMaterials(text: string) {
+export function extractMaterials(text: string) {
   return firstMatch(text, [
     /((?:\d{1,3}%\s+[a-zA-Z]+(?:,\s*)?){1,6})/i,
     /(cotton[\s\S]{0,80}?polyester|polyester[\s\S]{0,80}?cotton|linen[\s\S]{0,80}?cotton|wool[\s\S]{0,80}?nylon)/i,

@@ -10,6 +10,7 @@ import { ref, getDownloadURL, uploadBytes } from "firebase/storage";
 import { buildSearchText, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType } from "@/lib/records";
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
+import { scanTagPhoto } from "@/lib/ocr";
 
 export default function UploadPageWrapper() {
   return <Suspense><UploadPage /></Suspense>;
@@ -45,6 +46,7 @@ function UploadPage() {
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[] | null>(null);
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
   const [rnBrandSuggestions, setRnBrandSuggestions] = useState<string[]>([]);
+  const [ocrStatus, setOcrStatus] = useState<{ kind: "idle" | "scanning" | "done" | "error"; message?: string }>({ kind: "idle" });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rnDebounce = useRef<number | null>(null);
@@ -76,6 +78,31 @@ function UploadPage() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    setOcrStatus({ kind: "idle" });
+  }
+
+  async function scanPhoto() {
+    if (!file) return;
+    setOcrStatus({ kind: "scanning" });
+    try {
+      const result = await scanTagPhoto(file);
+      const found: string[] = [];
+
+      if (result.rn && !rn) { setRn(result.rn); found.push(`RN ${result.rn}`); }
+      if (result.styleNumber && !styleNumber) { setStyleNumber(result.styleNumber); found.push(`style ${result.styleNumber}`); }
+      if (result.madeIn && !madeIn) { setMadeIn(result.madeIn); found.push(`made in ${result.madeIn}`); }
+      if (result.materials && !materials) { setMaterials(result.materials); found.push("materials"); }
+      if (result.madeIn || result.materials) setShowOptional(true);
+
+      setOcrStatus({
+        kind: "done",
+        message: found.length > 0
+          ? `Found ${found.join(", ")} — double-check before submitting.`
+          : "Couldn't recognize any RN or style number in this photo. Fill them in manually below.",
+      });
+    } catch {
+      setOcrStatus({ kind: "error", message: "Scan failed. You can still fill in the fields manually." });
+    }
   }
 
   useEffect(() => {
@@ -225,16 +252,29 @@ function UploadPage() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); }}
           />
           {previewUrl ? (
-            <div className="flex items-center gap-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl} alt="Tag preview" className="h-20 w-20 shrink-0 rounded-xl object-cover" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-white">{file?.name}</div>
-                <div className="text-xs text-white/45">{file ? (file.size / 1024).toFixed(0) + " KB" : ""}</div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={previewUrl} alt="Tag preview" className="h-20 w-20 shrink-0 rounded-xl object-cover" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-white">{file?.name}</div>
+                  <div className="text-xs text-white/45">{file ? (file.size / 1024).toFixed(0) + " KB" : ""}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={scanPhoto}
+                  disabled={ocrStatus.kind === "scanning"}
+                  className="shrink-0 rounded-lg border border-emerald-300/30 px-3 py-1.5 text-xs text-emerald-200 transition hover:border-emerald-300/60 disabled:opacity-50"
+                >
+                  {ocrStatus.kind === "scanning" ? "Scanning…" : "Scan for text"}
+                </button>
+                <button type="button" onClick={clearFile} className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/50 transition hover:border-white/30 hover:text-white/80">
+                  Change
+                </button>
               </div>
-              <button type="button" onClick={clearFile} className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/50 transition hover:border-white/30 hover:text-white/80">
-                Change
-              </button>
+              {ocrStatus.message && (
+                <p className={`text-xs ${ocrStatus.kind === "error" ? "text-rose-300" : "text-emerald-200/80"}`}>{ocrStatus.message}</p>
+              )}
             </div>
           ) : (
             <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center gap-3 py-4">

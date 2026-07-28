@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import SmartImage from "@/app/components/SmartImage";
 import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query, limit, startAfter, getDocs, getDoc, doc, setDoc, deleteDoc, increment, serverTimestamp, where, type QueryDocumentSnapshot, type DocumentData } from "firebase/firestore";
 import { getVerificationPercent, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
@@ -520,10 +521,9 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
   return (
     <div className="group relative mb-4 break-inside-avoid">
       <Link href={`/tag/${d.id}`} className="block overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition hover:border-white/20 hover:shadow-md">
-        <div className="aspect-[4/5] overflow-hidden">
+        <div className="relative aspect-[4/5] overflow-hidden">
           {d.thumbnailUrl || d.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} loading="lazy" className="h-full w-full bg-white object-contain" />
+            <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="bg-white object-contain" />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 bg-white/[0.03] p-4 text-center">
               <svg className="h-8 w-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import SmartImage from "@/app/components/SmartImage";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, limit as qlimit, onSnapshot, startAfter, getDocs, getCountFromServer, type DocumentSnapshot, type DocumentData } from "firebase/firestore";
 import { normalizeStyleNumber } from "@/lib/records";
@@ -121,9 +122,8 @@ export default function StyleClient() {
             {docs.map((d) => (
               <div key={d.id} className="mb-4 break-inside-avoid overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                 <Link href={`/tag/${d.id}`} className="block">
-                  <div className="aspect-[4/5] bg-white overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} className="h-full w-full object-contain" />
+                  <div className="relative aspect-[4/5] bg-white overflow-hidden">
+                    <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="object-contain" />
                   </div>
                 </Link>
                 <div className="p-3 text-sm space-y-1">

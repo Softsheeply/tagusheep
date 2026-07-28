@@ -29,6 +29,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
+
+# playwright
+/test-results/
+/playwright-report/
 
 # env files (can opt-in for committing if needed)
 .env*

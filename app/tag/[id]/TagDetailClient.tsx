@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import SmartImage from "@/app/components/SmartImage";
 import { auth, db, storage } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
@@ -407,9 +408,8 @@ export default function TagDetailClient() {
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {tag.extraImageUrls.map((url, index) => (
-                  <a key={url} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-white/10 bg-white/5 transition hover:border-white/25">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={`${tag.brand || "tag"} detail ${index + 1}`} className="aspect-square w-full object-cover" />
+                  <a key={url} href={url} target="_blank" rel="noreferrer" className="relative block aspect-square w-full overflow-hidden rounded-xl border border-white/10 bg-white/5 transition hover:border-white/25">
+                    <SmartImage src={url} alt={`${tag.brand || "tag"} detail ${index + 1}`} fill sizes="(min-width: 640px) 33vw, 50vw" className="object-cover" />
                   </a>
                 ))}
               </div>
@@ -571,10 +571,9 @@ export default function TagDetailClient() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {similarTags.map((s) => (
               <Link key={s.id} href={`/tag/${s.id}`} className="group rounded-2xl border border-white/10 bg-white/5 overflow-hidden transition hover:border-white/25">
-                <div className="aspect-[4/5] overflow-hidden">
+                <div className="relative aspect-[4/5] overflow-hidden">
                   {s.thumbnailUrl || s.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.thumbnailUrl || s.imageUrl} alt={s.brand ?? "tag"} loading="lazy" className="h-full w-full bg-white object-contain" />
+                    <SmartImage src={s.thumbnailUrl || s.imageUrl} alt={s.brand ?? "tag"} fill sizes="(min-width: 1024px) 16vw, 33vw" className="bg-white object-contain" />
                   ) : (
                     <div className="flex h-full items-center justify-center bg-white/[0.03] text-xs text-white/25">No photo</div>
                   )}

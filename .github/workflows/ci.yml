@@ -32,5 +32,42 @@ jobs:
           NEXT_PUBLIC_FB_API_KEY: ci-placeholder-api-key
           NEXT_PUBLIC_FB_AUTH_DOMAIN: ci-placeholder.firebaseapp.com
           NEXT_PUBLIC_FB_PROJECT_ID: ci-placeholder-project
-          NEXT_PUBLIC_FB_STORAGE_BUCKET: ci-placeholder-project.appspot.com
+          NEXT_PUBLIC_FB_STORAGE_BUCKET: ci-placeholder-project.firebasestorage.app
           NEXT_PUBLIC_FB_APP_ID: "1:0000000000:web:0000000000000000000000"
+
+  rules-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # firebase-tools' Firestore emulator requires a JVM at version 21+,
+      # newer than what's preinstalled on the runner.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - run: npm ci
+
+      - run: npm run test:rules
+
+  e2e-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
