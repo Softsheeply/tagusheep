@@ -1,4 +1,26 @@
 import { prepareRecord, type SourceType, type TagRecord } from "@/lib/records";
+import {
+  decodeHtml,
+  firstMatch,
+  extractStyleNumber,
+  extractRn,
+  extractMadeIn,
+  extractYear,
+  extractCategory,
+  extractMaterials,
+} from "@/lib/tag-text-extract.mjs";
+
+// Re-exported so existing callers can keep importing them from here. The
+// implementations live in tag-text-extract.mjs so the standalone import
+// scripts (plain .mjs, no path-alias resolution) can share them.
+export {
+  extractStyleNumber,
+  extractRn,
+  extractMadeIn,
+  extractYear,
+  extractCategory,
+  extractMaterials,
+};
 
 type JsonObject = Record<string, unknown>;
 
@@ -28,24 +50,6 @@ function stripTags(input: string) {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function decodeHtml(input: string) {
-  return input
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&nbsp;/g, " ");
-}
-
-function firstMatch(text: string, patterns: RegExp[]) {
-  for (const pattern of patterns) {
-    const m = text.match(pattern);
-    if (m?.[1]) return decodeHtml(m[1]).trim();
-  }
-  return null;
 }
 
 function findJsonLd(html: string) {
@@ -123,42 +127,6 @@ function pickImages(jsonLdNodes: JsonLdNode[], html: string, fallbackImages: str
     .filter((candidate): candidate is string => Boolean(candidate))
     .sort((a, b) => scoreImageCandidate(b) - scoreImageCandidate(a))
     .slice(0, 8);
-}
-
-export function extractStyleNumber(text: string) {
-  return firstMatch(text, [
-    /style(?:\s+number|\s+no\.?|)\s*[:#-]?\s*([A-Z0-9\-\/ ]{4,})/i,
-    /model(?:\s+code|\s+number|)\s*[:#-]?\s*([A-Z0-9\-\/ ]{4,})/i,
-    /article(?:\s+code|\s+number|)\s*[:#-]?\s*([A-Z0-9\-\/ ]{4,})/i,
-    /sku\s*[:#-]?\s*([A-Z0-9\-\/ ]{4,})/i,
-    /product(?:\s+id|\s+number|)\s*[:#-]?\s*(\d{5,})/i,
-    /style\s*#\s*([A-Z0-9\-\/ ]{4,})/i,
-  ]);
-}
-
-export function extractRn(text: string) {
-  return firstMatch(text, [/\bRN\s*#?\s*(\d{3,8})\b/i]);
-}
-
-export function extractMadeIn(text: string) {
-  return firstMatch(text, [/made\s+in\s+([a-zA-Z ]{3,40})/i]);
-}
-
-export function extractYear(text: string) {
-  return firstMatch(text, [/\b(19\d{2}|20\d{2})\b/]);
-}
-
-export function extractCategory(text: string) {
-  return firstMatch(text, [
-    /\b(t-?shirt|tee|hoodie|sweatshirt|dress|jeans|pants|shorts|jacket|coat|sweater|tank|legging|activewear|shirt|top)\b/i,
-  ]);
-}
-
-export function extractMaterials(text: string) {
-  return firstMatch(text, [
-    /((?:\d{1,3}%\s+[a-zA-Z]+(?:,\s*)?){1,6})/i,
-    /(cotton[\s\S]{0,80}?polyester|polyester[\s\S]{0,80}?cotton|linen[\s\S]{0,80}?cotton|wool[\s\S]{0,80}?nylon)/i,
-  ]);
 }
 
 function normalizeImage(url?: string | null) {

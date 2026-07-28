@@ -35,6 +35,11 @@ export default function LeaderboardClient() {
           const data = doc.data() as Partial<TagRecord>;
           const uid = data.createdBy;
           if (!uid) return;
+          // Bulk-imported records (licensed datasets, archive sources) carry
+          // the importing admin's uid, but nobody photographed them -- they'd
+          // hand whoever ran the import thousands of phantom "uploads" on a
+          // board that's explicitly ranking people who contributed tags.
+          if (data.sourceType === "archive") return;
           const existing = byUser.get(uid);
           if (existing) existing.push(data);
           else byUser.set(uid, [data]);
@@ -62,7 +67,7 @@ export default function LeaderboardClient() {
         <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Community</p>
         <h1 className="text-3xl font-semibold">Top contributors</h1>
         <p className="mt-2 max-w-2xl text-white/70">
-          {`Ranked by uploads across the most recent ${MAX_RECORDS.toLocaleString()} records. Contributors are shown by the first characters of their account ID rather than a name, since Tagsheep doesn't expose other users' profile info publicly.`}
+          {`Ranked by uploads across the most recent ${MAX_RECORDS.toLocaleString()} records, excluding bulk-imported archive records. Contributors are shown by the first characters of their account ID rather than a name, since Tagsheep doesn't expose other users' profile info publicly.`}
         </p>
       </div>
 

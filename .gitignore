@@ -50,3 +50,6 @@ next-env.d.ts
 .vercel
 .firebase
 next.zip
+# tesseract.js decompresses language data into the working directory when
+# the OCR import script runs from Node
+/eng.traineddata
