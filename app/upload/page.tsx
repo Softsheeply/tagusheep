@@ -217,6 +217,9 @@ function UploadPage() {
           <p className="mt-2 max-w-md text-sm leading-relaxed text-white/65">
             Photo + brand + RN or style number gets it into review. Everything else fills in the record.
           </p>
+          <Link href="/upload/batch" className="mt-2 inline-block text-xs text-emerald-200/80 underline hover:text-emerald-200">
+            Have a stack of tags to do at once? Try batch upload →
+          </Link>
         </div>
         {sessionCount > 0 && (
           <div className="shrink-0 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-center">

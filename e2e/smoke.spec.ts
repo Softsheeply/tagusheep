@@ -10,6 +10,7 @@ const ROUTES = [
   "/rn/000000",
   "/style/does-not-exist",
   "/upload",
+  "/upload/batch",
   "/upload-guide",
   "/signin",
   "/submit-info",
