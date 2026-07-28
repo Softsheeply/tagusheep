@@ -85,6 +85,29 @@ Add these in your host dashboard:
 - `NEXT_PUBLIC_FB_STORAGE_BUCKET`
 - `NEXT_PUBLIC_FB_APP_ID`
 
+### Optional env vars (each feature is a no-op until its var is set)
+
+- `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` — enables the Firebase App Check scaffold
+  (`lib/firebase.ts`). Create a reCAPTCHA v3 site key in the Firebase Console
+  under App Check, register the web app, set this var, confirm real traffic
+  is sending valid tokens, then turn on enforcement for Firestore/Storage in
+  the App Check console.
+- `NEXT_PUBLIC_SENTRY_DSN` — enables client-side Sentry error capture
+  (`instrumentation-client.ts`).
+- `SENTRY_DSN` — enables server/edge-side Sentry error capture
+  (`sentry.server.config.ts`, `sentry.edge.config.ts`, wired through
+  `instrumentation.ts`).
+- `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` — enables sourcemap
+  upload during build (`next.config.ts`'s `withSentryConfig`); without
+  `SENTRY_AUTH_TOKEN` this step is skipped and the build is unaffected.
+- Vercel Analytics and Speed Insights (`app/layout.tsx`) ship in code but
+  also need to be toggled on in the Vercel project dashboard before they
+  start collecting data.
+
+Create a Sentry project at sentry.io, grab its DSN from Project Settings,
+and its org/project slugs and an auth token (Settings → Auth Tokens) if you
+want sourcemap upload too.
+
 ## Production smoke test checklist
 
 After deploy, test:
