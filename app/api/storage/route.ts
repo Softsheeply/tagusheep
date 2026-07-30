@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteR2Object, isR2Configured, putR2Object } from "@/lib/r2";
-import { verifyFirebaseBearer } from "@/lib/server-auth";
+import { isFirebaseAdmin, verifyFirebaseBearer } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 
@@ -9,6 +9,12 @@ const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/a
 
 function validUserPath(path: string, uid: string) {
   return path.startsWith(`tagusheep/uploads/${uid}/`) || path.startsWith(`tagusheep/imports/${uid}/`);
+}
+
+// Any user's uploads/imports path -- admins can purge other users' objects
+// (e.g. from /trash), matching storage.rules' isAdmin() delete escape hatch.
+function anyUserPath(path: string) {
+  return path.startsWith("tagusheep/uploads/") || path.startsWith("tagusheep/imports/");
 }
 
 export async function POST(request: Request) {
@@ -36,7 +42,8 @@ export async function DELETE(request: Request) {
   if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   const body = await request.json().catch(() => null) as { path?: string } | null;
   const path = String(body?.path || "").replace(/^\/+/, "");
-  if (!validUserPath(path, user.uid)) return NextResponse.json({ error: "Invalid object path." }, { status: 403 });
+  const allowed = validUserPath(path, user.uid) || (anyUserPath(path) && (await isFirebaseAdmin(user.uid, user.idToken)));
+  if (!allowed) return NextResponse.json({ error: "Invalid object path." }, { status: 403 });
   await deleteR2Object(path);
   return new NextResponse(null, { status: 204 });
 }

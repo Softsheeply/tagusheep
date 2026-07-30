@@ -20,5 +20,15 @@ export async function verifyFirebaseBearer(request: Request) {
   if (!response.ok) return null;
   const data = await response.json() as FirebaseLookupResponse;
   const user = data.users?.[0];
-  return user?.localId ? { uid: user.localId, email: user.email || null } : null;
+  return user?.localId ? { uid: user.localId, email: user.email || null, idToken: token } : null;
+}
+
+export async function isFirebaseAdmin(uid: string, idToken: string) {
+  const projectId = process.env.NEXT_PUBLIC_FB_PROJECT_ID?.trim();
+  if (!projectId) return false;
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/admins/${encodeURIComponent(uid)}`,
+    { headers: { authorization: `Bearer ${idToken}` }, cache: "no-store" },
+  );
+  return response.ok;
 }

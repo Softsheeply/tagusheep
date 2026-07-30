@@ -34,7 +34,6 @@
     "eslint-config-next": "^16.2.6",
     "firebase-tools": "^15.24.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "wrangler": "^4.115.0"
+    "typescript": "^5"
   }
 }
