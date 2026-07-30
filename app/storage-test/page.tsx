@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { auth, storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth } from "@/lib/firebase";
+import { uploadImageObject } from "@/lib/object-storage";
 
 export default function StorageTestPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,12 +17,11 @@ export default function StorageTestPage() {
 
     const uid = auth.currentUser?.uid || "no-user";
     const path = `tagusheep/uploads/${uid}/storage-test-${Date.now()}-${file.name}`;
-    const storageRef = ref(storage, path);
 
     setBusy(true);
     setResult([
       `uid=${uid}`,
-      `bucket=${process.env.NEXT_PUBLIC_FB_STORAGE_BUCKET || "unknown"}`,
+      `provider=Cloudflare R2`,
       `projectId=${process.env.NEXT_PUBLIC_FB_PROJECT_ID || "unknown"}`,
       `path=${path}`,
       `fileName=${file.name}`,
@@ -32,11 +31,10 @@ export default function StorageTestPage() {
     ].join("\n"));
 
     try {
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const { url } = await uploadImageObject(file, path);
       setResult([
         `uid=${uid}`,
-        `bucket=${process.env.NEXT_PUBLIC_FB_STORAGE_BUCKET || "unknown"}`,
+        `provider=Cloudflare R2`,
         `projectId=${process.env.NEXT_PUBLIC_FB_PROJECT_ID || "unknown"}`,
         `path=${path}`,
         `status=success`,
@@ -64,7 +62,7 @@ export default function StorageTestPage() {
         <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Storage diagnosis</p>
         <h1 className="text-3xl font-semibold">Minimal Firebase Storage test</h1>
         <p className="mt-2 text-white/70">
-          This page bypasses the Tagsheep upload form complexity and tests raw Firebase Storage upload directly.
+          This page bypasses the Tagsheep upload form complexity and tests the authenticated Cloudflare R2 upload gateway directly.
         </p>
       </div>
 

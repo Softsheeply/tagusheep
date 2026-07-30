@@ -110,6 +110,29 @@ want sourcemap upload too.
 
 ## Seeding the database from an open dataset
 
+### Image storage
+
+Tagsheep stores searchable records in Firestore and image objects in
+Cloudflare R2. Create a private R2 bucket, attach a public custom domain, and
+create an R2 API token scoped to Object Read & Write for that bucket only.
+Copy `.env.example` to `.env.local` and set:
+
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET_NAME`
+- `NEXT_PUBLIC_R2_PUBLIC_URL`
+
+Add the same variables to the production hosting environment. Never prefix
+the access key or secret with `NEXT_PUBLIC_`; those values must remain
+server-only. Browser uploads go through `/api/storage`, which verifies the
+user's Firebase ID token, enforces an 8 MB image limit, restricts object keys
+to that user's folder, and keeps R2 credentials off the client.
+
+Set a Cloudflare billing notification before importing. Use a custom domain
+for production delivery; the `r2.dev` endpoint is intended for development
+and is rate-limited.
+
 `scripts/import-secondhand-dataset.mjs` imports the [Clothing Dataset for
 Second-Hand Fashion](https://zenodo.org/records/13788681) (CC-BY 4.0, commercial use
 permitted with attribution) — ~31,600 garments, each with a front photo, back photo,

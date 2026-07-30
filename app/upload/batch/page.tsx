@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { ref, getDownloadURL, uploadBytes } from "firebase/storage";
+import { uploadImageObject } from "@/lib/object-storage";
 import { buildSearchText, normalizeBrand, normalizeRn, normalizeStyleNumber } from "@/lib/records";
 import { createOcrWorker, recognizeTagPhoto } from "@/lib/ocr";
 import type { Worker as OcrWorker } from "tesseract.js";
@@ -128,9 +128,7 @@ export default function BatchUploadPage() {
       try {
         const baseName = `${Date.now()}_${item.file.name}`;
         const path = `tagusheep/uploads/${uid}/${baseName}`;
-        const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, item.file);
-        const imageUrl = await getDownloadURL(storageRef);
+        const { url: imageUrl } = await uploadImageObject(item.file, path);
 
         const cleanBrand = normalizeBrand(item.brand);
         const cleanRn = normalizeRn(item.rn);

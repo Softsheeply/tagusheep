@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
     // image URLs that this project doesn't control.
     remotePatterns: [
       { protocol: "https", hostname: "firebasestorage.googleapis.com" },
+      ...(process.env.NEXT_PUBLIC_R2_PUBLIC_URL
+        ? [{ protocol: "https" as const, hostname: new URL(process.env.NEXT_PUBLIC_R2_PUBLIC_URL).hostname }]
+        : []),
     ],
   },
 };

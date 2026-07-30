@@ -39,6 +39,7 @@ ui-debug.log
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -53,3 +54,4 @@ next.zip
 # tesseract.js decompresses language data into the working directory when
 # the OCR import script runs from Node
 /eng.traineddata
+/clothing-dataset/

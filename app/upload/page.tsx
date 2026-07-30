@@ -3,10 +3,10 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
 import { addDoc, collection, getDocs, limit as qlimit, orderBy, query, serverTimestamp, startAt, endAt, where } from "firebase/firestore";
-import { ref, getDownloadURL, uploadBytes } from "firebase/storage";
+import { uploadImageObject } from "@/lib/object-storage";
 import { buildSearchText, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType } from "@/lib/records";
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
@@ -150,9 +150,7 @@ function UploadPage() {
 
       const baseName = `${Date.now()}_${file.name}`;
       const path = `tagusheep/uploads/${user.uid}/${baseName}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const imageUrl = await getDownloadURL(storageRef);
+      const { url: imageUrl } = await uploadImageObject(file, path);
 
       const cleanBrand = normalizeBrand(brand);
       const cleanRn = normalizeRn(rn);

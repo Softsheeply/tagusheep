@@ -43,7 +43,7 @@
 // re-running resumes rather than re-uploading. Safe to interrupt.
 // ---------------------------------------------------------------------
 
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -51,7 +51,7 @@ import process from "node:process";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
-import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createWorker } from "tesseract.js";
 
 import {
@@ -88,13 +88,24 @@ const FIELD_ALIASES = {
 };
 
 function parseArgs(argv) {
-  const args = { dataset: null, limit: Infinity, concurrency: 3, inspect: false, dryRun: false, withGarmentPhotos: false };
+  const args = {
+    dataset: null,
+    limit: Infinity,
+    maxUploadMb: Infinity,
+    concurrency: 3,
+    inspect: false,
+    plan: false,
+    dryRun: false,
+    withGarmentPhotos: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--dataset") args.dataset = argv[++i];
     else if (arg === "--limit") args.limit = Number(argv[++i]);
+    else if (arg === "--max-upload-mb") args.maxUploadMb = Math.max(0, Number(argv[++i]));
     else if (arg === "--concurrency") args.concurrency = Math.max(1, Number(argv[++i]));
     else if (arg === "--inspect") args.inspect = true;
+    else if (arg === "--plan") args.plan = true;
     else if (arg === "--dry-run") args.dryRun = true;
     else if (arg === "--with-garment-photos") args.withGarmentPhotos = true;
     else if (arg === "--help" || arg === "-h") args.help = true;
@@ -166,25 +177,25 @@ function clamp(value, max) {
 // per item, or a flat folder where the item id is the filename stem.
 function groupItems(found) {
   const items = new Map();
+  const timestampKey = (filePath) => {
+    const timestamp = path.basename(filePath).match(/\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}/)?.[0];
+    return timestamp ? `${path.dirname(filePath)}\0${timestamp}` : null;
+  };
 
   for (const jsonPath of found.json) {
     const dir = path.dirname(jsonPath);
     const stem = path.basename(jsonPath, ".json");
     const id = `${path.basename(dir)}/${stem}`;
-    items.set(id, { id, jsonPath, dir, stem, images: {} });
+    const item = { id, jsonPath, dir, stem, images: {} };
+    items.set(timestampKey(jsonPath) || `${dir}\0${stem}`, item);
   }
 
   for (const imagePath of found.images) {
     const dir = path.dirname(imagePath);
     const kind = classifyImage(imagePath);
-    for (const item of items.values()) {
-      const sameDir = item.dir === dir;
-      const stemMatch = path.basename(imagePath).startsWith(item.stem);
-      if (!sameDir && !stemMatch) continue;
-      if (sameDir && found.json.filter((j) => path.dirname(j) === dir).length > 1 && !stemMatch) continue;
-      if (!item.images[kind] || kind === "brand") item.images[kind] = imagePath;
-      break;
-    }
+    const imageStem = path.basename(imagePath, path.extname(imagePath));
+    const item = items.get(timestampKey(imagePath) || `${dir}\0${imageStem}`);
+    if (item && (!item.images[kind] || kind === "brand")) item.images[kind] = imagePath;
   }
 
   return Array.from(items.values());
@@ -266,7 +277,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   if (args.help || !args.dataset) {
-    console.log("Usage: node scripts/import-secondhand-dataset.mjs --dataset <path> [--inspect] [--dry-run] [--limit N] [--concurrency N] [--with-garment-photos]");
+    console.log("Usage: node scripts/import-secondhand-dataset.mjs --dataset <path> [--inspect] [--plan] [--dry-run] [--limit N] [--max-upload-mb N] [--concurrency N] [--with-garment-photos]");
     process.exit(args.help ? 0 : 1);
   }
 
@@ -299,15 +310,38 @@ async function main() {
 
   // Only items with a brand-label photo are importable -- that photo is the
   // record's required imageUrl, and it's the one OCR reads.
-  const queue = allItems.filter((item) => item.images.brand && !done.has(item.id)).slice(0, args.limit);
+  const candidates = allItems.filter((item) => item.images.brand && !done.has(item.id)).slice(0, args.limit);
+  const maxUploadBytes = Number.isFinite(args.maxUploadMb) ? args.maxUploadMb * 1024 * 1024 : Infinity;
+  const queue = [];
+  let plannedUploadBytes = 0;
+  for (const item of candidates) {
+    const imagePaths = [item.images.brand];
+    if (args.withGarmentPhotos) {
+      for (const kind of ["front", "back"]) {
+        if (item.images[kind]) imagePaths.push(item.images[kind]);
+      }
+    }
+    let itemBytes = 0;
+    for (const imagePath of imagePaths) itemBytes += (await stat(imagePath)).size;
+    if (queue.length > 0 && plannedUploadBytes + itemBytes > maxUploadBytes) break;
+    queue.push(item);
+    plannedUploadBytes += itemBytes;
+  }
   const skippedNoLabel = allItems.filter((item) => !item.images.brand).length;
 
   console.log(`${allItems.length} items total, ${skippedNoLabel} without a brand-label photo (skipped).`);
+  console.log(`Planned image upload: ${(plannedUploadBytes / 1024 / 1024).toFixed(1)} MB.`);
+  if (args.plan) {
+    console.log(`Plan only: ${queue.length} complete items selected; nothing uploaded or written.`);
+    return;
+  }
   console.log(`Importing ${queue.length} items with concurrency ${args.concurrency}${args.dryRun ? " (DRY RUN)" : ""}.\n`);
   if (queue.length === 0) return;
 
   let db = null;
-  let storage = null;
+  let objectStorage = null;
+  let r2Bucket = null;
+  let r2PublicUrl = null;
   let uid = "dry-run-uid";
 
   if (!args.dryRun) {
@@ -315,7 +349,6 @@ async function main() {
       apiKey: process.env.NEXT_PUBLIC_FB_API_KEY,
       authDomain: process.env.NEXT_PUBLIC_FB_AUTH_DOMAIN,
       projectId: process.env.NEXT_PUBLIC_FB_PROJECT_ID,
-      storageBucket: process.env.NEXT_PUBLIC_FB_STORAGE_BUCKET,
       appId: process.env.NEXT_PUBLIC_FB_APP_ID,
     };
     if (!firebaseConfig.projectId) {
@@ -334,7 +367,20 @@ async function main() {
     const credential = await signInWithEmailAndPassword(auth, email, password);
     uid = credential.user.uid;
     db = getFirestore(app);
-    storage = getStorage(app);
+    const accountId = process.env.R2_ACCOUNT_ID;
+    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+    r2Bucket = process.env.R2_BUCKET_NAME;
+    r2PublicUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.replace(/\/+$/, "");
+    if (!accountId || !accessKeyId || !secretAccessKey || !r2Bucket || !r2PublicUrl) {
+      console.error("Missing R2 configuration. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, and NEXT_PUBLIC_R2_PUBLIC_URL.");
+      process.exit(1);
+    }
+    objectStorage = new S3Client({
+      region: "auto",
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId, secretAccessKey },
+    });
     console.log(`Signed in as ${email} (${uid}).\n`);
   }
 
@@ -348,9 +394,15 @@ async function main() {
   async function uploadImage(filePath, suffix) {
     const bytes = await readFile(filePath);
     const storagePath = `tagusheep/imports/${uid}/${Date.now()}_${suffix}_${path.basename(filePath)}`;
-    const storageRef = ref(storage, storagePath);
-    await uploadBytes(storageRef, bytes, { contentType: contentTypeFor(filePath) });
-    return { url: await getDownloadURL(storageRef), storagePath };
+    await objectStorage.send(new PutObjectCommand({
+      Bucket: r2Bucket,
+      Key: storagePath,
+      Body: bytes,
+      ContentType: contentTypeFor(filePath),
+      CacheControl: "public, max-age=31536000, immutable",
+    }));
+    const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
+    return { url: `${r2PublicUrl}/${encodedPath}`, storagePath };
   }
 
   // One Tesseract worker per lane: a worker can't safely run concurrent
