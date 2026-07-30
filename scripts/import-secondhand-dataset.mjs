@@ -75,8 +75,13 @@ const LIMITS = { brand: 120, styleNumber: 120, rn: 7, garmentType: 120, size: 60
 // (colour/color, type/category). Each entry is tried in order, matched
 // case-insensitively, so an unexpected spelling is a one-line fix here
 // rather than a rewrite. Run --inspect to see what the files really use.
+// "brand" in this dataset is a fixed dropdown (mostly "Not in the list"),
+// not the garment's actual brand text -- brandtext is the free-text field
+// annotators typed the real brand into, so it has to win when present.
+const BRAND_PLACEHOLDER_VALUES = new Set(["not in the list", "no brand", "unbranded", "n/a", "unknown"]);
+
 const FIELD_ALIASES = {
-  brand: ["brand", "brand_name", "brandname", "marke"],
+  brand: ["brandtext", "brand", "brand_name", "brandname", "marke"],
   color: ["colour", "color", "colours", "colors"],
   materials: ["material", "materials", "composition", "fabric"],
   garmentType: ["type", "category", "garment_type", "garmenttype", "clothing_type", "product_type"],
@@ -165,6 +170,12 @@ function pick(obj, aliases) {
     if (str && str.toLowerCase() !== "none" && str.toLowerCase() !== "null") return str;
   }
   return null;
+}
+
+function pickBrand(annotations) {
+  const value = pick(annotations, FIELD_ALIASES.brand);
+  if (!value) return null;
+  return BRAND_PLACEHOLDER_VALUES.has(value.toLowerCase()) ? null : value;
 }
 
 function clamp(value, max) {
@@ -384,7 +395,7 @@ async function main() {
     console.log(`Signed in as ${email} (${uid}).\n`);
   }
 
-  const stats = { imported: 0, failed: 0, ocrHits: { rn: 0, styleNumber: 0, madeIn: 0, materials: 0 } };
+  const stats = { imported: 0, failed: 0, skippedNoBrand: 0, ocrHits: { rn: 0, styleNumber: 0, madeIn: 0, materials: 0 } };
   const importedIds = [];
 
   async function saveProgress() {
@@ -425,6 +436,16 @@ async function main() {
             // plus OCR still yields a usable record.
           }
 
+          // Resolve brand before running (expensive) OCR: most of this
+          // dataset's "brand" field is "Not in the list" rather than a real
+          // brand name, and a record with no real brand isn't worth a slot
+          // on a brand-lookup site -- skip it before paying for OCR/upload.
+          const brand = clamp(pickBrand(annotations), LIMITS.brand);
+          if (!brand) {
+            stats.skippedNoBrand++;
+            continue;
+          }
+
           const { data } = await worker.recognize(item.images.brand);
           const ocrText = data.text || "";
 
@@ -438,7 +459,6 @@ async function main() {
           if (ocrMadeIn) stats.ocrHits.madeIn++;
           if (ocrMaterials) stats.ocrHits.materials++;
 
-          const brand = clamp(pick(annotations, FIELD_ALIASES.brand), LIMITS.brand);
           const condition = pick(annotations, FIELD_ALIASES.condition);
           const pattern = pick(annotations, FIELD_ALIASES.pattern);
           const noteParts = [ATTRIBUTION];
@@ -532,7 +552,7 @@ async function main() {
 
   if (!args.dryRun) await saveProgress();
 
-  console.log(`\nDone. Imported ${stats.imported}, failed ${stats.failed}.`);
+  console.log(`\nDone. Imported ${stats.imported}, failed ${stats.failed}, skipped (no real brand) ${stats.skippedNoBrand}.`);
   console.log(
     `OCR recovered: RN ${stats.ocrHits.rn}, style number ${stats.ocrHits.styleNumber}, ` +
       `made-in ${stats.ocrHits.madeIn}, composition ${stats.ocrHits.materials} (of ${queue.length} labels read).`
