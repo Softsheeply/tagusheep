@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { addDoc, collection, getFirestore } from "firebase/firestore";
+import { addDoc, collection, initializeFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FB_API_KEY,
@@ -15,7 +15,7 @@ const auth = getAuth(app);
 const credential = await signInWithEmailAndPassword(auth, process.env.TAGSHEEP_IMPORT_EMAIL, process.env.TAGSHEEP_IMPORT_PASSWORD);
 console.log("Signed in as", credential.user.email, credential.user.uid);
 
-const db = getFirestore(app);
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
 try {
   const ref = await addDoc(collection(db, "tags"), {
