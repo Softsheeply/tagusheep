@@ -51,6 +51,8 @@ export default function TagDetailClient() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [ftcCheckMessage, setFtcCheckMessage] = useState<string | null>(null);
   const [newFile, setNewFile] = useState<File | null>(null);
+  const [extraImageUrls, setExtraImageUrls] = useState<string[]>([]);
+  const [extraImageBusy, setExtraImageBusy] = useState(false);
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
 
   const [brand, setBrand] = useState("");
@@ -112,6 +114,7 @@ export default function TagDetailClient() {
       setCareText(data.careText ?? "");
       setNotes(data.notes ?? "");
       setSourceUrl(data.sourceUrl ?? "");
+      setExtraImageUrls(data.extraImageUrls ?? []);
       setSourceType(data.sourceType ?? "unknown");
       setVerificationStatus(data.verificationStatus ?? "pending");
       setLoading(false);
@@ -219,6 +222,35 @@ export default function TagDetailClient() {
     return `${base}/${encoded}`;
   }
 
+  // Extra images only ever had their download URL persisted, not a storage
+  // path (see TagDoc.extraImageUrls), so removing one here only drops the
+  // reference from the record -- it doesn't delete the underlying storage
+  // object. Harmless (an orphaned file costs a little space, not
+  // correctness), just not a full cleanup.
+  function removeExtraImage(index: number) {
+    setExtraImageUrls((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function addExtraImage(file: File) {
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      setStatus({ kind: "error", text: "You must be signed in to add photos." });
+      return;
+    }
+    setExtraImageBusy(true);
+    try {
+      const normalized = await normalizeUploadedImage(file);
+      const path = `tagusheep/uploads/${uid}/extra_${Date.now()}_${normalized.name}`;
+      await uploadBytes(ref(storage, path), normalized, { contentType: IMAGE_POLICY.mimeType });
+      const url = await getDownloadURL(ref(storage, path));
+      setExtraImageUrls((prev) => [...prev, url].slice(0, IMAGE_POLICY.maxImportedImageUrlCount));
+    } catch (error: unknown) {
+      setStatus({ kind: "error", text: error instanceof Error ? error.message : "Could not add photo." });
+    } finally {
+      setExtraImageBusy(false);
+    }
+  }
+
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
     if (!id || !tag) return;
@@ -282,6 +314,7 @@ export default function TagDetailClient() {
       const payload: Record<string, unknown> = {
         imageUrl,
         thumbnailUrl,
+        extraImageUrls,
         sourceType,
         verificationStatus,
         searchText: buildSearchText({
@@ -580,6 +613,43 @@ export default function TagDetailClient() {
           </div>
           <input type="file" accept="image/*" aria-label="Replace image" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
           <p className="text-xs text-white/60">Replacement uploads are normalized to {IMAGE_POLICY.format.toUpperCase()} at up to {IMAGE_POLICY.maxDimension}px.</p>
+
+          <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Extra detail photos</p>
+            {extraImageUrls.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {extraImageUrls.map((url, index) => (
+                  <div key={url} className="relative aspect-square overflow-hidden rounded-lg border border-white/10 bg-white">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Detail ${index + 1}`} className="h-full w-full object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => removeExtraImage(index)}
+                      title="Remove this photo"
+                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white transition hover:bg-rose-500"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              aria-label="Add extra photo"
+              disabled={extraImageBusy || extraImageUrls.length >= IMAGE_POLICY.maxImportedImageUrlCount}
+              className="w-full border rounded p-2 bg-white text-black disabled:opacity-50"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) await addExtraImage(file);
+              }}
+            />
+            <p className="text-xs text-white/45">
+              {extraImageBusy ? "Uploading…" : `Remove or add extra angles/close-ups (up to ${IMAGE_POLICY.maxImportedImageUrlCount}). Changes apply when you hit Save below.`}
+            </p>
+          </div>
           <div className="flex gap-2 flex-wrap">
             <button type="submit" disabled={!canEdit || status.kind === "info"} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
               {status.kind === "info" && status.pct != null ? `Uploading… ${status.pct}%` : status.kind === "info" ? "Saving…" : "Save"}
