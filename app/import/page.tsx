@@ -6,7 +6,7 @@ import { addDoc, collection, doc, getDoc, serverTimestamp } from "firebase/fires
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db, storage } from "@/lib/firebase";
-import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
+import { CATEGORY_OPTIONS, CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
 import { scrapeProductUrl } from "@/lib/scrape";
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
@@ -333,7 +333,7 @@ export default function ImportPage() {
             <Field field="size" label="Primary size" value={form.size} onChange={(v) => update("size", v)} />
             <Field field="availableSizes" label="Available sizes (comma separated)" value={form.availableSizes} onChange={(v) => update("availableSizes", v)} />
             <Field field="tags" label="Tags (comma separated)" value={form.tags} onChange={(v) => update("tags", v)} />
-            <Field field="category" label="Category" value={form.category} onChange={(v) => update("category", v)} />
+            <Select field="category" label="Category" value={form.category} onChange={(v) => update("category", v)} options={["", ...CATEGORY_OPTIONS]} />
             <Field field="subCategory" label="Sub-category" value={form.subCategory} onChange={(v) => update("subCategory", v)} />
             <Field field="gender" label="Gender / fit" value={form.gender} onChange={(v) => update("gender", v)} />
             <Field field="year" label="Year" value={form.year} onChange={(v) => update("year", v)} />
@@ -439,7 +439,7 @@ function Select({ field, label, value, onChange, options, disabled }: { field: s
       <span className="text-sm text-white/80">{label}</span>
       <select id={id} name={id} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60 disabled:opacity-50">
         {options.map((option) => (
-          <option key={option} value={option}>{option}</option>
+          <option key={option} value={option}>{option || "— none —"}</option>
         ))}
       </select>
     </label>
