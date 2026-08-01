@@ -48,6 +48,8 @@ export default function TagDetailClient() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [ftcCheckMessage, setFtcCheckMessage] = useState<string | null>(null);
   const [newFile, setNewFile] = useState<File | null>(null);
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
 
@@ -117,10 +119,14 @@ export default function TagDetailClient() {
       const uid = auth.currentUser?.uid ?? null;
       if (uid && uid === data.createdBy) {
         setCanEdit(true);
-      } else if (uid) {
+      }
+      if (uid) {
         try {
           const adminSnap = await getDoc(doc(db, "admins", uid));
-          if (adminSnap.exists()) setCanEdit(true);
+          if (adminSnap.exists()) {
+            setIsAdmin(true);
+            setCanEdit(true);
+          }
         } catch {}
       }
 
@@ -518,6 +524,18 @@ export default function TagDetailClient() {
           <Field label="Product name" value={productName} onChange={setProductName} />
           <Field label="RN" value={rn} onChange={handleRnChange} />
           {rnWarning && <p className="text-xs text-amber-300">{rnWarning}</p>}
+          {isAdmin && rn.trim() && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => checkRnOnFtc(rn, setFtcCheckMessage)}
+                className="text-xs rounded-full border border-sky-300/30 px-3 py-1 text-sky-200 transition hover:bg-sky-400/10"
+              >
+                Check RN {rn} on FTC database ↗
+              </button>
+              {ftcCheckMessage && <span className="text-xs text-white/45">{ftcCheckMessage}</span>}
+            </div>
+          )}
           {rnBrandSuggestions.length > 0 && (
             <div>
               <p className="text-xs text-white/70 mb-1">Brands already seen for RN {rn}:</p>
@@ -543,7 +561,22 @@ export default function TagDetailClient() {
           <Field label="Source URL" value={sourceUrl} onChange={setSourceUrl} />
           <div className="grid gap-4 md:grid-cols-2">
             <Select label="Source type" value={sourceType} onChange={(v) => setSourceType(v as SourceType)} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
-            <Select label="Verification status" value={verificationStatus} onChange={(v) => setVerificationStatus(v as VerificationStatus)} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
+            <Select
+              label="Verification status"
+              value={verificationStatus}
+              onChange={(v) => setVerificationStatus(v as VerificationStatus)}
+              options={
+                isAdmin
+                  ? ["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]
+                  : Array.from(new Set(["draft", "needs_info", "pending", verificationStatus]))
+              }
+              disabled={!isAdmin && elevatedVerificationStatus(verificationStatus)}
+            />
+            {!isAdmin && (
+              <p className="text-xs text-white/45 md:col-span-2 -mt-2">
+                Only admins can grant &quot;reviewed&quot;, &quot;verified&quot;, or &quot;rejected&quot; status.
+              </p>
+            )}
           </div>
           <input type="file" accept="image/*" aria-label="Replace image" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
           <p className="text-xs text-white/60">Replacement uploads are normalized to {IMAGE_POLICY.format.toUpperCase()} at up to {IMAGE_POLICY.maxDimension}px.</p>
@@ -602,8 +635,30 @@ function TextArea({ label, value, onChange, rows = 4 }: { label: string; value: 
   return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60" /></label>;
 }
 
-function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
-  return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
+function Select({ label, value, onChange, options, disabled }: { label: string; value: string; onChange: (value: string) => void; options: string[]; disabled?: boolean }) {
+  return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60 disabled:opacity-50">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
+}
+
+// Mirrors elevatedVerificationStatus() in firestore.rules -- these three
+// states are admin judgement calls, not something a self-submitter should
+// be able to grant their own tag.
+function elevatedVerificationStatus(status: string) {
+  return status === "reviewed" || status === "verified" || status === "rejected";
+}
+
+// The FTC's RN registry (rn.ftc.gov) is a session-based interactive portal
+// with no public API or bulk export, so this can't be a real automated
+// pass/fail check -- it copies the RN and hands off to a human to compare
+// against the registered company name themselves.
+async function checkRnOnFtc(rn: string, setMessage: (message: string | null) => void) {
+  try {
+    await navigator.clipboard.writeText(rn);
+    setMessage(`Copied "${rn}" — paste it into the search box.`);
+  } catch {
+    setMessage(`Search opened — copy "${rn}" manually, clipboard access was blocked.`);
+  }
+  window.open("https://www.ftc.gov/rn-database/search", "_blank", "noopener,noreferrer");
+  setTimeout(() => setMessage(null), 6000);
 }
 
 function estimateRnYear(rn?: string | null): number | null {

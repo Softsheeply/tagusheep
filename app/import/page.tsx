@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth, db, storage } from "@/lib/firebase";
 import { CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
 import { scrapeProductUrl } from "@/lib/scrape";
@@ -75,6 +76,23 @@ export default function ImportPage() {
   const [form, setForm] = useState<FormState>(emptyState);
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[] | null>(null);
   const [hostImportedImage, setHostImportedImage] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      try {
+        const adminSnap = await getDoc(doc(db, "admins", user.uid));
+        setIsAdmin(adminSnap.exists());
+      } catch {
+        setIsAdmin(false);
+      }
+    });
+    return () => unsub();
+  }, []);
   const verificationRecord: Partial<TagRecord> = {
     brand: form.brand,
     productName: form.productName,
@@ -343,7 +361,18 @@ export default function ImportPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <Select field="sourceType" label="Source type" value={form.sourceType} onChange={(v) => update("sourceType", v as SourceType)} options={["manual", "official", "marketplace", "archive", "resale", "unknown"]} />
-            <Select field="verificationStatus" label="Verification" value={form.verificationStatus} onChange={(v) => update("verificationStatus", v as VerificationStatus)} options={["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]} />
+            <Select
+              field="verificationStatus"
+              label="Verification"
+              value={form.verificationStatus}
+              onChange={(v) => update("verificationStatus", v as VerificationStatus)}
+              options={
+                isAdmin
+                  ? ["draft", "needs_info", "pending", "reviewed", "verified", "rejected"]
+                  : Array.from(new Set(["draft", "needs_info", "pending", form.verificationStatus]))
+              }
+              disabled={!isAdmin && elevatedVerificationStatus(form.verificationStatus)}
+            />
           </div>
 
           <Field field="confidence" label="Confidence (0-1)" value={form.confidence} onChange={(v) => update("confidence", v)} />
@@ -403,16 +432,23 @@ function TextArea({ field, label, value, onChange, rows = 4 }: { field: string; 
   );
 }
 
-function Select({ field, label, value, onChange, options }: { field: string; label: string; value: string; onChange: (value: string) => void; options: string[] }) {
+function Select({ field, label, value, onChange, options, disabled }: { field: string; label: string; value: string; onChange: (value: string) => void; options: string[]; disabled?: boolean }) {
   const id = `import-${field}`;
   return (
     <label htmlFor={id} className="block space-y-2">
       <span className="text-sm text-white/80">{label}</span>
-      <select id={id} name={id} value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60">
+      <select id={id} name={id} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60 disabled:opacity-50">
         {options.map((option) => (
           <option key={option} value={option}>{option}</option>
         ))}
       </select>
     </label>
   );
+}
+
+// Mirrors elevatedVerificationStatus() in firestore.rules -- these three
+// states are admin judgement calls, not something a self-submitter should
+// be able to grant their own tag.
+function elevatedVerificationStatus(status: string) {
+  return status === "reviewed" || status === "verified" || status === "rejected";
 }

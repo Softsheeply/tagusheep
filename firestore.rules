@@ -21,6 +21,14 @@ service cloud.firestore {
       return value == null || value in ["draft", "needs_info", "pending", "reviewed", "verified", "rejected"];
     }
 
+    // "reviewed"/"verified"/"rejected" are admin judgement calls -- a
+    // self-submitter shouldn't be able to grant their own tag the
+    // "Tagsheep Verified" badge. Owners can still freely move between the
+    // non-judgement states (draft/needs_info/pending).
+    function elevatedVerificationStatus(value) {
+      return value in ["reviewed", "verified", "rejected"];
+    }
+
     function stringOrNull(value, maxLen) {
       return value == null || (value is string && value.size() <= maxLen);
     }
@@ -83,13 +91,23 @@ service cloud.firestore {
       allow read: if true;
       allow create: if signedIn() &&
         request.resource.data.createdBy == request.auth.uid &&
-        validTagData(request.resource.data);
+        validTagData(request.resource.data) &&
+        (isAdmin() || !elevatedVerificationStatus(request.resource.data.get('verificationStatus', null)));
       // Not enforcing validTagData on update: existing documents written
       // before this check existed aren't guaranteed to conform, and doing
       // so could block legitimate edits to those records until a data
       // cleanup pass confirms they all validate.
-      allow update: if (isAdmin() || isOwner(resource.data)) &&
-        request.resource.data.createdBy == resource.data.createdBy;
+      allow update: if request.resource.data.createdBy == resource.data.createdBy &&
+        (
+          isAdmin() ||
+          (
+            isOwner(resource.data) &&
+            (
+              request.resource.data.get('verificationStatus', null) == resource.data.get('verificationStatus', null) ||
+              !elevatedVerificationStatus(request.resource.data.get('verificationStatus', null))
+            )
+          )
+        );
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
