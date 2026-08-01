@@ -55,3 +55,8 @@ next.zip
 # the OCR import script runs from Node
 /eng.traineddata
 /clothing-dataset/
+
+# service account keys (e.g. for scripts/import-secondhand-dataset.mjs's
+# Admin SDK path) must never be committed -- keep them outside the repo
+*service-account*.json
+*firebase-adminsdk*.json

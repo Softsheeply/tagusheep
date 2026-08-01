@@ -32,12 +32,20 @@
 //   3. Real import:
 //        TAGSHEEP_IMPORT_EMAIL=you@example.com \
 //        TAGSHEEP_IMPORT_PASSWORD=... \
+//        GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
 //        node --env-file=.env.local scripts/import-secondhand-dataset.mjs \
 //          --dataset ./clothing-dataset --limit 2000
 //
-// Get .env.local with `vercel env pull .env.local`. Sign-in uses the normal
-// client SDK, so every write goes through the same Firestore/Storage rules
-// a browser would -- no service account, no rule bypass.
+// Get .env.local with `vercel env pull .env.local`. TAGSHEEP_IMPORT_EMAIL/
+// PASSWORD sign in with the normal client SDK only to obtain a uid for
+// createdBy -- the actual Firestore writes go through the Admin SDK (a
+// service account) instead. GOOGLE_APPLICATION_CREDENTIALS must point to a
+// JSON key downloaded from Google Cloud Console -> IAM & Admin -> Service
+// Accounts -> firebase-adminsdk-... -> Keys -> Add key. Never commit that
+// file; keep it outside the repo. Because the Admin SDK bypasses Firestore
+// security rules, every field this script writes is clamped to the same
+// limits validTagData() in firestore.rules enforces, so data quality is
+// unaffected by the bypass.
 //
 // Progress is checkpointed to <dataset>/.tagsheep-import-progress.json, so
 // re-running resumes rather than re-uploading. Safe to interrupt.
@@ -50,7 +58,7 @@ import process from "node:process";
 
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
+import admin from "firebase-admin";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createWorker } from "tesseract.js";
 
@@ -377,7 +385,22 @@ async function main() {
     const auth = getAuth(app);
     const credential = await signInWithEmailAndPassword(auth, email, password);
     uid = credential.user.uid;
-    db = getFirestore(app);
+
+    // Firestore writes go through the Admin SDK (a service account), not the
+    // client SDK: the client-SDK write path was returning a project-level
+    // CONSUMER_INVALID error specific to this project's Google Cloud config,
+    // unrelated to security rules or credentials. The Admin SDK talks to
+    // Firestore over a completely different auth mechanism (a service
+    // account, not an end-user ID token), which sidesteps that error.
+    // It also bypasses Firestore security rules entirely, so the exact
+    // shape/limits validTagData() would have enforced are still applied
+    // here in JS via clamp()/LIMITS before every write.
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      console.error("Set GOOGLE_APPLICATION_CREDENTIALS to the path of the downloaded service-account JSON key.");
+      process.exit(1);
+    }
+    admin.initializeApp({ credential: admin.credential.applicationDefault() });
+    db = admin.firestore();
     const accountId = process.env.R2_ACCOUNT_ID;
     const accessKeyId = process.env.R2_ACCESS_KEY_ID;
     const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
@@ -526,9 +549,9 @@ async function main() {
           const payload = Object.fromEntries(
             Object.entries(record).filter(([, v]) => v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0))
           );
-          payload.createdAt = serverTimestamp();
+          payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
 
-          await addDoc(collection(db, "tags"), payload);
+          await db.collection("tags").add(payload);
           importedIds.push(item.id);
           stats.imported++;
 

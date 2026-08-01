@@ -17,6 +17,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "firebase": "^12.4.0",
+    "firebase-admin": "^14.2.0",
     "next": "^16.2.6",
     "react": "19.2.0",
     "react-dom": "19.2.0",
