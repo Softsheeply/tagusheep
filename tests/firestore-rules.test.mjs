@@ -179,6 +179,58 @@ test("tags: update cannot change createdBy", async () => {
   await assertFails(updateDoc(doc(ctxFor(OWNER_UID), "tags", id), { createdBy: OTHER_UID }));
 });
 
+// A self-submitter shouldn't be able to grant their own tag the "Tagsheep
+// Verified" badge -- reviewed/verified/rejected are admin judgement calls.
+test("tags: owner cannot create a tag pre-marked verified", async () => {
+  await assertFails(
+    addDoc(collection(ctxFor(OWNER_UID), "tags"), validTagPayload({ verificationStatus: "verified" }))
+  );
+});
+
+test("tags: admin can create a tag pre-marked verified", async () => {
+  await assertSucceeds(
+    addDoc(collection(ctxFor(ADMIN_UID), "tags"), validTagPayload({ createdBy: ADMIN_UID, verificationStatus: "verified" }))
+  );
+});
+
+test("tags: owner cannot update their own record to verified", async () => {
+  let id;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "tags"), validTagPayload({ verificationStatus: "pending" }));
+    id = ref.id;
+  });
+  await assertFails(updateDoc(doc(ctxFor(OWNER_UID), "tags", id), { verificationStatus: "verified" }));
+});
+
+test("tags: owner can move their own record between draft/needs_info/pending", async () => {
+  let id;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "tags"), validTagPayload({ verificationStatus: "pending" }));
+    id = ref.id;
+  });
+  await assertSucceeds(updateDoc(doc(ctxFor(OWNER_UID), "tags", id), { verificationStatus: "needs_info" }));
+});
+
+test("tags: owner editing other fields on an already-verified record doesn't need to touch verificationStatus down", async () => {
+  let id;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "tags"), validTagPayload({ verificationStatus: "verified" }));
+    id = ref.id;
+  });
+  // Resubmitting the unchanged elevated status alongside an unrelated field
+  // edit must still succeed -- only escalating *to* verified is blocked.
+  await assertSucceeds(updateDoc(doc(ctxFor(OWNER_UID), "tags", id), { color: "Navy", verificationStatus: "verified" }));
+});
+
+test("tags: admin can update someone else's record to verified", async () => {
+  let id;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "tags"), validTagPayload({ verificationStatus: "pending" }));
+    id = ref.id;
+  });
+  await assertSucceeds(updateDoc(doc(ctxFor(ADMIN_UID), "tags", id), { verificationStatus: "verified" }));
+});
+
 // --- trash ---
 
 test("trash: admin-only read", async () => {
