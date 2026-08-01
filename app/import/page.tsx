@@ -161,34 +161,49 @@ export default function ImportPage() {
       let hostedThumbnailUrl: string | null = null;
       let hostedExtraImageUrls = form.extraImageUrls.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
       let hostedStoragePath: string | null = null;
+      let rehostWarning: string | null = null;
 
       if (hostImportedImage && form.imageUrl) {
-        const remoteFile = await fetchRemoteImageAsFile(form.imageUrl, "primary-import");
-        const normalizedFile = await normalizeUploadedImage(remoteFile);
-        const thumbnailFile = await normalizeThumbnailImage(remoteFile);
-        const baseName = `${Date.now()}_${normalizedFile.name}`;
-        const path = `tagusheep/imports/${uid}/${baseName}`;
-        const thumbPath = `tagusheep/imports/${uid}/thumb_${baseName}`;
-        const storageRef = ref(storage, path);
-        const thumbRef = ref(storage, thumbPath);
-        await uploadBytes(storageRef, normalizedFile, { contentType: IMAGE_POLICY.mimeType });
-        await uploadBytes(thumbRef, thumbnailFile, { contentType: IMAGE_POLICY.mimeType });
-        hostedImageUrl = await getDownloadURL(storageRef);
-        hostedThumbnailUrl = await getDownloadURL(thumbRef);
-        hostedStoragePath = path;
+        try {
+          const remoteFile = await fetchRemoteImageAsFile(form.imageUrl, "primary-import");
+          const normalizedFile = await normalizeUploadedImage(remoteFile);
+          const thumbnailFile = await normalizeThumbnailImage(remoteFile);
+          const baseName = `${Date.now()}_${normalizedFile.name}`;
+          const path = `tagusheep/imports/${uid}/${baseName}`;
+          const thumbPath = `tagusheep/imports/${uid}/thumb_${baseName}`;
+          const storageRef = ref(storage, path);
+          const thumbRef = ref(storage, thumbPath);
+          await uploadBytes(storageRef, normalizedFile, { contentType: IMAGE_POLICY.mimeType });
+          await uploadBytes(thumbRef, thumbnailFile, { contentType: IMAGE_POLICY.mimeType });
+          hostedImageUrl = await getDownloadURL(storageRef);
+          hostedThumbnailUrl = await getDownloadURL(thumbRef);
+          hostedStoragePath = path;
 
-        if (hostedExtraImageUrls.length > 0) {
-          const limitedExtraUrls = hostedExtraImageUrls.slice(0, IMAGE_POLICY.maxImportedImageUrlCount);
-          const hostedExtras = await Promise.all(limitedExtraUrls.map(async (extraUrl, index) => {
-            const extraFile = await fetchRemoteImageAsFile(extraUrl, `extra-import-${index + 1}`);
-            const normalizedExtra = await normalizeUploadedImage(extraFile);
-            const extraBaseName = `${Date.now()}_${index + 1}_${normalizedExtra.name}`;
-            const extraPath = `tagusheep/imports/${uid}/extra_${extraBaseName}`;
-            const extraRef = ref(storage, extraPath);
-            await uploadBytes(extraRef, normalizedExtra, { contentType: IMAGE_POLICY.mimeType });
-            return getDownloadURL(extraRef);
-          }));
-          hostedExtraImageUrls = hostedExtras;
+          if (hostedExtraImageUrls.length > 0) {
+            const limitedExtraUrls = hostedExtraImageUrls.slice(0, IMAGE_POLICY.maxImportedImageUrlCount);
+            const hostedExtras = await Promise.all(limitedExtraUrls.map(async (extraUrl, index) => {
+              const extraFile = await fetchRemoteImageAsFile(extraUrl, `extra-import-${index + 1}`);
+              const normalizedExtra = await normalizeUploadedImage(extraFile);
+              const extraBaseName = `${Date.now()}_${index + 1}_${normalizedExtra.name}`;
+              const extraPath = `tagusheep/imports/${uid}/extra_${extraBaseName}`;
+              const extraRef = ref(storage, extraPath);
+              await uploadBytes(extraRef, normalizedExtra, { contentType: IMAGE_POLICY.mimeType });
+              return getDownloadURL(extraRef);
+            }));
+            hostedExtraImageUrls = hostedExtras;
+          }
+        } catch (imageError: unknown) {
+          // The source site's CDN can block server-side image fetches (e.g. Aritzia
+          // returns 403 to datacenter IPs regardless of headers). That's a
+          // property of the source, not a reason to lose an otherwise-complete
+          // record -- fall back to linking the original external image instead
+          // of failing the whole save.
+          console.error("Image re-host failed, saving with external image URL", imageError);
+          hostedImageUrl = form.imageUrl;
+          hostedThumbnailUrl = null;
+          hostedStoragePath = null;
+          const reason = imageError instanceof Error ? imageError.message : "Image re-host failed";
+          rehostWarning = `Saved, but couldn't re-host the image (${reason}). Using the original external image URL instead.`;
         }
       }
 
@@ -226,7 +241,7 @@ export default function ImportPage() {
       });
 
       await addDoc(collection(db, "tags"), payload);
-      setMessage("Record saved to Tagsheep.");
+      setMessage(rehostWarning || "Record saved to Tagsheep.");
       setForm(emptyState);
       setUrl("");
       setDuplicates(null);
