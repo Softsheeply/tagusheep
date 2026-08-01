@@ -3,6 +3,54 @@ import { clampConfidence, safeTrim } from "@/lib/validation";
 export type VerificationStatus = "draft" | "needs_info" | "pending" | "reviewed" | "verified" | "rejected";
 export type SourceType = "manual" | "official" | "marketplace" | "archive" | "resale" | "unknown";
 
+// "category" had no fixed list before this -- it was free text, which is
+// why existing records are inconsistent. This is the first pass at a real
+// taxonomy; the /tools/category-audit tool re-labels existing blank/legacy
+// values against it going forward.
+export const CATEGORY_OPTIONS = [
+  "Tops",
+  "Bottoms",
+  "Dresses",
+  "Outerwear",
+  "Activewear",
+  "Underwear & Sleepwear",
+  "Swimwear",
+  "Accessories",
+  "Footwear",
+  "Bags",
+  "Jewelry",
+  "Other",
+] as const;
+
+export type Category = (typeof CATEGORY_OPTIONS)[number];
+
+// Keyword -> category, used to auto-suggest a category from a garment
+// type/product title (e.g. scraping a "belt" should suggest "Accessories"
+// rather than leaving category blank). First match wins, so more specific
+// keywords are listed before their broader neighbors.
+const CATEGORY_KEYWORDS: [RegExp, Category][] = [
+  [/\b(belt|hat|cap|beanie|scarf|glove|mitten|tie|wallet|sunglasses|watch)\b/i, "Accessories"],
+  [/\b(bag|purse|backpack|tote|handbag|clutch|satchel)\b/i, "Bags"],
+  [/\b(ring|necklace|bracelet|earring|jewel)\b/i, "Jewelry"],
+  [/\b(boot|sneaker|shoe|sandal|heel|loafer|slipper|footwear)\b/i, "Footwear"],
+  [/\b(swim|bikini|swimsuit|trunks)\b/i, "Swimwear"],
+  [/\b(bra|underwear|boxer|brief|panty|lingerie|pajama|pyjama|sleepwear|nightgown)\b/i, "Underwear & Sleepwear"],
+  [/\b(legging|jogger|track pant|sports bra|gym|athletic|activewear|yoga)\b/i, "Activewear"],
+  [/\b(coat|jacket|parka|blazer|windbreaker|puffer|outerwear)\b/i, "Outerwear"],
+  [/\b(dress|gown|jumpsuit|romper)\b/i, "Dresses"],
+  [/\b(pant|jean|short|skirt|trouser|chino|bottoms)\b/i, "Bottoms"],
+  [/\b(shirt|tee|t-shirt|blouse|top|sweater|hoodie|sweatshirt|cardigan|tank)\b/i, "Tops"],
+];
+
+export function suggestCategory(...texts: (string | null | undefined)[]): Category | null {
+  const combined = texts.filter(Boolean).join(" ");
+  if (!combined) return null;
+  for (const [pattern, category] of CATEGORY_KEYWORDS) {
+    if (pattern.test(combined)) return category;
+  }
+  return null;
+}
+
 export type TagRecord = {
   id?: string;
   brand?: string | null;

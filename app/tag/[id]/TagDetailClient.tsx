@@ -7,7 +7,7 @@ import SmartImage from "@/app/components/SmartImage";
 import { auth, db, storage } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
-import { buildSearchText, getVerificationPercent, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
+import { buildSearchText, CATEGORY_OPTIONS, getVerificationPercent, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 
@@ -549,7 +549,7 @@ export default function TagDetailClient() {
           <Field label="Style number" value={styleNumber} onChange={setStyleNumber} />
           <Field label="Garment type" value={garmentType} onChange={setGarmentType} />
           <Field label="Tags (comma separated)" value={tags} onChange={setTags} />
-          <Field label="Category" value={category} onChange={setCategory} />
+          <Select label="Category" value={category} onChange={setCategory} options={["", ...CATEGORY_OPTIONS]} />
           <Field label="Color" value={color} onChange={setColor} />
           <Field label="Primary size" value={size} onChange={setSize} />
           <Field label="Available sizes (comma separated)" value={availableSizes} onChange={setAvailableSizes} />
@@ -636,7 +636,7 @@ function TextArea({ label, value, onChange, rows = 4 }: { label: string; value: 
 }
 
 function Select({ label, value, onChange, options, disabled }: { label: string; value: string; onChange: (value: string) => void; options: string[]; disabled?: boolean }) {
-  return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60 disabled:opacity-50">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
+  return <label className="block space-y-2"><span className="text-sm text-white/80">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full rounded-xl border border-white/12 bg-[#09111f] px-4 py-3 text-white outline-none transition focus:border-emerald-300/60 disabled:opacity-50">{options.map((option) => <option key={option} value={option}>{option || "— none —"}</option>)}</select></label>;
 }
 
 // Mirrors elevatedVerificationStatus() in firestore.rules -- these three

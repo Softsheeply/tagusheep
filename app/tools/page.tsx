@@ -41,6 +41,10 @@ export default function ToolsHome() {
           <div className="font-semibold">RN audit</div>
           <p className="text-sm text-white/70 mt-2">Review RN coverage and clean up missing or inconsistent records.</p>
         </Link>
+        <Link href="/tools/category-audit" className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-emerald-300/40 transition">
+          <div className="font-semibold">Category audit</div>
+          <p className="text-sm text-white/70 mt-2">Find every record missing a category and assign one from the fixed list.</p>
+        </Link>
         <Link href="/submissions-review" className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-emerald-300/40 transition">
           <div className="font-semibold">Corrections & reports</div>
           <p className="text-sm text-white/70 mt-2">Review community-submitted corrections and problem reports.</p>

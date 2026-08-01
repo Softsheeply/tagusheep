@@ -1,4 +1,4 @@
-import { prepareRecord, type SourceType, type TagRecord } from "@/lib/records";
+import { prepareRecord, suggestCategory, type SourceType, type TagRecord } from "@/lib/records";
 import {
   decodeHtml,
   firstMatch,
@@ -252,7 +252,12 @@ export function extractRecordFromHtml(url: string, html: string): Partial<TagRec
   const rn = extractRn(`${description || ""} ${bodyText}`);
   const madeIn = embedded.madeIn || extractMadeIn(`${description || ""} ${bodyText}`);
   const year = embedded.year || extractYear(`${title || ""} ${description || ""} ${bodyText}`);
-  const category = embedded.category || extractCategory(`${title || ""} ${description || ""} ${bodyText}`);
+  // extractCategory actually returns a garment-type word (e.g. "hoodie",
+  // "jeans"), not a real top-level category -- it's a reasonable guess at
+  // garmentType, and its match plus the title/description feed suggestCategory
+  // to guess the real bucket (e.g. a scraped "belt" suggests "Accessories").
+  const garmentTypeGuess = extractCategory(`${title || ""} ${description || ""} ${bodyText}`);
+  const category = embedded.category || suggestCategory(garmentTypeGuess, title, description);
   const materials = embedded.materials || extractMaterials(`${description || ""} ${bodyText}`);
   const careText = embedded.careText || null;
   const images = pickImages(jsonLdNodes, html, embedded.extraImageUrls || []);
@@ -262,6 +267,7 @@ export function extractRecordFromHtml(url: string, html: string): Partial<TagRec
     productName: title || null,
     styleNumber: styleNumber || null,
     rn: rn || null,
+    garmentType: garmentTypeGuess || null,
     category: category || null,
     madeIn: madeIn || null,
     year: year || null,
