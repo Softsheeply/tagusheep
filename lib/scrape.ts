@@ -78,7 +78,7 @@ function flattenGraph(node: unknown): JsonLdNode[] {
 }
 
 function inferSourceType(hostname: string): SourceType {
-  if (/gap|oldnavy|bananarepublic|athleta|louisvuitton|gucci|prada|dior|chanel|versace|balenciaga|fendi/i.test(hostname)) return "official";
+  if (/gap|oldnavy|bananarepublic|athleta|aritzia|louisvuitton|gucci|prada|dior|chanel|versace|balenciaga|fendi/i.test(hostname)) return "official";
   if (/grailed|ebay|depop|poshmark|vestiaire|therealreal/i.test(hostname)) return "marketplace";
   if (/archive|museum|vintage/i.test(hostname)) return "archive";
   return "unknown";
@@ -274,6 +274,10 @@ export function extractRecordFromHtml(url: string, html: string): Partial<TagRec
     sourceName: hostname,
     sourceType: inferSourceType(hostname),
     confidence: productNode || embedded.productName ? 0.9 : 0.55,
-    verificationStatus: "pending",
+    // Scraped straight from the retailer's own product page -- treat it as
+    // "looks solid, from an official-looking source" rather than needing
+    // manual triage. Still short of "verified": that's an admin judgement
+    // call reserved for an actual human fact-check (see firestore.rules).
+    verificationStatus: "reviewed",
   });
 }

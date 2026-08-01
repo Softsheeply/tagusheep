@@ -97,7 +97,7 @@ export default function HomePage() {
           </h1>
 
           <p className="mx-auto max-w-2xl text-base leading-7 text-white/70 sm:text-lg">
-            Find any clothing tag by brand, RN number, or style number. Built by resellers and thrifters, for resellers and thrifters.
+            Find any clothing tag by brand, RN number, or style number.
           </p>
 
           {totalTags !== null && totalTags > 0 && (
