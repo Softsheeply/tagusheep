@@ -50,6 +50,11 @@ now verified by an automated test suite rather than by inspection alone.
 - create: any signed-in user (previously `if true` — public/unauthenticated create was closed)
 - read/update/delete: admin-only
 
+### `users/{uid}/favorites/{tagId}`
+- private Save-for-later list
+- read/create/update/delete: owner only (`request.auth.uid == uid`)
+- document id must equal `tagId`; payload is a small denormalized snapshot for the favorites page
+
 ### Storage
 - uploads are namespaced by uid; only the matching signed-in uid can create/update inside their
   own path

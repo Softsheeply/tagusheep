@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { collection, getCountFromServer, getDocs, limit, orderBy, query } from "firebase/firestore";
 import SmartImage from "@/app/components/SmartImage";
+import SaveButton from "@/app/components/SaveButton";
 import { db } from "@/lib/firebase";
 
 const quickSearches = ["Louis Vuitton", "RN 66170", "vintage hat", "1970s dress"];
@@ -226,26 +227,41 @@ export default function HomePage() {
             {archivePhotos.map((tag, index) => {
               const src = photoOf(tag)!;
               return (
-                <Link
-                  key={tag.id}
-                  href={`/tag/${tag.id}`}
-                  className="group relative block aspect-[3/4] overflow-hidden bg-white/5 outline-none ring-0 transition focus-visible:ring-2 focus-visible:ring-emerald-300/60"
-                >
-                  <SmartImage
-                    src={src}
-                    alt={tag.brand || "Clothing tag"}
-                    fill
-                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-                    className="object-cover transition duration-500 group-hover:scale-[1.03]"
-                    loading={index < 4 ? "eager" : "lazy"}
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-16">
-                    <div className="truncate text-sm font-medium text-white">{tag.brand || "Unknown brand"}</div>
-                    <div className="truncate text-xs text-white/65">
-                      {tag.styleNumber ? `Style ${tag.styleNumber}` : tag.rn ? `RN ${tag.rn}` : tag.productName || tag.garmentType || "View record"}
+                <div key={tag.id} className="group relative">
+                  <Link
+                    href={`/tag/${tag.id}`}
+                    className="relative block aspect-[3/4] overflow-hidden bg-white/5 outline-none ring-0 transition focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+                  >
+                    <SmartImage
+                      src={src}
+                      alt={tag.brand || "Clothing tag"}
+                      fill
+                      sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                      className="object-cover transition duration-500 group-hover:scale-[1.03]"
+                      loading={index < 4 ? "eager" : "lazy"}
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-16">
+                      <div className="truncate text-sm font-medium text-white">{tag.brand || "Unknown brand"}</div>
+                      <div className="truncate text-xs text-white/65">
+                        {tag.styleNumber ? `Style ${tag.styleNumber}` : tag.rn ? `RN ${tag.rn}` : tag.productName || tag.garmentType || "View record"}
+                      </div>
                     </div>
+                  </Link>
+                  <div className="absolute left-2 top-2 z-10">
+                    <SaveButton
+                      compact
+                      tag={{
+                        tagId: tag.id,
+                        brand: tag.brand,
+                        productName: tag.productName,
+                        rn: tag.rn,
+                        styleNumber: tag.styleNumber,
+                        imageUrl: tag.imageUrl,
+                        thumbnailUrl: tag.thumbnailUrl,
+                      }}
+                    />
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -283,22 +299,38 @@ export default function HomePage() {
       </section>
 
       <section className="border-y border-emerald-300/10 bg-emerald-400/[0.06]">
-        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Contribute</p>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
-              Found a tag? Photograph it in.
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70 sm:text-base">
-              Photo, brand, and RN or style number. Phone or desktop — submissions go live as pending tags right away.
-            </p>
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">How to contribute</p>
+              <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
+                Three things. Live as pending.
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70 sm:text-base">
+                No approval gate — your tag shows up in search right away so the archive grows with every photo.
+              </p>
+            </div>
+            <Link
+              href="/upload"
+              className="inline-flex shrink-0 items-center justify-center bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
+            >
+              Submit a tag
+            </Link>
           </div>
-          <Link
-            href="/upload"
-            className="inline-flex shrink-0 items-center justify-center bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
-          >
-            Submit a tag
-          </Link>
+
+          <ol className="mt-8 grid gap-4 sm:grid-cols-3">
+            {[
+              { step: "1", title: "Photograph the tag", body: "Clear, bright, readable — brand label, care tag, or style sticker." },
+              { step: "2", title: "Add brand + RN or style", body: "Those identifiers are what make Tagsheep searchable later." },
+              { step: "3", title: "Hit submit", body: "It goes live as pending. Save favorites while you browse others." },
+            ].map((item) => (
+              <li key={item.step} className="border-t border-white/15 pt-4">
+                <div className="text-xs uppercase tracking-[0.2em] text-emerald-200/70">Step {item.step}</div>
+                <div className="mt-2 font-[family-name:var(--font-display)] text-lg text-white">{item.title}</div>
+                <p className="mt-1 text-sm leading-6 text-white/60">{item.body}</p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 

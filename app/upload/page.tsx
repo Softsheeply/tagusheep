@@ -12,6 +12,8 @@ import { safeHostnameFromUrl } from "@/lib/validation";
 import { scanTagPhoto } from "@/lib/ocr";
 import { normalizeUploadedImage } from "@/lib/images";
 import { uploadImageObject } from "@/lib/object-storage";
+import SmartImage from "@/app/components/SmartImage";
+import SaveButton from "@/app/components/SaveButton";
 
 export default function UploadPageWrapper() {
   return <Suspense><UploadPage /></Suspense>;
@@ -48,6 +50,15 @@ function UploadPage() {
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
   const [rnBrandSuggestions, setRnBrandSuggestions] = useState<string[]>([]);
   const [ocrStatus, setOcrStatus] = useState<{ kind: "idle" | "scanning" | "done" | "error"; message?: string }>({ kind: "idle" });
+  const [recentUploads, setRecentUploads] = useState<Array<{
+    id: string;
+    brand?: string | null;
+    rn?: string | null;
+    styleNumber?: string | null;
+    productName?: string | null;
+    imageUrl?: string | null;
+    thumbnailUrl?: string | null;
+  }>>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rnDebounce = useRef<number | null>(null);
@@ -69,6 +80,27 @@ function UploadPage() {
     const unsub = onAuthStateChanged(auth, setUser);
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "tags"), orderBy("createdAt", "desc"), qlimit(8)));
+        if (cancelled) return;
+        setRecentUploads(
+          snap.docs
+            .map((d) => ({ id: d.id, ...(d.data() as Omit<(typeof recentUploads)[number], "id">) }))
+            .filter((row) => row.thumbnailUrl || row.imageUrl)
+            .slice(0, 6)
+        );
+      } catch {
+        if (!cancelled) setRecentUploads([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionCount]);
 
   function pickFile(f: File) {
     setFile(f);
@@ -435,6 +467,49 @@ function UploadPage() {
         }`}>
           {status.text}
         </div>
+      )}
+
+      {recentUploads.length > 0 && (
+        <section className="mt-10 border-t border-white/10 pt-8">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-white/40">Also in the archive</p>
+              <h2 className="mt-1 text-xl font-semibold text-white">Recent uploads</h2>
+              <p className="mt-1 text-sm text-white/55">Save ones you want to revisit while you submit yours.</p>
+            </div>
+            <Link href="/tags" className="text-xs text-white/50 underline underline-offset-4 hover:text-white">
+              Browse all
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {recentUploads.map((row) => {
+              const photo = row.thumbnailUrl || row.imageUrl;
+              return (
+                <div key={row.id} className="relative">
+                  <Link href={`/tag/${row.id}`} className="relative block aspect-[3/4] overflow-hidden bg-white/5">
+                    {photo && (
+                      <SmartImage src={photo} alt={row.brand || "Recent tag"} fill sizes="120px" className="object-cover" />
+                    )}
+                  </Link>
+                  <div className="absolute left-1 top-1 z-10">
+                    <SaveButton
+                      compact
+                      tag={{
+                        tagId: row.id,
+                        brand: row.brand,
+                        productName: row.productName,
+                        rn: row.rn,
+                        styleNumber: row.styleNumber,
+                        imageUrl: row.imageUrl,
+                        thumbnailUrl: row.thumbnailUrl,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </main>
   );

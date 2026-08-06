@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import SmartImage from "@/app/components/SmartImage";
+import SaveButton from "@/app/components/SaveButton";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
 import { buildSearchText, CATEGORY_OPTIONS, getVerificationPercent, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
@@ -464,10 +465,25 @@ export default function TagDetailClient() {
         <div className="space-y-5">
           {/* ── Identity hero ── */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.18em] text-white/40">Brand</div>
-              <h1 className="mt-1 text-3xl font-bold text-white leading-tight">{tag.brand || "Unknown brand"}</h1>
-              {tag.productName && <div className="mt-1 text-base text-white/60">{tag.productName}</div>}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-white/40">Brand</div>
+                <h1 className="mt-1 text-3xl font-bold text-white leading-tight">{tag.brand || "Unknown brand"}</h1>
+                {tag.productName && <div className="mt-1 text-base text-white/60">{tag.productName}</div>}
+              </div>
+              {id && (
+                <SaveButton
+                  tag={{
+                    tagId: id,
+                    brand: tag.brand,
+                    productName: tag.productName,
+                    rn: tag.rn,
+                    styleNumber: tag.styleNumber,
+                    imageUrl: tag.imageUrl,
+                    thumbnailUrl: tag.thumbnailUrl,
+                  }}
+                />
+              )}
             </div>
 
             {(tag.rn || tag.styleNumber) && (

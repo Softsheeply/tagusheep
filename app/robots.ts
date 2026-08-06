@@ -22,6 +22,7 @@ export default function robots(): MetadataRoute.Robots {
           "/tools/",
           "/trash",
           "/profile",
+          "/favorites",
           "/signin",
         ],
       },
