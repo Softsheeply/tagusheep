@@ -28,6 +28,8 @@ const ROUTES = [
   "/submissions-review",
   "/trash",
   "/export",
+  "/privacy",
+  "/terms",
   "/admin-test",
   "/storage-test",
   "/mobile",
@@ -60,6 +62,13 @@ for (const route of ROUTES) {
 
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     expect(response, `no response for ${route}`).not.toBeNull();
+
+    // Diagnostic pages are intentionally hidden for invite testing.
+    if (route === "/admin-test" || route === "/storage-test") {
+      expect(response!.status(), `${route} should be hidden`).toBe(404);
+      return;
+    }
+
     expect(response!.status(), `unexpected status for ${route}`).toBeLessThan(500);
 
     // Pages with a live Firestore listener never go network-idle (the

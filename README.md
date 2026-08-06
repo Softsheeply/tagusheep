@@ -177,16 +177,19 @@ Current defaults:
 - thumbnail max dimension: **480px**
 - thumbnail quality: **0.76**
 
+### Where photos are stored
+Uploads go through `lib/object-storage.ts`:
+1. **Cloudflare Images** via `/api/storage` when `CF_ACCOUNT_ID`, `CF_IMAGES_API_TOKEN`, and `CF_IMAGES_ACCOUNT_HASH` are set
+2. **Firebase Storage** automatically if Cloudflare is unset or the upload fails
+
 ### What happens now
-#### Manual uploads
+#### Manual / community uploads
 - normalized to WebP
-- resized to the shared max dimension
-- thumbnail generated
-- both stored in Firebase Storage
+- uploaded through the Cloudflare → Firebase helper
+- written live to `tags` with `verificationStatus: "pending"`
 
 #### Image replacement on existing records
-- same normalization pipeline
-- same thumbnail generation
+- same normalization + storage helper
 
 #### Imported primary images
 - can be re-hosted into Tagsheep storage
@@ -292,6 +295,14 @@ Required public env vars:
 - `NEXT_PUBLIC_FB_PROJECT_ID`
 - `NEXT_PUBLIC_FB_STORAGE_BUCKET`
 - `NEXT_PUBLIC_FB_APP_ID`
+
+Optional Cloudflare Images (Firebase Storage is used until these are set):
+- `CF_ACCOUNT_ID`
+- `CF_IMAGES_API_TOKEN`
+- `CF_IMAGES_ACCOUNT_HASH`
+- `NEXT_PUBLIC_CF_IMAGES_HASH`
+
+See `.env.example` and `README-LAUNCH.md`.
 
 ---
 

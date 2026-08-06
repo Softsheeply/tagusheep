@@ -85,6 +85,21 @@ Add these in your host dashboard:
 - `NEXT_PUBLIC_FB_STORAGE_BUCKET`
 - `NEXT_PUBLIC_FB_APP_ID`
 
+### Cloudflare Images (recommended for invite testing)
+
+Community uploads prefer Cloudflare Images, then fall back to Firebase Storage
+if Cloudflare is unset or briefly unavailable. Set these on the host:
+
+- `CF_ACCOUNT_ID` — Cloudflare account id
+- `CF_IMAGES_API_TOKEN` — API token with Images edit permission
+- `CF_IMAGES_ACCOUNT_HASH` — from Images → Developer Resources
+- `NEXT_PUBLIC_CF_IMAGES_HASH` — same hash (optional; used for docs/clients)
+
+Create at least a `public` variant in the Cloudflare Images dashboard. Uploads
+use the storage path as a custom image id so deletes stay path-based.
+
+Without these vars the app still works: photos land in Firebase Storage.
+
 ### Optional env vars (each feature is a no-op until its var is set)
 
 - `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` — enables the Firebase App Check scaffold
@@ -158,13 +173,29 @@ Notes:
 After deploy, test:
 - homepage loads
 - Google sign-in works
-- upload works
+- upload works (record appears in `/tags` as **pending**, not stuck in review)
+- batch upload works
 - import from URL works
 - saving imported record works
 - `/tags` search works
 - `/style/[value]` works
 - `/rn/[value]` works
+- `/privacy` and `/terms` load; footer links work
+- `/admin-test` and `/storage-test` return 404
 - export page works
+
+## Invite-test readiness (~50 users / ~100 tags)
+
+Before sending invites:
+1. Deploy this build to production.
+2. Confirm Firebase Auth Google sign-in + authorized domains.
+3. Prefer configuring Cloudflare Images (above); Firebase fallback is fine for a small invite.
+4. Confirm a non-admin signed-in user can submit via `/upload` and the tag shows on `/tags` as pending.
+5. Skim Privacy + Terms once so invitees have somewhere to land.
+
+Community submissions write straight to the `tags` collection with
+`verificationStatus: "pending"`. URL-import review queues are unchanged for
+partial/duplicate imports.
 
 ## Important notes
 

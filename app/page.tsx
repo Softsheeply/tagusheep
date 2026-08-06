@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { collection, getCountFromServer, getDocs, limit, orderBy, query } from "firebase/firestore";
+import SmartImage from "@/app/components/SmartImage";
 import { db } from "@/lib/firebase";
 
 const quickSearches = ["Louis Vuitton", "RN 66170", "vintage hat", "1970s dress"];
@@ -19,15 +21,17 @@ const allBrowseTopics = [
   { title: "Outerwear", href: "/tags?q=jacket", note: "Coats, shells, padded labels, seasonal clues" },
 ];
 
-
 type TagDoc = {
   id: string;
   brand?: string | null;
   productName?: string | null;
   garmentType?: string | null;
+  styleNumber?: string | null;
+  rn?: string | null;
   tags?: string[];
   category?: string | null;
   imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   verificationStatus?: string | null;
 };
 
@@ -42,7 +46,12 @@ function shuffle<T>(items: T[]) {
   return arr;
 }
 
+function photoOf(tag: TagDoc) {
+  return tag.thumbnailUrl || tag.imageUrl || null;
+}
+
 export default function HomePage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [browseTopics, setBrowseTopics] = useState<BrowseTopic[]>(allBrowseTopics.slice(0, 6));
   const [latest, setLatest] = useState<TagDoc[]>([]);
@@ -51,7 +60,7 @@ export default function HomePage() {
   useEffect(() => {
     (async () => {
       try {
-        const qRef = query(collection(db, "tags"), orderBy("createdAt", "desc"), limit(20));
+        const qRef = query(collection(db, "tags"), orderBy("createdAt", "desc"), limit(48));
         const snap = await getDocs(qRef);
         const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) }));
         setLatest(rows);
@@ -69,131 +78,244 @@ export default function HomePage() {
     return q ? `/tags?q=${encodeURIComponent(q)}` : "/tags";
   }, [search]);
 
-  const latestNews = useMemo(() => latest.slice(0, 5), [latest]);
+  const photographed = useMemo(
+    () => latest.filter((tag) => Boolean(photoOf(tag))),
+    [latest]
+  );
+
+  const heroPhotos = useMemo(() => {
+    const base = photographed.slice(0, 24);
+    if (base.length === 0) return [];
+    // Repeat so the full-bleed columns stay dense even with a small archive.
+    while (base.length < 18) base.push(...photographed.slice(0, Math.min(6, photographed.length)));
+    return base.slice(0, 24);
+  }, [photographed]);
+
+  const archivePhotos = useMemo(() => photographed.slice(0, 12), [photographed]);
+
+  function onSearch(e: FormEvent) {
+    e.preventDefault();
+    router.push(searchHref);
+  }
+
+  const columns = [
+    heroPhotos.filter((_, i) => i % 3 === 0),
+    heroPhotos.filter((_, i) => i % 3 === 1),
+    heroPhotos.filter((_, i) => i % 3 === 2),
+  ];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 sm:px-6">
-      <section className="relative py-16 sm:py-24">
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 opacity-20 [mask-image:linear-gradient(to_bottom,transparent,black_15%,black_85%,transparent)]"
-        >
-          <div className="h-full w-full bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:48px_48px]" />
+    <main>
+      {/* Full-bleed clothing plane — first thing invitees see */}
+      <section className="relative isolate min-h-[min(92vh,920px)] overflow-hidden">
+        <div aria-hidden className="absolute inset-0">
+          {heroPhotos.length > 0 ? (
+            <div className="home-hero-drift grid h-[120%] w-full grid-cols-2 gap-2 px-2 pt-2 sm:grid-cols-3 sm:gap-3 sm:px-3">
+              {columns.map((column, colIndex) => (
+                <div
+                  key={colIndex}
+                  className={`flex flex-col gap-2 sm:gap-3 ${colIndex === 1 ? "home-hero-drift-slow" : colIndex === 2 ? "home-hero-drift-slower" : ""}`}
+                >
+                  {column.map((tag, rowIndex) => {
+                    const src = photoOf(tag)!;
+                    return (
+                      <div
+                        key={`${tag.id}-${colIndex}-${rowIndex}`}
+                        className="relative aspect-[3/4] overflow-hidden bg-white/5"
+                      >
+                        <SmartImage
+                          src={src}
+                          alt=""
+                          fill
+                          sizes="(min-width: 640px) 33vw, 50vw"
+                          className="object-cover opacity-80"
+                          loading={rowIndex < 2 ? "eager" : "lazy"}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(45,212,191,0.18),transparent_45%),radial-gradient(circle_at_80%_60%,rgba(56,189,248,0.12),transparent_40%),linear-gradient(180deg,#122038,#090f1c)]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#090f1c]/55 via-[#0b1222]/78 to-[#090f1c]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(9,15,28,0.55),transparent_18%,transparent_82%,rgba(9,15,28,0.55))]" />
         </div>
 
-        <div className="text-center space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/6 px-3 py-1 text-xs text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            Search clothing labels, style numbers, RN records, and brand details
-          </div>
+        <div className="relative mx-auto flex min-h-[min(92vh,920px)] max-w-6xl flex-col justify-end px-4 pb-14 pt-28 sm:px-6 sm:pb-20 sm:pt-32">
+          <div className="home-hero-copy max-w-3xl space-y-5">
+            <p className="font-[family-name:var(--font-display)] text-sm uppercase tracking-[0.28em] text-emerald-200/90">
+              Tagsheep
+            </p>
+            <h1 className="font-[family-name:var(--font-display)] text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-6xl">
+              The clothing tag database.
+            </h1>
+            <p className="max-w-xl text-base leading-7 text-white/75 sm:text-lg">
+              Look up real garments by brand, RN, or style number — and browse the tags people are photographing into the archive.
+            </p>
 
-          <h1 className="mx-auto max-w-4xl text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
-            Tagsheep is the
-            <span className="bg-gradient-to-r from-emerald-300 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">
-              {" "}
-              clothing internet database
-            </span>
-            .
-          </h1>
-
-          <p className="mx-auto max-w-2xl text-base leading-7 text-white/70 sm:text-lg">
-            Find any clothing tag by brand, RN number, or style number.
-          </p>
-
-          {totalTags !== null && totalTags > 0 && (
-            <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-3 text-sm sm:text-base">
-              <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-white/88">
-                <span className="font-semibold text-white">{totalTags.toLocaleString()}</span> tags in the database
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-3xl rounded-[28px] border border-white/10 bg-white/6 p-4 shadow-[0_20px_90px_rgba(0,0,0,0.28)] backdrop-blur-sm">
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <form onSubmit={onSearch} className="flex max-w-2xl flex-col gap-3 pt-1 sm:flex-row">
               <input
                 type="search"
                 aria-label="Search Tagsheep"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search Louis Vuitton, RN, style number, vintage hat, 1970s dress..."
-                className="w-full rounded-2xl border border-white/12 bg-[#09111f] px-4 py-3 text-white placeholder:text-white/40 outline-none transition focus:border-emerald-300/60"
+                placeholder="Brand, RN, style number…"
+                className="w-full border border-white/15 bg-[#09111f]/90 px-4 py-3.5 text-white outline-none transition placeholder:text-white/40 focus:border-emerald-300/60"
               />
-              <Link href={searchHref} className="inline-flex items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
-                Search Tagsheep
-              </Link>
-            </div>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center bg-emerald-400/90 px-6 py-3.5 font-semibold text-black transition hover:bg-emerald-300"
+              >
+                Search the archive
+              </button>
+            </form>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-left">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/45">Try:</span>
-              {quickSearches.map((item) => (
-                <button key={item} type="button" onClick={() => setSearch(item)} className="rounded-full border border-white/12 bg-white/6 px-3 py-1 text-sm text-white/76 transition hover:border-emerald-300/45 hover:text-white">
-                  {item}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-white/55">
+              {totalTags !== null && totalTags > 0 && (
+                <span>
+                  <span className="font-medium text-white">{totalTags.toLocaleString()}</span> tags indexed
+                </span>
+              )}
+              <Link href="/upload" className="underline decoration-white/25 underline-offset-4 transition hover:text-white hover:decoration-white/60">
+                Submit a tag
+              </Link>
+              <Link href="/tags" className="underline decoration-white/25 underline-offset-4 transition hover:text-white hover:decoration-white/60">
+                Browse all
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="mb-10 rounded-3xl border border-emerald-300/15 bg-emerald-400/8 p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+      {/* Photo-first archive strip — what Tagsheep is about */}
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+        <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Contribute</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">Found a tag? Submit it.</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
-              Photo, brand, and RN or style number is all you need. Works on your phone or desktop — the same form, reviewed before it goes live.
+            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">From the archive</p>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold text-white">
+              Clothing, identified.
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
+              Every record starts with a tag photo. Scroll a few — this is the product.
             </p>
           </div>
-          <Link href="/upload" className="inline-flex items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
+          <Link href="/tags" className="hidden shrink-0 text-sm text-white/55 underline underline-offset-4 hover:text-white sm:inline">
+            Open browse →
+          </Link>
+        </div>
+
+        {archivePhotos.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4">
+            {archivePhotos.map((tag, index) => {
+              const src = photoOf(tag)!;
+              return (
+                <Link
+                  key={tag.id}
+                  href={`/tag/${tag.id}`}
+                  className="group relative block aspect-[3/4] overflow-hidden bg-white/5 outline-none ring-0 transition focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+                >
+                  <SmartImage
+                    src={src}
+                    alt={tag.brand || "Clothing tag"}
+                    fill
+                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                    className="object-cover transition duration-500 group-hover:scale-[1.03]"
+                    loading={index < 4 ? "eager" : "lazy"}
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-16">
+                    <div className="truncate text-sm font-medium text-white">{tag.brand || "Unknown brand"}</div>
+                    <div className="truncate text-xs text-white/65">
+                      {tag.styleNumber ? `Style ${tag.styleNumber}` : tag.rn ? `RN ${tag.rn}` : tag.productName || tag.garmentType || "View record"}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="border border-dashed border-white/15 bg-white/[0.03] px-6 py-16 text-center">
+            <p className="font-[family-name:var(--font-display)] text-xl text-white">The archive is waiting for its first photos.</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-white/60">
+              Submit a clear tag photo with brand and an RN or style number — it goes live as pending right away.
+            </p>
+            <Link href="/upload" className="mt-6 inline-flex bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
+              Submit the first tag
+            </Link>
+          </div>
+        )}
+
+        <div className="mt-6 flex flex-wrap items-center gap-3 sm:hidden">
+          <Link href="/tags" className="text-sm text-white/55 underline underline-offset-4">
+            Open browse →
+          </Link>
+        </div>
+
+        <div className="mt-8 flex flex-wrap gap-2">
+          <span className="self-center text-xs uppercase tracking-[0.18em] text-white/40">Try searching</span>
+          {quickSearches.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => router.push(`/tags?q=${encodeURIComponent(item)}`)}
+              className="border border-white/12 bg-white/[0.04] px-3 py-1.5 text-sm text-white/70 transition hover:border-emerald-300/40 hover:text-white"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-emerald-300/10 bg-emerald-400/[0.06]">
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Contribute</p>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
+              Found a tag? Photograph it in.
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70 sm:text-base">
+              Photo, brand, and RN or style number. Phone or desktop — submissions go live as pending tags right away.
+            </p>
+          </div>
+          <Link
+            href="/upload"
+            className="inline-flex shrink-0 items-center justify-center bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
+          >
             Submit a tag
           </Link>
         </div>
       </section>
 
-      <section className="mb-10">
-        <div className="flex items-end justify-between gap-3 flex-wrap">
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+        <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Browse by category</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">Fresh categories each session</h2>
+            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Browse by feel</p>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
+              Start somewhere familiar
+            </h2>
           </div>
-          <button onClick={() => setBrowseTopics(shuffle(allBrowseTopics).slice(0, 6))} className="text-sm underline">
-            Refresh categories
+          <button
+            type="button"
+            onClick={() => setBrowseTopics(shuffle(allBrowseTopics).slice(0, 6))}
+            className="text-sm text-white/55 underline underline-offset-4 hover:text-white"
+          >
+            Shuffle
           </button>
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
           {browseTopics.map((topic) => (
-            <Link key={topic.title} href={topic.href} className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-emerald-300/35 hover:bg-white/7">
-              <div className="text-lg font-semibold text-white">{topic.title}</div>
-              <p className="mt-2 text-sm leading-6 text-white/70">{topic.note}</p>
+            <Link key={topic.title} href={topic.href} className="group block border-t border-white/10 pt-4 transition hover:border-emerald-300/40">
+              <div className="font-[family-name:var(--font-display)] text-lg text-white transition group-hover:text-emerald-200">
+                {topic.title}
+              </div>
+              <p className="mt-1 text-sm leading-6 text-white/60">{topic.note}</p>
             </Link>
           ))}
         </div>
       </section>
-
-      {latestNews.length > 0 && (
-        <section className="mb-10">
-          <div className="mb-4">
-            <p className="text-xs uppercase tracking-[0.22em] text-sky-200/80">Live activity</p>
-            <h2 className="mt-1 text-2xl font-semibold text-white">Recent records</h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {latestNews.map((item) => (
-              <Link key={item.id} href={`/tag/${item.id}`} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 transition hover:border-emerald-300/35 hover:bg-white/7">
-                {item.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt={item.brand || "Tag"} className="mb-3 h-32 w-full rounded-xl object-contain bg-white/5" />
-                )}
-                <div className="font-semibold text-white">{item.brand || "Unknown brand"}</div>
-                <div className="mt-0.5 text-sm text-white/55">{item.productName || item.garmentType || "View record"}</div>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-4 text-center">
-            <Link href="/tags" className="text-sm text-white/50 underline hover:text-white/80">Browse all records →</Link>
-          </div>
-        </section>
-      )}
     </main>
   );
 }

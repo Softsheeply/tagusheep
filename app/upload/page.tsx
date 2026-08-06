@@ -3,14 +3,15 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
 import { addDoc, collection, getDocs, limit as qlimit, orderBy, query, serverTimestamp, startAt, endAt, where } from "firebase/firestore";
-import { ref, getDownloadURL, uploadBytes } from "firebase/storage";
 import { buildSearchText, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType } from "@/lib/records";
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { scanTagPhoto } from "@/lib/ocr";
+import { normalizeUploadedImage } from "@/lib/images";
+import { uploadImageObject } from "@/lib/object-storage";
 
 export default function UploadPageWrapper() {
   return <Suspense><UploadPage /></Suspense>;
@@ -59,8 +60,9 @@ function UploadPage() {
       : rn.length > 7
         ? "RN looks too long."
         : null;
+  const hasBrand = brand.trim().length > 0;
   const hasIdentifier = rn.trim().length > 0 || styleNumber.trim().length > 0;
-  const canSubmit = !!user && !!file && hasIdentifier && !rnWarning && status.kind !== "info";
+  const canSubmit = !!user && !!file && hasBrand && hasIdentifier && !rnWarning && status.kind !== "info";
 
   useEffect(() => {
     setPersistence(auth, browserLocalPersistence).catch(() => {});
@@ -148,11 +150,10 @@ function UploadPage() {
     try {
       setStatus({ kind: "info", text: "Uploading…" });
 
-      const baseName = `${Date.now()}_${file.name}`;
+      const normalized = await normalizeUploadedImage(file);
+      const baseName = `${Date.now()}_${normalized.name}`;
       const path = `tagusheep/uploads/${user.uid}/${baseName}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const imageUrl = await getDownloadURL(storageRef);
+      const uploaded = await uploadImageObject(normalized, path);
 
       const cleanBrand = normalizeBrand(brand);
       const cleanRn = normalizeRn(rn);
@@ -170,19 +171,18 @@ function UploadPage() {
       const cleanSourceName = safeHostnameFromUrl(cleanSourceUrl || "") || null;
 
       const payload: Record<string, unknown> = {
-        imageUrl,
-        thumbnailUrl: imageUrl,
-        storagePath: path,
+        imageUrl: uploaded.url,
+        thumbnailUrl: uploaded.thumbnailUrl,
+        storagePath: uploaded.storagePath,
         sourceType: "manual" as SourceType,
         verificationStatus: "pending",
         searchText: buildSearchText({ brand: cleanBrand, rn: cleanRn, styleNumber: cleanStyleNumber, productName: cleanProductName, garmentType: cleanGarmentType, size: cleanSize, year: cleanYear, madeIn: cleanMadeIn, materials: cleanMaterials, careText: cleanCareText, color: cleanColor, notes: cleanNotes, sourceName: cleanSourceName }),
         createdBy: user.uid,
         createdAt: serverTimestamp(),
-        uploadFallback: false,
-        fallbackReason: null,
       };
 
       if (cleanBrand) payload.brand = cleanBrand;
+      else throw new Error("Brand is required.");
       if (cleanRn) payload.rn = cleanRn;
       if (cleanStyleNumber) payload.styleNumber = cleanStyleNumber;
       if (cleanProductName) payload.productName = cleanProductName;
@@ -197,9 +197,11 @@ function UploadPage() {
       if (cleanSourceUrl) payload.sourceUrl = cleanSourceUrl;
       if (cleanSourceName) payload.sourceName = cleanSourceName;
 
-      await addDoc(collection(db, "imports_review"), payload);
+      // Community submissions go live immediately as pending tags so invitees
+      // can see their contributions in browse/search without an admin step.
+      await addDoc(collection(db, "tags"), payload);
       setSessionCount((n) => n + 1);
-      setStatus({ kind: "success", text: `Submitted! ${cleanBrand || "Tag"} sent to review.` });
+      setStatus({ kind: "success", text: `Live! ${cleanBrand || "Tag"} is up as pending.` });
       resetForm();
       setTimeout(() => setStatus({ kind: "idle", text: null }), 2500);
     } catch (err: unknown) {
@@ -215,7 +217,7 @@ function UploadPage() {
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Community contribution</p>
           <h1 className="mt-1 text-3xl font-semibold">Submit a tag</h1>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-white/65">
-            Photo + brand + RN or style number gets it into review. Everything else fills in the record.
+            Photo + brand + RN or style number goes live as a pending tag. Everything else fills in the record.
           </p>
           <Link href="/upload/batch" className="mt-2 inline-block text-xs text-emerald-200/80 underline hover:text-emerald-200">
             Have a stack of tags to do at once? Try batch upload →
@@ -234,7 +236,7 @@ function UploadPage() {
         <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-5 py-4">
           <div className="font-medium text-amber-100">Sign in to submit tags</div>
           <p className="mt-1 text-sm text-amber-100/75">
-            Use the <b>Sign in</b> button at the top right. Once approved your submission appears in search for everyone.
+            Use the <b>Sign in</b> button at the top right. Your submission goes live as a pending tag in search right away.
           </p>
         </div>
       )}
@@ -251,6 +253,7 @@ function UploadPage() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); }}
           />
@@ -288,7 +291,7 @@ function UploadPage() {
               </div>
               <div className="text-center">
                 <div className="text-sm font-medium text-white/80">Add tag photo</div>
-                <div className="mt-0.5 text-xs text-white/40">Tap to choose · drag &amp; drop works too</div>
+                <div className="mt-0.5 text-xs text-white/40">Tap to take or choose a photo · drag &amp; drop works too</div>
               </div>
             </button>
           )}
@@ -414,7 +417,10 @@ function UploadPage() {
           {!user && (
             <p className="text-xs text-white/45 sm:hidden">Sign in above first.</p>
           )}
-          {user && !canSubmit && file && !hasIdentifier && (
+          {user && !canSubmit && file && !hasBrand && (
+            <p className="text-xs text-amber-300/80 sm:hidden">Add a brand.</p>
+          )}
+          {user && !canSubmit && file && hasBrand && !hasIdentifier && (
             <p className="text-xs text-amber-300/80 sm:hidden">Add RN or style number.</p>
           )}
         </div>

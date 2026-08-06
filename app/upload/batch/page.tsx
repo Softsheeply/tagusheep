@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { ref, getDownloadURL, uploadBytes } from "firebase/storage";
 import { buildSearchText, normalizeBrand, normalizeRn, normalizeStyleNumber } from "@/lib/records";
 import { createOcrWorker, recognizeTagPhoto } from "@/lib/ocr";
+import { normalizeUploadedImage } from "@/lib/images";
+import { uploadImageObject } from "@/lib/object-storage";
 import type { Worker as OcrWorker } from "tesseract.js";
 
 type BatchItem = {
@@ -126,11 +127,10 @@ export default function BatchUploadPage() {
     async function submitOne(item: BatchItem) {
       updateItem(item.id, { submitStatus: "uploading" });
       try {
-        const baseName = `${Date.now()}_${item.file.name}`;
+        const normalized = await normalizeUploadedImage(item.file);
+        const baseName = `${Date.now()}_${normalized.name}`;
         const path = `tagusheep/uploads/${uid}/${baseName}`;
-        const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, item.file);
-        const imageUrl = await getDownloadURL(storageRef);
+        const uploaded = await uploadImageObject(normalized, path);
 
         const cleanBrand = normalizeBrand(item.brand);
         const cleanRn = normalizeRn(item.rn);
@@ -139,9 +139,9 @@ export default function BatchUploadPage() {
         const cleanMaterials = item.materials.trim() || null;
 
         const payload: Record<string, unknown> = {
-          imageUrl,
-          thumbnailUrl: imageUrl,
-          storagePath: path,
+          imageUrl: uploaded.url,
+          thumbnailUrl: uploaded.thumbnailUrl,
+          storagePath: uploaded.storagePath,
           sourceType: "manual",
           verificationStatus: "pending",
           searchText: buildSearchText({
@@ -155,12 +155,13 @@ export default function BatchUploadPage() {
           createdAt: serverTimestamp(),
         };
         if (cleanBrand) payload.brand = cleanBrand;
+        else throw new Error("Brand is required.");
         if (cleanRn) payload.rn = cleanRn;
         if (cleanStyleNumber) payload.styleNumber = cleanStyleNumber;
         if (cleanMadeIn) payload.madeIn = cleanMadeIn;
         if (cleanMaterials) payload.materials = cleanMaterials;
 
-        await addDoc(collection(db, "imports_review"), payload);
+        await addDoc(collection(db, "tags"), payload);
         updateItem(item.id, { submitStatus: "done" });
       } catch (err: unknown) {
         updateItem(item.id, {
@@ -188,7 +189,8 @@ export default function BatchUploadPage() {
           <h1 className="mt-1 text-3xl font-semibold">Batch upload</h1>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-white/65">
             Photograph a stack of tags, drop them all in here, and each one gets scanned for RN/style
-            number automatically. Fill in whatever the scan misses, then submit the whole batch at once.
+            number automatically. Fill in whatever the scan misses, then submit — each ready tag goes
+            live as pending.
           </p>
         </div>
         <Link href="/upload" className="text-sm underline text-white/60 hover:text-white">

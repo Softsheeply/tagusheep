@@ -2,10 +2,10 @@ import Image from "next/image";
 
 // next/image throws at runtime for any hostname not in next.config.ts's
 // images.remotePatterns. Imported/legacy records can reference arbitrary
-// retailer image URLs we don't control, so only Firebase-hosted images
-// (the ones we uploaded ourselves) get the optimized path -- everything
-// else falls back to a plain img tag.
-const OPTIMIZABLE_HOSTS = new Set(["firebasestorage.googleapis.com"]);
+// retailer image URLs we don't control, so only images we host ourselves
+// (Firebase Storage or Cloudflare Images) get the optimized path --
+// everything else falls back to a plain img tag.
+const OPTIMIZABLE_HOSTS = new Set(["firebasestorage.googleapis.com", "imagedelivery.net"]);
 
 function isOptimizable(src: string) {
   // A same-origin local asset (e.g. /badges/foo.png) is always safe.
