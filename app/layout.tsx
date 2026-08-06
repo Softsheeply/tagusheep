@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import TopNav from "./components/TopNav";
+import SiteFooter from "./components/SiteFooter";
 import { getSiteUrl } from "@/lib/site";
 
 const title = "Tagsheep";
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
-      <body className="min-h-full bg-gradient-to-b from-[#0f172a] via-[#0b1222] to-[#090f1c] text-white selection:bg-emerald-400/40">
+      <body className="flex min-h-full flex-col bg-gradient-to-b from-[#0f172a] via-[#0b1222] to-[#090f1c] text-white selection:bg-emerald-400/40">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-0 -z-10 overflow-hidden [mask-image:radial-gradient(60%_60%_at_50%_30%,#000_20%,transparent_80%)]"
@@ -54,7 +55,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <TopNav />
-        {children}
+        <div className="flex-1">{children}</div>
+        <SiteFooter />
         <Analytics />
         <SpeedInsights />
       </body>

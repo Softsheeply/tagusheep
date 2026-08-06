@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { addDoc, collection, doc, getDoc, serverTimestamp } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { CATEGORY_OPTIONS, CORE_VERIFICATION_FIELDS, CORE_VERIFICATION_FIELD_LABELS, getVerificationPercent, prepareRecord, type SourceType, type TagRecord, type VerificationStatus } from "@/lib/records";
 import { scrapeProductUrl } from "@/lib/scrape";
 import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicates";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
+import { uploadImageObject } from "@/lib/object-storage";
 
 type FormState = {
   brand: string;
@@ -189,13 +189,11 @@ export default function ImportPage() {
           const baseName = `${Date.now()}_${normalizedFile.name}`;
           const path = `tagusheep/imports/${uid}/${baseName}`;
           const thumbPath = `tagusheep/imports/${uid}/thumb_${baseName}`;
-          const storageRef = ref(storage, path);
-          const thumbRef = ref(storage, thumbPath);
-          await uploadBytes(storageRef, normalizedFile, { contentType: IMAGE_POLICY.mimeType });
-          await uploadBytes(thumbRef, thumbnailFile, { contentType: IMAGE_POLICY.mimeType });
-          hostedImageUrl = await getDownloadURL(storageRef);
-          hostedThumbnailUrl = await getDownloadURL(thumbRef);
-          hostedStoragePath = path;
+          const primary = await uploadImageObject(normalizedFile, path);
+          const thumb = await uploadImageObject(thumbnailFile, thumbPath);
+          hostedImageUrl = primary.url;
+          hostedThumbnailUrl = thumb.url;
+          hostedStoragePath = primary.storagePath;
 
           if (hostedExtraImageUrls.length > 0) {
             const limitedExtraUrls = hostedExtraImageUrls.slice(0, IMAGE_POLICY.maxImportedImageUrlCount);
@@ -204,9 +202,8 @@ export default function ImportPage() {
               const normalizedExtra = await normalizeUploadedImage(extraFile);
               const extraBaseName = `${Date.now()}_${index + 1}_${normalizedExtra.name}`;
               const extraPath = `tagusheep/imports/${uid}/extra_${extraBaseName}`;
-              const extraRef = ref(storage, extraPath);
-              await uploadBytes(extraRef, normalizedExtra, { contentType: IMAGE_POLICY.mimeType });
-              return getDownloadURL(extraRef);
+              const extra = await uploadImageObject(normalizedExtra, extraPath);
+              return extra.url;
             }));
             hostedExtraImageUrls = hostedExtras;
           }

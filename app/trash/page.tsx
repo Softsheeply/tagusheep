@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import AdminGate from "@/app/components/AdminGate";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import {
   collection,
   doc,
@@ -20,7 +20,7 @@ import {
   type QueryDocumentSnapshot,
   type DocumentData,
 } from "firebase/firestore";
-import { deleteObject, ref } from "firebase/storage";
+import { deleteImageObject } from "@/lib/object-storage";
 
 type TrashDoc = {
   id: string;
@@ -174,7 +174,7 @@ export default function TrashPage() {
       // delete image in Storage (best-effort)
       if (d.storagePath) {
         try {
-          await deleteObject(ref(storage, d.storagePath));
+          await deleteImageObject(d.storagePath);
         } catch {
           // ignore storage errors to ensure Firestore purge proceeds
         }

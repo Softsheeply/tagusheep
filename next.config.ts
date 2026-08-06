@@ -7,12 +7,13 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   images: {
-    // Garment photos live in Firebase Storage; this only allow-lists the
-    // domain for next/image so it's ready to adopt -- no <img> tags use it
-    // yet, since imported records can also reference arbitrary retailer
-    // image URLs that this project doesn't control.
+    // Garment photos live in Firebase Storage and/or Cloudflare Images; this
+    // only allow-lists those domains for next/image. Imported records can also
+    // reference arbitrary retailer image URLs that this project doesn't control,
+    // and SmartImage falls back to a plain <img> for those.
     remotePatterns: [
       { protocol: "https", hostname: "firebasestorage.googleapis.com" },
+      { protocol: "https", hostname: "imagedelivery.net" },
     ],
   },
 };
