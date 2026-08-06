@@ -144,23 +144,24 @@ export default function HomePage() {
           ) : (
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(45,212,191,0.18),transparent_45%),radial-gradient(circle_at_80%_60%,rgba(56,189,248,0.12),transparent_40%),linear-gradient(180deg,#122038,#090f1c)]" />
           )}
-          {/* Lighter veil so garments stay present; denser only behind the copy */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#090f1c]/35 via-[#0b1222]/45 to-[#090f1c]/92" />
-          <div className="absolute inset-x-0 bottom-0 h-[58%] bg-gradient-to-t from-[#090f1c] via-[#090f1c]/80 to-transparent" />
+          {/* Lighter veil so garments stay present; denser behind the copy band */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#090f1c]/30 via-[#0b1222]/40 to-[#090f1c]/88" />
+          <div className="absolute inset-x-0 top-[18%] h-[55%] bg-gradient-to-b from-transparent via-[#090f1c]/55 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-[#090f1c] via-[#090f1c]/70 to-transparent" />
         </div>
 
-        <div className="relative mx-auto flex min-h-[min(88vh,860px)] max-w-6xl flex-col justify-end px-4 pb-10 pt-20 sm:px-6 sm:pb-14 sm:pt-24">
+        <div className="relative mx-auto flex min-h-[min(82vh,780px)] max-w-6xl flex-col justify-center px-4 pb-16 pt-16 sm:px-6 sm:pb-20 sm:pt-14">
           <div className="home-hero-copy max-w-3xl space-y-4 sm:space-y-5">
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-5">
               <SmartImage
                 src="/badges/tagiconglass.png"
                 alt=""
-                width={72}
-                height={72}
+                width={112}
+                height={112}
                 loading="eager"
-                className="h-12 w-12 object-contain sm:h-16 sm:w-16"
+                className="h-16 w-16 object-contain sm:h-24 sm:w-24"
               />
-              <h1 className="font-[family-name:var(--font-display)] text-5xl font-semibold leading-none tracking-tight text-white sm:text-7xl">
+              <h1 className="font-[family-name:var(--font-display)] text-6xl font-semibold leading-none tracking-tight text-white sm:text-8xl">
                 Tagsheep
               </h1>
             </div>
