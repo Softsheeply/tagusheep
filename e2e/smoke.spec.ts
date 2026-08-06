@@ -15,6 +15,7 @@ const ROUTES = [
   "/signin",
   "/submit-info",
   "/profile",
+  "/favorites",
   "/leaderboard",
   "/import",
   "/import/bulk",

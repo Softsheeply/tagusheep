@@ -145,5 +145,27 @@ service cloud.firestore {
       allow create: if signedIn();
       allow read, update, delete: if isAdmin();
     }
+
+    // Private per-user favorites (Save for later). Doc id == tagId.
+    function validFavoriteData(data, tagId) {
+      return data.keys().hasOnly([
+          'tagId', 'brand', 'productName', 'rn', 'styleNumber',
+          'imageUrl', 'thumbnailUrl', 'createdAt'
+        ]) &&
+        data.tagId is string && data.tagId == tagId && data.tagId.size() > 0 && data.tagId.size() <= 128 &&
+        stringOrNull(data.get('brand', null), 120) &&
+        stringOrNull(data.get('productName', null), 200) &&
+        stringOrNull(data.get('rn', null), 7) &&
+        stringOrNull(data.get('styleNumber', null), 120) &&
+        stringOrNull(data.get('imageUrl', null), 2048) &&
+        stringOrNull(data.get('thumbnailUrl', null), 2048);
+    }
+
+    match /users/{uid}/favorites/{tagId} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid && validFavoriteData(request.resource.data, tagId);
+      allow update: if signedIn() && request.auth.uid == uid && validFavoriteData(request.resource.data, tagId);
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
   }
 }

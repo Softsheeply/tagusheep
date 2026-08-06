@@ -338,3 +338,46 @@ test("submissions: owner (non-admin) cannot delete their own submission", async 
   });
   await assertFails(deleteDoc(doc(ctxFor(OWNER_UID), "submissions", id)));
 });
+
+// --- favorites ---
+
+function validFavoritePayload(tagId = "tag-fav-1") {
+  return {
+    tagId,
+    brand: "Saved Brand",
+    productName: null,
+    rn: "12345",
+    styleNumber: "ABC",
+    imageUrl: "https://example.com/a.png",
+    thumbnailUrl: null,
+  };
+}
+
+test("favorites: owner can create and read their favorite", async () => {
+  await assertSucceeds(setDoc(doc(ctxFor(OWNER_UID), "users", OWNER_UID, "favorites", "tag-fav-1"), validFavoritePayload()));
+  await assertSucceeds(getDoc(doc(ctxFor(OWNER_UID), "users", OWNER_UID, "favorites", "tag-fav-1")));
+});
+
+test("favorites: another user cannot read someone else's favorites", async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "users", OWNER_UID, "favorites", "tag-fav-2"), validFavoritePayload("tag-fav-2"));
+  });
+  await assertFails(getDoc(doc(ctxFor(OTHER_UID), "users", OWNER_UID, "favorites", "tag-fav-2")));
+});
+
+test("favorites: signed-out cannot write", async () => {
+  await assertFails(setDoc(doc(anon(), "users", OWNER_UID, "favorites", "tag-fav-3"), validFavoritePayload("tag-fav-3")));
+});
+
+test("favorites: owner can delete their favorite", async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "users", OWNER_UID, "favorites", "tag-fav-4"), validFavoritePayload("tag-fav-4"));
+  });
+  await assertSucceeds(deleteDoc(doc(ctxFor(OWNER_UID), "users", OWNER_UID, "favorites", "tag-fav-4")));
+});
+
+test("favorites: tagId must match document id", async () => {
+  await assertFails(
+    setDoc(doc(ctxFor(OWNER_UID), "users", OWNER_UID, "favorites", "tag-fav-5"), validFavoritePayload("mismatched-id"))
+  );
+});

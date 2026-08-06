@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import SmartImage from "@/app/components/SmartImage";
+import SaveButton from "@/app/components/SaveButton";
 import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query, limit, startAfter, getDocs, getDoc, doc, setDoc, deleteDoc, increment, serverTimestamp, where, type QueryDocumentSnapshot, type DocumentData } from "firebase/firestore";
 import { getVerificationPercent, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
@@ -558,6 +559,20 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
           </button>
         </div>
       )}
+      <div className="absolute left-2 top-2 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+        <SaveButton
+          compact
+          tag={{
+            tagId: d.id,
+            brand: d.brand,
+            productName: d.productName,
+            rn: d.rn,
+            styleNumber: d.styleNumber,
+            imageUrl: d.imageUrl,
+            thumbnailUrl: d.thumbnailUrl,
+          }}
+        />
+      </div>
     </div>
   );
 }

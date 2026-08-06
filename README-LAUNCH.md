@@ -197,6 +197,13 @@ Community submissions write straight to the `tags` collection with
 `verificationStatus: "pending"`. URL-import review queues are unchanged for
 partial/duplicate imports.
 
+Favorites live under `users/{uid}/favorites/{tagId}`. After pulling rules
+changes, deploy them before the Save button will work in production:
+
+```powershell
+firebase deploy --only firestore:rules
+```
+
 ## Important notes
 
 ### Admins
