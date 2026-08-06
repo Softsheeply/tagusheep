@@ -1,10 +1,23 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Fraunces, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import TopNav from "./components/TopNav";
 import SiteFooter from "./components/SiteFooter";
 import { getSiteUrl } from "@/lib/site";
+
+const display = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const body = Source_Sans_3({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 const title = "Tagsheep";
 const description = "Tagsheep is a community-built clothing tag database for thrifters, resellers, and vintage hunters. Look up any brand, RN number, or style number.";
@@ -43,7 +56,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className={`h-full ${display.variable} ${body.variable}`}>
       <body className="flex min-h-full flex-col bg-gradient-to-b from-[#0f172a] via-[#0b1222] to-[#090f1c] text-white selection:bg-emerald-400/40">
         <div
           aria-hidden
