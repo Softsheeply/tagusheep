@@ -84,11 +84,11 @@ export default function HomePage() {
   );
 
   const heroPhotos = useMemo(() => {
-    const base = photographed.slice(0, 24);
+    const base = photographed.slice(0, 36);
     if (base.length === 0) return [];
     // Repeat so the full-bleed columns stay dense even with a small archive.
-    while (base.length < 18) base.push(...photographed.slice(0, Math.min(6, photographed.length)));
-    return base.slice(0, 24);
+    while (base.length < 28) base.push(...photographed.slice(0, Math.min(8, photographed.length)));
+    return base.slice(0, 36);
   }, [photographed]);
 
   const archivePhotos = useMemo(() => photographed.slice(0, 12), [photographed]);
@@ -98,23 +98,26 @@ export default function HomePage() {
     router.push(searchHref);
   }
 
-  const columns = [
-    heroPhotos.filter((_, i) => i % 3 === 0),
-    heroPhotos.filter((_, i) => i % 3 === 1),
-    heroPhotos.filter((_, i) => i % 3 === 2),
-  ];
+  const columns = useMemo(() => {
+    const count = 5;
+    return Array.from({ length: count }, (_, colIndex) =>
+      heroPhotos.filter((_, i) => i % count === colIndex)
+    );
+  }, [heroPhotos]);
 
   return (
     <main>
       {/* Full-bleed clothing plane — first thing invitees see */}
-      <section className="relative isolate min-h-[min(92vh,920px)] overflow-hidden">
+      <section className="relative isolate min-h-[min(88vh,860px)] overflow-hidden">
         <div aria-hidden className="absolute inset-0">
           {heroPhotos.length > 0 ? (
-            <div className="home-hero-drift grid h-[120%] w-full grid-cols-2 gap-2 px-2 pt-2 sm:grid-cols-3 sm:gap-3 sm:px-3">
+            <div className="home-hero-drift grid h-[130%] w-full grid-cols-3 gap-1 sm:grid-cols-4 sm:gap-1.5 lg:grid-cols-5">
               {columns.map((column, colIndex) => (
                 <div
                   key={colIndex}
-                  className={`flex flex-col gap-2 sm:gap-3 ${colIndex === 1 ? "home-hero-drift-slow" : colIndex === 2 ? "home-hero-drift-slower" : ""}`}
+                  className={`flex flex-col gap-1 sm:gap-1.5 ${
+                    colIndex % 3 === 1 ? "home-hero-drift-slow" : colIndex % 3 === 2 ? "home-hero-drift-slower" : ""
+                  } ${colIndex === 4 ? "hidden lg:flex" : colIndex === 3 ? "hidden sm:flex" : ""}`}
                 >
                   {column.map((tag, rowIndex) => {
                     const src = photoOf(tag)!;
@@ -127,8 +130,8 @@ export default function HomePage() {
                           src={src}
                           alt=""
                           fill
-                          sizes="(min-width: 640px) 33vw, 50vw"
-                          className="object-cover opacity-80"
+                          sizes="(min-width: 1024px) 20vw, (min-width: 640px) 25vw, 33vw"
+                          className="object-cover opacity-95"
                           loading={rowIndex < 2 ? "eager" : "lazy"}
                         />
                       </div>
@@ -140,18 +143,29 @@ export default function HomePage() {
           ) : (
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(45,212,191,0.18),transparent_45%),radial-gradient(circle_at_80%_60%,rgba(56,189,248,0.12),transparent_40%),linear-gradient(180deg,#122038,#090f1c)]" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#090f1c]/55 via-[#0b1222]/78 to-[#090f1c]" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(9,15,28,0.55),transparent_18%,transparent_82%,rgba(9,15,28,0.55))]" />
+          {/* Lighter veil so garments stay present; denser only behind the copy */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#090f1c]/35 via-[#0b1222]/45 to-[#090f1c]/92" />
+          <div className="absolute inset-x-0 bottom-0 h-[58%] bg-gradient-to-t from-[#090f1c] via-[#090f1c]/80 to-transparent" />
         </div>
 
-        <div className="relative mx-auto flex min-h-[min(92vh,920px)] max-w-6xl flex-col justify-end px-4 pb-14 pt-28 sm:px-6 sm:pb-20 sm:pt-32">
-          <div className="home-hero-copy max-w-3xl space-y-5">
-            <p className="font-[family-name:var(--font-display)] text-sm uppercase tracking-[0.28em] text-emerald-200/90">
-              Tagsheep
-            </p>
-            <h1 className="font-[family-name:var(--font-display)] text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-6xl">
+        <div className="relative mx-auto flex min-h-[min(88vh,860px)] max-w-6xl flex-col justify-end px-4 pb-10 pt-20 sm:px-6 sm:pb-14 sm:pt-24">
+          <div className="home-hero-copy max-w-3xl space-y-4 sm:space-y-5">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <SmartImage
+                src="/badges/tagiconglass.png"
+                alt=""
+                width={72}
+                height={72}
+                loading="eager"
+                className="h-12 w-12 object-contain sm:h-16 sm:w-16"
+              />
+              <h1 className="font-[family-name:var(--font-display)] text-5xl font-semibold leading-none tracking-tight text-white sm:text-7xl">
+                Tagsheep
+              </h1>
+            </div>
+            <p className="max-w-xl font-[family-name:var(--font-display)] text-xl leading-snug text-emerald-100/90 sm:text-2xl">
               The clothing tag database.
-            </h1>
+            </p>
             <p className="max-w-xl text-base leading-7 text-white/75 sm:text-lg">
               Look up real garments by brand, RN, or style number — and browse the tags people are photographing into the archive.
             </p>
@@ -191,8 +205,8 @@ export default function HomePage() {
       </section>
 
       {/* Photo-first archive strip — what Tagsheep is about */}
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-        <div className="mb-8 flex items-end justify-between gap-4">
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+        <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">From the archive</p>
             <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold text-white">
@@ -208,7 +222,7 @@ export default function HomePage() {
         </div>
 
         {archivePhotos.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 lg:gap-3">
             {archivePhotos.map((tag, index) => {
               const src = photoOf(tag)!;
               return (
