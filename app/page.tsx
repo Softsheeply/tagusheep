@@ -28,6 +28,7 @@ type TagDoc = {
   tags?: string[];
   category?: string | null;
   imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   verificationStatus?: string | null;
 };
 
@@ -141,7 +142,7 @@ export default function HomePage() {
             <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Contribute</p>
             <h2 className="mt-2 text-2xl font-semibold text-white">Found a tag? Submit it.</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
-              Photo, brand, and RN or style number is all you need. Works on your phone or desktop — the same form, reviewed before it goes live.
+              Photo, brand, and RN or style number is all you need. Works on your phone or desktop — submissions go live as pending tags right away.
             </p>
           </div>
           <Link href="/upload" className="inline-flex items-center justify-center rounded-2xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
@@ -178,16 +179,19 @@ export default function HomePage() {
             <h2 className="mt-1 text-2xl font-semibold text-white">Recent records</h2>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {latestNews.map((item) => (
+            {latestNews.map((item) => {
+              const photo = item.thumbnailUrl || item.imageUrl;
+              return (
               <Link key={item.id} href={`/tag/${item.id}`} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 transition hover:border-emerald-300/35 hover:bg-white/7">
-                {item.imageUrl && (
+                {photo && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt={item.brand || "Tag"} className="mb-3 h-32 w-full rounded-xl object-contain bg-white/5" />
+                  <img src={photo} alt={item.brand || "Tag"} className="mb-3 h-32 w-full rounded-xl object-contain bg-white/5" />
                 )}
                 <div className="font-semibold text-white">{item.brand || "Unknown brand"}</div>
                 <div className="mt-0.5 text-sm text-white/55">{item.productName || item.garmentType || "View record"}</div>
               </Link>
-            ))}
+              );
+            })}
           </div>
           <div className="mt-4 text-center">
             <Link href="/tags" className="text-sm text-white/50 underline hover:text-white/80">Browse all records →</Link>

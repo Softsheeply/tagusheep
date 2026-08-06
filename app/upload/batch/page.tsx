@@ -155,6 +155,7 @@ export default function BatchUploadPage() {
           createdAt: serverTimestamp(),
         };
         if (cleanBrand) payload.brand = cleanBrand;
+        else throw new Error("Brand is required.");
         if (cleanRn) payload.rn = cleanRn;
         if (cleanStyleNumber) payload.styleNumber = cleanStyleNumber;
         if (cleanMadeIn) payload.madeIn = cleanMadeIn;

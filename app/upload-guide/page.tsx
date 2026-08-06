@@ -44,7 +44,7 @@ export default function UploadGuidePage() {
           <li>Add the style number if available.</li>
           <li>Choose the clothing type.</li>
           <li>Add size, color, material, and tags if known.</li>
-          <li>Submit for review.</li>
+          <li>Submit — it goes live as a pending tag.</li>
         </ol>
       </div>
 

@@ -60,8 +60,9 @@ function UploadPage() {
       : rn.length > 7
         ? "RN looks too long."
         : null;
+  const hasBrand = brand.trim().length > 0;
   const hasIdentifier = rn.trim().length > 0 || styleNumber.trim().length > 0;
-  const canSubmit = !!user && !!file && hasIdentifier && !rnWarning && status.kind !== "info";
+  const canSubmit = !!user && !!file && hasBrand && hasIdentifier && !rnWarning && status.kind !== "info";
 
   useEffect(() => {
     setPersistence(auth, browserLocalPersistence).catch(() => {});
@@ -181,6 +182,7 @@ function UploadPage() {
       };
 
       if (cleanBrand) payload.brand = cleanBrand;
+      else throw new Error("Brand is required.");
       if (cleanRn) payload.rn = cleanRn;
       if (cleanStyleNumber) payload.styleNumber = cleanStyleNumber;
       if (cleanProductName) payload.productName = cleanProductName;
@@ -234,7 +236,7 @@ function UploadPage() {
         <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-5 py-4">
           <div className="font-medium text-amber-100">Sign in to submit tags</div>
           <p className="mt-1 text-sm text-amber-100/75">
-            Use the <b>Sign in</b> button at the top right. Once approved your submission appears in search for everyone.
+            Use the <b>Sign in</b> button at the top right. Your submission goes live as a pending tag in search right away.
           </p>
         </div>
       )}
@@ -251,6 +253,7 @@ function UploadPage() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); }}
           />
@@ -288,7 +291,7 @@ function UploadPage() {
               </div>
               <div className="text-center">
                 <div className="text-sm font-medium text-white/80">Add tag photo</div>
-                <div className="mt-0.5 text-xs text-white/40">Tap to choose · drag &amp; drop works too</div>
+                <div className="mt-0.5 text-xs text-white/40">Tap to take or choose a photo · drag &amp; drop works too</div>
               </div>
             </button>
           )}
@@ -414,7 +417,10 @@ function UploadPage() {
           {!user && (
             <p className="text-xs text-white/45 sm:hidden">Sign in above first.</p>
           )}
-          {user && !canSubmit && file && !hasIdentifier && (
+          {user && !canSubmit && file && !hasBrand && (
+            <p className="text-xs text-amber-300/80 sm:hidden">Add a brand.</p>
+          )}
+          {user && !canSubmit && file && hasBrand && !hasIdentifier && (
             <p className="text-xs text-amber-300/80 sm:hidden">Add RN or style number.</p>
           )}
         </div>
