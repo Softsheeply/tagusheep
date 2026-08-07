@@ -108,15 +108,15 @@ export default function HomePage() {
 
   return (
     <main>
-      {/* Full-bleed clothing plane — sized to content so small screens see archive sooner */}
-      <section className="relative isolate overflow-hidden">
+      {/* Hybrid hero: real clothing plane at ~60vh, copy high and tight, archive next */}
+      <section className="relative isolate min-h-[min(58vh,520px)] overflow-hidden sm:min-h-[min(64vh,600px)]">
         <div aria-hidden className="absolute inset-0">
           {heroPhotos.length > 0 ? (
-            <div className="home-hero-drift grid h-[130%] w-full grid-cols-3 gap-1 sm:grid-cols-4 sm:gap-1.5 lg:grid-cols-5">
+            <div className="home-hero-drift grid h-[125%] w-full grid-cols-3 gap-0.5 sm:grid-cols-4 sm:gap-1 lg:grid-cols-5">
               {columns.map((column, colIndex) => (
                 <div
                   key={colIndex}
-                  className={`flex flex-col gap-1 sm:gap-1.5 ${
+                  className={`flex flex-col gap-0.5 sm:gap-1 ${
                     colIndex % 3 === 1 ? "home-hero-drift-slow" : colIndex % 3 === 2 ? "home-hero-drift-slower" : ""
                   } ${colIndex === 4 ? "hidden lg:flex" : colIndex === 3 ? "hidden sm:flex" : ""}`}
                 >
@@ -132,7 +132,7 @@ export default function HomePage() {
                           alt=""
                           fill
                           sizes="(min-width: 1024px) 20vw, (min-width: 640px) 25vw, 33vw"
-                          className="object-cover opacity-95"
+                          className="object-cover"
                           loading={rowIndex < 2 ? "eager" : "lazy"}
                         />
                       </div>
@@ -144,49 +144,51 @@ export default function HomePage() {
           ) : (
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(45,212,191,0.18),transparent_45%),radial-gradient(circle_at_80%_60%,rgba(56,189,248,0.12),transparent_40%),linear-gradient(180deg,#122038,#090f1c)]" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#090f1c]/25 via-[#0b1222]/50 to-[#090f1c]" />
+          {/* Soft overall veil; denser only under the copy so garments stay loud up top */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#090f1c]/20 via-[#0b1222]/35 to-[#090f1c]/95" />
+          <div className="absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-[#090f1c] via-[#090f1c]/75 to-transparent" />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-6 sm:pb-10 sm:pt-12">
-          <div className="home-hero-copy max-w-3xl space-y-3 sm:space-y-4">
-            <div className="flex items-center gap-3 sm:gap-4">
+        <div className="relative mx-auto flex min-h-[min(58vh,520px)] max-w-6xl flex-col justify-end px-4 pb-7 pt-16 sm:min-h-[min(64vh,600px)] sm:px-6 sm:pb-9 sm:pt-20">
+          <div className="home-hero-copy max-w-2xl space-y-2.5 sm:space-y-3">
+            <div className="flex items-center gap-2.5 sm:gap-3.5">
               <SmartImage
                 src="/badges/tagiconglass.png"
                 alt=""
                 width={96}
                 height={96}
                 loading="eager"
-                className="h-14 w-14 object-contain sm:h-20 sm:w-20"
+                className="h-12 w-12 object-contain sm:h-[4.5rem] sm:w-[4.5rem]"
               />
-              <h1 className="font-[family-name:var(--font-display)] text-5xl font-semibold leading-none tracking-tight text-white sm:text-7xl">
+              <h1 className="font-[family-name:var(--font-display)] text-[2.75rem] font-semibold leading-none tracking-tight text-white sm:text-6xl">
                 Tagsheep
               </h1>
             </div>
-            <p className="max-w-xl font-[family-name:var(--font-display)] text-lg leading-snug text-emerald-100/90 sm:text-2xl">
+            <p className="font-[family-name:var(--font-display)] text-base leading-tight text-emerald-100/90 sm:text-xl">
               The clothing tag database.
             </p>
-            <p className="max-w-xl text-sm leading-6 text-white/75 sm:text-base sm:leading-7">
-              Look up real garments by brand, RN, or style number — and browse the tags people are photographing into the archive.
+            <p className="max-w-lg text-sm leading-snug text-white/75 sm:text-[0.95rem] sm:leading-6">
+              Look up garments by brand, RN, or style number — browse tags people are photographing into the archive.
             </p>
 
-            <form onSubmit={onSearch} className="flex max-w-2xl flex-col gap-2.5 pt-0.5 sm:flex-row sm:gap-3">
+            <form onSubmit={onSearch} className="flex max-w-xl flex-col gap-2 pt-0.5 sm:flex-row sm:gap-2.5">
               <input
                 type="search"
                 aria-label="Search Tagsheep"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Brand, RN, style number…"
-                className="w-full border border-white/15 bg-[#09111f]/90 px-4 py-3 text-white outline-none transition placeholder:text-white/40 focus:border-emerald-300/60 sm:py-3.5"
+                className="w-full border border-white/15 bg-[#09111f]/92 px-3.5 py-2.5 text-white outline-none transition placeholder:text-white/40 focus:border-emerald-300/60 sm:py-3"
               />
               <button
                 type="submit"
-                className="inline-flex items-center justify-center bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300 sm:px-6 sm:py-3.5"
+                className="inline-flex items-center justify-center bg-emerald-400/90 px-5 py-2.5 font-semibold text-black transition hover:bg-emerald-300 sm:py-3"
               >
                 Search the archive
               </button>
             </form>
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-white/55">
+            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-sm text-white/55">
               {totalTags !== null && totalTags > 0 && (
                 <span>
                   <span className="font-medium text-white">{totalTags.toLocaleString()}</span> tags indexed
@@ -204,14 +206,14 @@ export default function HomePage() {
       </section>
 
       {/* Photo-first archive strip — what Tagsheep is about */}
-      <section className="mx-auto max-w-6xl px-4 pb-10 pt-6 sm:px-6 sm:pb-12 sm:pt-8">
-        <div className="mb-3 flex items-end justify-between gap-4 sm:mb-4">
+      <section className="mx-auto max-w-6xl px-4 pb-10 pt-5 sm:px-6 sm:pb-12 sm:pt-6">
+        <div className="mb-2.5 flex items-end justify-between gap-4 sm:mb-3">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">From the archive</p>
-            <h2 className="mt-1.5 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
+            <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
               Clothing, identified.
             </h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
+            <p className="mt-1 max-w-2xl text-sm leading-5 text-white/65 sm:leading-6">
               Every record starts with a tag photo. Scroll a few — this is the product.
             </p>
           </div>

@@ -50,7 +50,7 @@ body {
 }
 
 .home-hero-copy {
-  animation: home-hero-rise 700ms ease-out both;
+  animation: home-hero-rise 550ms ease-out both;
 }
 
 .home-hero-drift {
