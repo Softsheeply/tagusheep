@@ -1,10 +1,10 @@
-import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactCompiler: true,
   turbopack: {
-    root: __dirname,
+    root: import.meta.dirname,
   },
   images: {
     // Garment photos live in Firebase Storage and/or Cloudflare Images; this
@@ -22,11 +22,10 @@ const nextConfig: NextConfig = {
 // SENTRY_AUTH_TOKEN set, the plugin just skips sourcemap upload rather than
 // failing the build -- same no-op-until-configured pattern as instrumentation
 // .ts and instrumentation-client.ts.
-export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: true,
-  sourcemaps: {
-    disable: !process.env.SENTRY_AUTH_TOKEN,
-  },
-});
+export default process.env.SENTRY_AUTH_TOKEN
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: true,
+    })
+  : nextConfig;

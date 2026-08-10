@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:capture": "node --experimental-strip-types --test tests/capture-policy.test.ts tests/capture-transaction.test.ts tests/free-capture.test.ts",
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.mjs\"",
     "test:e2e": "playwright test"
   },

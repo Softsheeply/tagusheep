@@ -11,6 +11,7 @@ const ROUTES = [
   "/style/does-not-exist",
   "/upload",
   "/upload/batch",
+  "/capture",
   "/upload-guide",
   "/signin",
   "/submit-info",
@@ -56,6 +57,13 @@ function trackConsoleErrors(page: Page) {
   });
   return errors;
 }
+
+test("capture APIs reject unauthenticated callers", async ({ request }) => {
+  const analyze = await request.post("/api/capture/analyze", { multipart: { ocrText: "test" } });
+  expect(analyze.status()).toBe(401);
+  const upload = await request.post("/api/capture/upload", { multipart: { extracted: "{}" } });
+  expect(upload.status()).toBe(401);
+});
 
 for (const route of ROUTES) {
   test(`${route} loads without crashing or an unexpected console error`, async ({ page }) => {
