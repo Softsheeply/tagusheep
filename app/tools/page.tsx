@@ -17,6 +17,10 @@ export default function ToolsHome() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <Link href="/capture" className="rounded-2xl border border-emerald-300/50 bg-emerald-400/15 p-4 shadow-[0_12px_40px_rgba(52,211,153,0.14)] transition hover:border-emerald-200/80 hover:bg-emerald-300/20">
+          <div className="font-semibold text-emerald-100">Capture a garment</div>
+          <p className="mt-2 text-sm text-emerald-50/85">Take several photos, analyze them together, and upload one finished TagSheep record.</p>
+        </Link>
         <Link href="/import" className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-emerald-300/40 transition">
           <div className="font-semibold">Import from URL</div>
           <p className="text-sm text-white/70 mt-2">Fetch one product page and save a live record with source metadata.</p>
