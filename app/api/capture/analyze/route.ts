@@ -27,6 +27,10 @@ export async function POST(request: Request) {
     if (invalid) return NextResponse.json({ error: `${invalid.name || "An image"} is unsupported or larger than 8 MB.` }, { status: 415 });
 
     const mode = form.get("mode") === "free" ? "free" : "ai";
+    const requestedWebsiteImageCount = Number(form.get("websiteImageCount"));
+    const websiteImageCount = Number.isInteger(requestedWebsiteImageCount)
+      ? Math.max(0, Math.min(files.length, requestedWebsiteImageCount))
+      : files.length;
     const ocrText = form.getAll("ocrText").map((value) => String(value || "").slice(0, 20_000));
     while (ocrText.length < files.length) ocrText.push("");
     const raw = mode === "free"
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
     });
     const extracted = { ...raw, ...prepared };
     const duplicates = await findServerDuplicates(extracted, user.idToken);
-    const stopReasons = evaluateCapture(extracted, { usableImageCount: files.length, duplicateCount: duplicates.length });
+    const stopReasons = evaluateCapture(extracted, { usableImageCount: websiteImageCount, duplicateCount: duplicates.length });
 
     return NextResponse.json({ extracted, duplicates, stopReasons, instantUpload: stopReasons.length === 0, analysisMode: mode });
   } catch (error: unknown) {

@@ -8,6 +8,12 @@ export const IMAGE_POLICY = {
   maxImportedImageUrlCount: 8,
 } as const;
 
+const CAPTURE_IMAGE_POLICY = {
+  maxDimension: 1280,
+  quality: 0.68,
+  maxBytes: 380_000,
+} as const;
+
 async function readExifOrientation(file: File): Promise<number | null> {
   const buf = await file.slice(0, 64 * 1024).arrayBuffer();
   const view = new DataView(buf);
@@ -126,6 +132,17 @@ async function normalizeImage(file: File, maxDimension: number, quality: number)
 
 export async function normalizeUploadedImage(file: File): Promise<File> {
   return normalizeImage(file, IMAGE_POLICY.maxDimension, IMAGE_POLICY.quality);
+}
+
+export async function normalizeCaptureImage(file: File): Promise<File> {
+  let normalized = await normalizeImage(file, CAPTURE_IMAGE_POLICY.maxDimension, CAPTURE_IMAGE_POLICY.quality);
+  if (normalized.size > CAPTURE_IMAGE_POLICY.maxBytes) {
+    normalized = await normalizeImage(normalized, 1080, 0.58);
+  }
+  if (normalized.size > CAPTURE_IMAGE_POLICY.maxBytes) {
+    normalized = await normalizeImage(normalized, 900, 0.5);
+  }
+  return normalized;
 }
 
 export async function normalizeThumbnailImage(file: File): Promise<File> {

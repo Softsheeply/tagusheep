@@ -5,7 +5,7 @@ import Link from "next/link";
 import AdminGate from "@/app/components/AdminGate";
 import { auth } from "@/lib/firebase";
 import { createOcrWorker, recognizeTagPhoto } from "@/lib/ocr";
-import { normalizeUploadedImage } from "@/lib/images";
+import { normalizeCaptureImage } from "@/lib/images";
 import type { CaptureFields, CaptureStopReason } from "@/lib/capture-policy";
 import { extractFreeCapture, type FreeOcrInput } from "@/lib/free-capture";
 
@@ -15,6 +15,12 @@ type Duplicate = { id: string; brand?: string; productName?: string; rn?: string
 type Success = { id: string; brand?: string; identifier?: string; thumbnailUrl?: string; updatedExisting?: boolean };
 
 const ROLES: PhotoRole[] = ["full garment", "brand label", "RN/style tag", "materials/care tag", "detail"];
+const DEFAULT_ROLES: PhotoRole[] = ["full garment", "brand label", "RN/style tag", "materials/care tag"];
+const MAX_REQUEST_BYTES = 3_800_000;
+
+function isWebsitePhoto(role: PhotoRole) {
+  return role === "full garment" || role === "detail";
+}
 const STOP_LABELS: Record<CaptureStopReason, string> = {
   no_usable_image: "No usable image was found.",
   missing_brand: "Brand is missing.",
@@ -67,7 +73,7 @@ function CaptureTool() {
     const room = Math.max(0, 8 - photos.length);
     const picked = Array.from(list).filter((file) => file.type.startsWith("image/")).slice(0, room);
     setPhotos((current) => [...current, ...picked.map((file, index) => ({
-      id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), role: (current.length === 0 && index === 0 ? "full garment" : "detail") as PhotoRole,
+      id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), role: DEFAULT_ROLES[current.length + index] || "detail",
     }))]);
     setPhase("idle");
     setMessage("");
@@ -103,8 +109,12 @@ function CaptureTool() {
     try {
       const normalized: File[] = [];
       for (let index = 0; index < photos.length; index++) {
-        normalized.push(await normalizeUploadedImage(photos[index].file));
+        normalized.push(await normalizeCaptureImage(photos[index].file));
         setProgress(5 + Math.round(((index + 1) / photos.length) * 20));
+      }
+      const requestBytes = normalized.reduce((total, file) => total + file.size, 0);
+      if (requestBytes > MAX_REQUEST_BYTES) {
+        throw new Error(`These photos are still ${(requestBytes / 1_000_000).toFixed(1)} MB after compression. Remove one photo and retry.`);
       }
       setNormalizedFiles(normalized);
 
@@ -128,6 +138,7 @@ function CaptureTool() {
       normalized.forEach((file) => body.append("images", file));
       ocrText.forEach((text) => body.append("ocrText", text));
       body.set("mode", usePaidAi ? "ai" : "free");
+      body.set("websiteImageCount", String(photos.filter((photo) => isWebsitePhoto(photo.role)).length));
       if (!usePaidAi) body.set("freeExtracted", JSON.stringify(extractFreeCapture(freeOcrInputs)));
       const analyzed = await parseResponse(await fetch("/api/capture/analyze", { method: "POST", headers: await authHeaders(), body }));
       setFields(analyzed.extracted || EMPTY_FIELDS);
@@ -136,7 +147,7 @@ function CaptureTool() {
       setProgress(70);
 
       if (analyzed.instantUpload) {
-        await upload(normalized, analyzed.extracted, "create");
+        await upload(websiteFiles(normalized), { ...analyzed.extracted, mainImageIndex: 0 }, "create");
       } else {
         setPhase("review"); setMessage("Review the extracted information below."); setProgress(70);
       }
@@ -168,11 +179,19 @@ function CaptureTool() {
 
   async function uploadReviewed(action: "reviewed_create" | "create_separate" | "update_existing", existingId = "") {
     try {
-      const files = normalizedFiles.length === photos.length ? normalizedFiles : await Promise.all(photos.map((photo) => normalizeUploadedImage(photo.file)));
-      await upload(files, fields, action, existingId);
+      const files = normalizedFiles.length === photos.length ? normalizedFiles : await Promise.all(photos.map((photo) => normalizeCaptureImage(photo.file)));
+      await upload(websiteFiles(files), { ...fields, mainImageIndex: 0 }, action, existingId);
     } catch (error: unknown) {
       setPhase("error"); setMessage(error instanceof Error ? error.message : "Could not prepare the photos.");
     }
+  }
+
+  function websiteFiles(files: File[]) {
+    return files
+      .map((file, index) => ({ file, role: photos[index]?.role }))
+      .filter((item) => item.role && isWebsitePhoto(item.role))
+      .sort((left, right) => Number(right.role === "full garment") - Number(left.role === "full garment"))
+      .map((item) => item.file);
   }
 
   function resetCapture() {
@@ -216,7 +235,9 @@ function CaptureTool() {
           </div>
 
           {photos.length > 0 && (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5">
+              <p className="mb-3 text-xs text-white/55">Full-garment and detail photos appear on the saved record. Label and tag photos are used only to read information.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
               {photos.map((photo) => (
                 <div key={photo.id} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -230,6 +251,7 @@ function CaptureTool() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )}
 
