@@ -149,8 +149,11 @@ export async function normalizeThumbnailImage(file: File): Promise<File> {
   return normalizeImage(file, IMAGE_POLICY.thumbnailMaxDimension, IMAGE_POLICY.thumbnailQuality);
 }
 
-export async function fetchRemoteImageAsFile(url: string, baseName = "imported-image") {
-  const response = await fetch(`/api/import-image?url=${encodeURIComponent(url)}`, { cache: "no-store" });
+export async function fetchRemoteImageAsFile(url: string, baseName: string, idToken: string) {
+  const response = await fetch(`/api/import-image?url=${encodeURIComponent(url)}`, {
+    cache: "no-store",
+    headers: { authorization: `Bearer ${idToken}` },
+  });
   if (!response.ok) {
     let errorMessage = `Image fetch failed: ${response.status}`;
     try {

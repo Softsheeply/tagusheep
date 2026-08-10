@@ -10,6 +10,7 @@ import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeThumbnailImage, normaliz
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { findPotentialDuplicates } from "@/lib/duplicates";
 import { uploadImageObject } from "@/lib/object-storage";
+import AdminGate from "@/app/components/AdminGate";
 
 type ImportResult = {
   url: string;
@@ -23,6 +24,14 @@ type ImportResult = {
 const BATCH_SIZE = 3;
 
 export default function BulkImportPage() {
+  return (
+    <AdminGate title="Bulk URL import" description="Admin-only bulk product import tool.">
+      <BulkImportTool />
+    </AdminGate>
+  );
+}
+
+function BulkImportTool() {
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<ImportResult[]>([]);
@@ -51,10 +60,11 @@ export default function BulkImportPage() {
     setResults(initial);
 
     const uid = auth.currentUser.uid;
+    const idToken = await auth.currentUser.getIdToken();
 
     async function importOne(url: string) {
       try {
-        const data = await scrapeProductUrl(url);
+        const data = await scrapeProductUrl(url, idToken);
         let hostedImageUrl = data.imageUrl || "";
         let hostedThumbnailUrl: string | null = null;
         let hostedExtraImageUrls = (data.extraImageUrls || []).filter(Boolean);
@@ -62,7 +72,7 @@ export default function BulkImportPage() {
 
         if (data.imageUrl) {
           try {
-            const remoteFile = await fetchRemoteImageAsFile(data.imageUrl, "bulk-import-primary");
+            const remoteFile = await fetchRemoteImageAsFile(data.imageUrl, "bulk-import-primary", idToken);
             const normalizedFile = await normalizeUploadedImage(remoteFile);
             const thumbnailFile = await normalizeThumbnailImage(remoteFile);
             const baseName = `${Date.now()}_${normalizedFile.name}`;
@@ -77,7 +87,7 @@ export default function BulkImportPage() {
             if (hostedExtraImageUrls.length > 0) {
               const limitedExtraUrls = hostedExtraImageUrls.slice(0, IMAGE_POLICY.maxImportedImageUrlCount);
               hostedExtraImageUrls = await Promise.all(limitedExtraUrls.map(async (extraUrl, index) => {
-                const extraFile = await fetchRemoteImageAsFile(extraUrl, `bulk-import-extra-${index + 1}`);
+                const extraFile = await fetchRemoteImageAsFile(extraUrl, `bulk-import-extra-${index + 1}`, idToken);
                 const normalizedExtra = await normalizeUploadedImage(extraFile);
                 const extraBaseName = `${Date.now()}_${index + 1}_${normalizedExtra.name}`;
                 const extraPath = `tagusheep/imports/${uid}/extra_${extraBaseName}`;

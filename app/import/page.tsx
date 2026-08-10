@@ -11,6 +11,7 @@ import { findPotentialDuplicates, type DuplicateCandidate } from "@/lib/duplicat
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { fetchRemoteImageAsFile, IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
 import { uploadImageObject } from "@/lib/object-storage";
+import AdminGate from "@/app/components/AdminGate";
 
 type FormState = {
   brand: string;
@@ -69,6 +70,14 @@ const emptyState: FormState = {
 };
 
 export default function ImportPage() {
+  return (
+    <AdminGate title="Import from URL" description="Admin-only product import tool.">
+      <ImportTool />
+    </AdminGate>
+  );
+}
+
+function ImportTool() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -122,7 +131,9 @@ export default function ImportPage() {
     setBusy(true);
     setMessage(null);
     try {
-      const data = await scrapeProductUrl(url.trim());
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Sign in as a TagSheep admin first.");
+      const data = await scrapeProductUrl(url.trim(), idToken);
       setForm({
         brand: data.brand || "",
         productName: data.productName || "",
@@ -175,6 +186,7 @@ export default function ImportPage() {
     setMessage(null);
     try {
       const uid = auth.currentUser.uid;
+      const idToken = await auth.currentUser.getIdToken();
       let hostedImageUrl = form.imageUrl;
       let hostedThumbnailUrl: string | null = null;
       let hostedExtraImageUrls = form.extraImageUrls.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
@@ -183,7 +195,7 @@ export default function ImportPage() {
 
       if (hostImportedImage && form.imageUrl) {
         try {
-          const remoteFile = await fetchRemoteImageAsFile(form.imageUrl, "primary-import");
+          const remoteFile = await fetchRemoteImageAsFile(form.imageUrl, "primary-import", idToken);
           const normalizedFile = await normalizeUploadedImage(remoteFile);
           const thumbnailFile = await normalizeThumbnailImage(remoteFile);
           const baseName = `${Date.now()}_${normalizedFile.name}`;
@@ -198,7 +210,7 @@ export default function ImportPage() {
           if (hostedExtraImageUrls.length > 0) {
             const limitedExtraUrls = hostedExtraImageUrls.slice(0, IMAGE_POLICY.maxImportedImageUrlCount);
             const hostedExtras = await Promise.all(limitedExtraUrls.map(async (extraUrl, index) => {
-              const extraFile = await fetchRemoteImageAsFile(extraUrl, `extra-import-${index + 1}`);
+              const extraFile = await fetchRemoteImageAsFile(extraUrl, `extra-import-${index + 1}`, idToken);
               const normalizedExtra = await normalizeUploadedImage(extraFile);
               const extraBaseName = `${Date.now()}_${index + 1}_${normalizedExtra.name}`;
               const extraPath = `tagusheep/imports/${uid}/extra_${extraBaseName}`;

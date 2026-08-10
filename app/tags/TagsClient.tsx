@@ -325,17 +325,17 @@ function TagsPageInner() {
 
   const hasNoResults = exactStyleMatches.length === 0 && exactRnMatches.length === 0 && generalResults.length === 0;
 
-  // Signed-in-only zero-result searches are a demand signal for what to source
-  // next; debounced so we only log a query once the user settles on it.
+  // Signed-in searches feed the public global Top 10. Debouncing avoids
+  // counting every intermediate keystroke while someone is still typing.
   useEffect(() => {
     const trimmed = q.trim();
-    if (loading || !hasNoResults || trimmed.length < 2 || !auth.currentUser) return;
+    if (loading || trimmed.length < 2 || !auth.currentUser) return;
 
     const timer = window.setTimeout(() => {
       const normalizedQuery = trimmed.toLowerCase().slice(0, 200);
       const missId = normalizedQuery.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 300) || "query";
       setDoc(
-        doc(db, "search_misses", missId),
+        doc(db, "search_queries", missId),
         {
           query: trimmed.slice(0, 200),
           normalizedQuery,
@@ -348,7 +348,7 @@ function TagsPageInner() {
     }, 1500);
 
     return () => window.clearTimeout(timer);
-  }, [q, loading, hasNoResults]);
+  }, [q, loading]);
 
   async function moveToTrash(d: TagDoc) {
     if (busyId) return;

@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BlockedUrlError, safeFetch } from "@/lib/safe-fetch";
+import { isFirebaseAdmin, verifyFirebaseBearer } from "@/lib/server-auth";
 
 const IMPORT_TIMEOUT_MS = 8000;
 const MAX_IMAGE_BYTES = 8_000_000;
 
 export async function GET(req: NextRequest) {
+  const user = await verifyFirebaseBearer(req);
+  if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!(await isFirebaseAdmin(user.uid, user.idToken))) {
+    return NextResponse.json({ error: "Access denied. TagSheep admin access is required." }, { status: 403 });
+  }
+
   const url = req.nextUrl.searchParams.get("url");
   if (!url) {
     return NextResponse.json({ error: "Missing url" }, { status: 400 });

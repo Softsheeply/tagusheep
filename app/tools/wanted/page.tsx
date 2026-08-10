@@ -22,7 +22,7 @@ export default function WantedPage() {
   useEffect(() => {
     (async () => {
       try {
-        const qRef = query(collection(db, "search_misses"), orderBy("count", "desc"), qlimit(200));
+        const qRef = query(collection(db, "search_queries"), orderBy("count", "desc"), qlimit(200));
         const snap = await getDocs(qRef);
         setRows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<MissDoc, "id">) })));
       } catch {
@@ -36,7 +36,7 @@ export default function WantedPage() {
   async function dismiss(id: string) {
     setBusyId(id);
     try {
-      await deleteDoc(doc(db, "search_misses", id));
+      await deleteDoc(doc(db, "search_queries", id));
       setRows((prev) => prev.filter((row) => row.id !== id));
     } catch {
       setMessage("Couldn't remove that entry.");
@@ -48,7 +48,7 @@ export default function WantedPage() {
   return (
     <AdminGate
       title="Most wanted"
-      description="Searches that came up empty -- what people are looking for that Tagsheep doesn't have yet."
+      description="Moderate the searches shown on the public global Top 10."
     >
       <main className="mx-auto max-w-5xl p-6 space-y-6">
         <div className="flex items-end justify-between gap-3 flex-wrap">
@@ -56,7 +56,7 @@ export default function WantedPage() {
             <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Admin tools</p>
             <h1 className="text-3xl font-semibold">Most wanted</h1>
             <p className="mt-2 max-w-2xl text-white/70">
-              Signed-in searches on /tags that returned nothing, ranked by how often they repeat. A good source list for what to import or ask contributors for next.
+              Signed-in searches across TagSheep, ranked by how often they repeat. Remove anything that should not appear on the public Top 10.
             </p>
           </div>
           <Link href="/tools" className="text-sm underline">← Back to tools</Link>
@@ -66,7 +66,7 @@ export default function WantedPage() {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">Loading…</div>
         ) : rows.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">
-            No zero-result searches logged yet.
+            No searches logged yet.
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">

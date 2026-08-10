@@ -130,10 +130,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Aggregate, non-personal search terms used by the public Top 10 page.
+    // Only signed-in users contribute counts; anyone may read the rankings.
+    match /search_queries/{queryId} {
+      allow read: if true;
+      allow create, update: if signedIn() && validSearchMissData(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
     match /imports_review/{importId} {
-      allow read: if isAdmin() || isOwner(resource.data);
-      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if isAdmin() || isOwner(resource.data);
+      allow read, create, update, delete: if isAdmin();
     }
 
     match /admins/{uid} {

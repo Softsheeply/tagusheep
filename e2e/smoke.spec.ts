@@ -5,6 +5,7 @@ import { test, expect, type Page } from "@playwright/test";
 const ROUTES = [
   "/",
   "/tags",
+  "/wanted",
   "/tag/does-not-exist",
   "/brand/does-not-exist",
   "/rn/000000",
@@ -63,6 +64,13 @@ test("capture APIs reject unauthenticated callers", async ({ request }) => {
   expect(analyze.status()).toBe(401);
   const upload = await request.post("/api/capture/upload", { multipart: { extracted: "{}" } });
   expect(upload.status()).toBe(401);
+});
+
+test("admin import APIs reject unauthenticated callers", async ({ request }) => {
+  const product = await request.get("/api/import?url=https%3A%2F%2Fexample.com");
+  expect(product.status()).toBe(401);
+  const image = await request.get("/api/import-image?url=https%3A%2F%2Fexample.com%2Fimage.jpg");
+  expect(image.status()).toBe(401);
 });
 
 for (const route of ROUTES) {

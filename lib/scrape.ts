@@ -212,8 +212,10 @@ function extractFromEmbeddedState(state: JsonObject | null) {
   } satisfies Partial<TagRecord>;
 }
 
-export async function scrapeProductUrl(url: string): Promise<Partial<TagRecord>> {
-  const response = await fetch(`/api/import?url=${encodeURIComponent(url)}`);
+export async function scrapeProductUrl(url: string, idToken: string): Promise<Partial<TagRecord>> {
+  const response = await fetch(`/api/import?url=${encodeURIComponent(url)}`, {
+    headers: { authorization: `Bearer ${idToken}` },
+  });
   if (!response.ok) throw new Error(`Import failed: ${response.status}`);
   return response.json();
 }

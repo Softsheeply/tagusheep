@@ -44,6 +44,7 @@ export default function TopNav() {
         {/* Desktop links */}
         <div className="hidden items-center gap-2 text-sm md:flex">
           <NavLink href="/tags">Browse</NavLink>
+          <NavLink href="/wanted">Top searches</NavLink>
           <NavLink href="/upload">Submit a tag</NavLink>
           {isAdmin && <NavLink href="/tools">Tools</NavLink>}
           {user && <NavLink href="/favorites">Favorites</NavLink>}
@@ -88,6 +89,7 @@ export default function TopNav() {
         <div id="mobile-nav-menu" className="border-t border-white/10 px-3 pb-3 md:hidden">
           <div className="flex flex-col gap-1 pt-2 text-sm">
             <MobileNavLink href="/tags" onClick={() => setMenuOpen(false)}>Browse</MobileNavLink>
+            <MobileNavLink href="/wanted" onClick={() => setMenuOpen(false)}>Top searches</MobileNavLink>
             <MobileNavLink href="/upload" onClick={() => setMenuOpen(false)}>Submit a tag</MobileNavLink>
             {user && <MobileNavLink href="/favorites" onClick={() => setMenuOpen(false)}>Favorites</MobileNavLink>}
             {user && <MobileNavLink href="/profile" onClick={() => setMenuOpen(false)}>Profile</MobileNavLink>}

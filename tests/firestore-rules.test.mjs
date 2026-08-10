@@ -269,15 +269,25 @@ test("search_misses: non-admin cannot read", async () => {
   await assertFails(getDocs(collection(ctxFor(OWNER_UID), "search_misses")));
 });
 
+test("search_queries: signed-in users can contribute and everyone can read", async () => {
+  await assertSucceeds(setDoc(doc(ctxFor(OWNER_UID), "search_queries", "nike-1234"), validSearchMiss()));
+  await assertSucceeds(getDocs(collection(anon(), "search_queries")));
+});
+
+test("search_queries: unauthenticated writes are rejected", async () => {
+  await assertFails(setDoc(doc(anon(), "search_queries", "nike-1234"), validSearchMiss()));
+});
+
 // --- imports_review ---
 
-test("imports_review: owner can read their own submission", async () => {
+test("imports_review: a non-admin cannot read or create candidates", async () => {
   let id;
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const ref = await addDoc(collection(ctx.firestore(), "imports_review"), { brand: "X", createdBy: OWNER_UID });
     id = ref.id;
   });
-  await assertSucceeds(getDoc(doc(ctxFor(OWNER_UID), "imports_review", id)));
+  await assertFails(getDoc(doc(ctxFor(OWNER_UID), "imports_review", id)));
+  await assertFails(addDoc(collection(ctxFor(OWNER_UID), "imports_review"), { brand: "X", createdBy: OWNER_UID }));
 });
 
 test("imports_review: a different signed-in user cannot read someone else's submission", async () => {
