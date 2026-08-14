@@ -32,11 +32,11 @@ export default function TopNav() {
   }, []);
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-white/10 bg-white/5 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-3 sm:px-6">
+    <nav className="sticky top-0 z-40 border-b border-white/10 bg-[#101a2a]/95 backdrop-blur-md">
+      <div className="flex w-full items-center justify-between gap-3 px-3 py-2 sm:px-6 lg:px-8">
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5 sm:gap-3" onClick={() => setMenuOpen(false)}>
-          <SmartImage src="/badges/tagiconglass.png" alt="Tagsheep" width={56} height={56} loading="eager" className="h-11 w-11 object-contain sm:h-12 sm:w-12" />
-          <span className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-white sm:text-2xl">
+          <SmartImage src="/badges/tagiconglass.png" alt="Tagsheep" width={48} height={48} loading="eager" className="h-9 w-9 object-contain sm:h-10 sm:w-10" />
+          <span className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-white">
             Tagsheep
           </span>
         </Link>
@@ -58,7 +58,7 @@ export default function TopNav() {
         <div className="flex items-center gap-1 md:hidden">
           <Link
             href="/upload"
-            className="rounded-lg bg-emerald-400/90 px-2.5 py-1.5 text-xs font-semibold text-black"
+            className="bg-emerald-400 px-2.5 py-1.5 text-xs font-semibold text-black"
             onClick={() => setMenuOpen(false)}
           >
             Submit
@@ -72,7 +72,7 @@ export default function TopNav() {
             aria-controls="mobile-nav-menu"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             onClick={() => setMenuOpen((open) => !open)}
-            className="rounded-lg border border-white/15 px-2.5 py-1.5 text-white/80 transition hover:bg-white/5"
+            className="border border-white/15 px-2.5 py-1.5 text-white/80 transition hover:bg-white/5"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
               {menuOpen ? (
@@ -105,7 +105,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   return (
     <Link
       href={href}
-      className="rounded-lg px-3 py-1.5 text-white/70 transition hover:bg-white/5 hover:text-white"
+      className="px-3 py-1.5 text-white/70 transition hover:bg-white/5 hover:text-white"
     >
       {children}
     </Link>
@@ -117,7 +117,7 @@ function MobileNavLink({ href, children, onClick }: { href: string; children: Re
     <Link
       href={href}
       onClick={onClick}
-      className="rounded-lg px-3 py-2.5 text-white/80 transition hover:bg-white/5 hover:text-white"
+      className="px-3 py-2.5 text-white/80 transition hover:bg-white/5 hover:text-white"
     >
       {children}
     </Link>

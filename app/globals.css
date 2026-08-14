@@ -17,9 +17,7 @@ html {
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(45, 212, 191, 0.12), transparent 30%),
-    linear-gradient(180deg, #0f172a 0%, #0b1222 42%, #090f1c 100%);
+  background: #070e19;
   color: var(--foreground);
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
@@ -29,47 +27,8 @@ body {
   color: #ffffff;
 }
 
-@keyframes home-hero-rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes home-hero-drift {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-6%);
-  }
-}
-
-.home-hero-copy {
-  animation: home-hero-rise 550ms ease-out both;
-}
-
-.home-hero-drift {
-  animation: home-hero-drift 28s linear infinite alternate;
-}
-
-.home-hero-drift-slow {
-  animation: home-hero-drift 36s linear infinite alternate-reverse;
-}
-
-.home-hero-drift-slower {
-  animation: home-hero-drift 44s linear infinite alternate;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-hero-copy,
-  .home-hero-drift,
-  .home-hero-drift-slow,
-  .home-hero-drift-slower {
-    animation: none;
-  }
+.database-home a,
+.database-home button,
+.database-home input {
+  border-radius: 0;
 }
