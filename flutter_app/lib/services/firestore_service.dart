@@ -8,7 +8,9 @@ import 'normalize.dart';
 /// Next.js web app uses (see ../../lib/records.ts and
 /// ../../firestore.rules), so mobile and web share one live dataset.
 class FirestoreService {
-  final _db = FirebaseFirestore.instance;
+  FirestoreService({FirebaseFirestore? firestore}) : _db = firestore ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _db;
   CollectionReference<Map<String, dynamic>> get _tags => _db.collection('tags');
 
   /// Identifier-first search: tries exact style-number / RN matches first
