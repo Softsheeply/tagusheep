@@ -1,13 +1,17 @@
-// Basic smoke test placeholder.
-//
-// A full widget test needs a Firebase.initializeApp() call with test
-// options (firebase_core_platform_interface's test setup / mocks), which
-// depends on the real project config from `flutterfire configure` — see
-// README.md. Wire that up once firebase_options.dart has real values.
+// main() can't be exercised directly (it calls Firebase.initializeApp,
+// which needs plugin bindings the test environment doesn't provide), but
+// TagsheepApp itself takes the init outcome as a parameter, so the
+// fail-gracefully path is directly testable without any Firebase setup.
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tagusheep_mobile/main.dart';
 
 void main() {
-  test('placeholder — see comment above for why this is not a widget test yet', () {
-    expect(1 + 1, 2);
+  testWidgets('shows FirebaseNotConfiguredScreen instead of crashing when init fails', (tester) async {
+    await tester.pumpWidget(TagsheepApp(initError: Exception('placeholder Firebase config')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FirebaseNotConfiguredScreen), findsOneWidget);
+    expect(find.textContaining("isn't connected to Firebase yet"), findsOneWidget);
   });
 }
