@@ -54,6 +54,14 @@ return something actually useful.
 
 ---
 
+## Mobile app
+
+`flutter_app/` is a Flutter (Android/iOS) companion app: camera-first tag
+scanning against the same Firebase project and rules as this web app. See
+`flutter_app/README.md` for setup, build, and monetization notes.
+
+---
+
 ## Main product surfaces
 
 ### Browse / search
