@@ -53,7 +53,6 @@ function rnFromText(text: string, provided?: string | null) {
 
 function scoreRole(input: FreeOcrInput, role: PhotoRole) {
   const text = input.rawText || "";
-  const lower = text.toLowerCase();
   const hasRn = Boolean(rnFromText(text, input.rn));
   const hasStyle = Boolean(styleFromText(text, input.styleNumber));
   const hasBrand = Boolean(brandCandidate(text));
