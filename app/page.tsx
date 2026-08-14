@@ -42,6 +42,14 @@ function recordDetail(tag: TagDoc) {
   return tag.productName || tag.garmentType || "Open record";
 }
 
+function statusLabel(status?: string | null) {
+  if (status === "needs_info") return "Needs info";
+  if (status === "verified") return "Verified";
+  if (status === "reviewed") return "Reviewed";
+  if (status === "pending") return "Pending";
+  return "Archive record";
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -64,6 +72,8 @@ export default function HomePage() {
   }, []);
 
   const records = useMemo(() => latest.filter((tag) => Boolean(photoOf(tag))), [latest]);
+  const recentRecords = useMemo(() => records.slice(0, 10), [records]);
+  const backdropRecords = useMemo(() => records.slice(0, 8), [records]);
 
   function onSearch(event: FormEvent) {
     event.preventDefault();
@@ -73,8 +83,19 @@ export default function HomePage() {
 
   return (
     <main className="database-home">
-      <section className="border-b border-white/10 bg-[#0b1423] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <section className="relative isolate overflow-hidden border-b border-white/10 bg-[#0b1423] px-4 py-6 sm:px-6 lg:px-8">
+        {backdropRecords.length > 0 && (
+          <div aria-hidden className="absolute inset-0 -z-10 grid grid-cols-4 opacity-[0.16] sm:grid-cols-6 lg:grid-cols-8">
+            {backdropRecords.map((tag) => (
+              <div key={tag.id} className="relative min-h-44 border-r border-[#0b1423] bg-white/5 last:border-r-0">
+                <SmartImage src={photoOf(tag)!} alt="" fill sizes="13vw" className="object-cover" loading="eager" />
+              </div>
+            ))}
+          </div>
+        )}
+        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0b1423] via-[#0b1423]/90 to-[#0b1423]/70" />
+
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-xl">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Community clothing archive</p>
             <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight text-white sm:text-4xl">
@@ -85,7 +106,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <form onSubmit={onSearch} className="flex w-full max-w-3xl gap-2">
+          <form onSubmit={onSearch} className="flex w-full max-w-3xl gap-2 bg-[#07101d]/85 p-2 backdrop-blur-sm">
             <input
               type="search"
               aria-label="Search Tagsheep"
@@ -107,7 +128,7 @@ export default function HomePage() {
         </span>
         <Link href="/tags" className="text-white/65 hover:text-white">Recently added</Link>
         <Link href="/wanted" className="text-white/65 hover:text-white">Most searched</Link>
-        <Link href="/tags?q=pending" className="text-white/65 hover:text-white">Needs identification</Link>
+        <Link href="/leaderboard" className="text-white/65 hover:text-white">Top contributors</Link>
         <Link href="/upload" className="font-semibold text-emerald-300 hover:text-emerald-200">+ Add a tag</Link>
       </nav>
 
@@ -149,14 +170,23 @@ export default function HomePage() {
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-white">Recently added</h2>
-              <p className="text-xs text-white/45">The newest records in the archive</p>
+              <p className="text-xs text-white/45">The latest 10 records—not the whole archive</p>
             </div>
             <Link href="/tags" className="shrink-0 text-sm text-emerald-300 hover:text-emerald-200">View all →</Link>
           </div>
 
-          {records.length > 0 ? (
+          <section className="mb-5 grid border border-emerald-300/20 bg-emerald-400/[0.055] sm:grid-cols-[1fr_auto]">
+            <div className="p-4 sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Build the archive</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Have a clothing label nearby?</h2>
+              <p className="mt-1 text-sm text-white/55">Photograph the tag, add its brand and identifiers, and publish a pending record.</p>
+            </div>
+            <Link href="/upload" className="flex items-center justify-center border-t border-emerald-300/15 bg-emerald-400 px-6 py-3 font-semibold text-black hover:bg-emerald-300 sm:border-l sm:border-t-0">Contribute a tag</Link>
+          </section>
+
+          {recentRecords.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-              {records.map((tag, index) => (
+              {recentRecords.map((tag, index) => (
                 <article key={tag.id} className="group min-w-0 border border-white/10 bg-[#0c1524] hover:border-white/25">
                   <Link href={`/tag/${tag.id}`} className="relative block aspect-[4/5] overflow-hidden bg-white/5">
                     <SmartImage
@@ -168,7 +198,7 @@ export default function HomePage() {
                       loading={index < 8 ? "eager" : "lazy"}
                     />
                     <span className="absolute bottom-2 left-2 border border-black/10 bg-black/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/80 backdrop-blur-sm">
-                      {tag.verificationStatus || "Archive record"}
+                      {statusLabel(tag.verificationStatus)}
                     </span>
                   </Link>
                   <div className="flex min-h-24 items-start justify-between gap-2 p-3">
@@ -202,13 +232,22 @@ export default function HomePage() {
             ))}
           </div>
 
-          <section className="mt-7 grid border border-white/10 bg-[#0b1422] md:grid-cols-[1fr_auto]">
-            <div className="p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Contribute</p>
-              <h2 className="mt-1 text-xl font-semibold text-white">Add a label in under a minute.</h2>
-              <p className="mt-1 max-w-2xl text-sm text-white/55">Photograph the tag, add its brand and identifiers, then publish it as a pending community record.</p>
-            </div>
-            <Link href="/upload" className="flex items-center justify-center border-t border-white/10 bg-emerald-400 px-7 py-4 font-semibold text-black hover:bg-emerald-300 md:border-l md:border-t-0">Submit a tag</Link>
+          <section className="mt-7 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">
+            <Link href="/tags" className="bg-[#0b1422] p-5 hover:bg-[#101b2c]">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/40">Explore</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Browse all records</h2>
+              <p className="mt-1 text-sm text-white/50">Search and filter the complete archive →</p>
+            </Link>
+            <Link href="/wanted" className="bg-[#0b1422] p-5 hover:bg-[#101b2c]">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/40">Live activity</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Most searched</h2>
+              <p className="mt-1 text-sm text-white/50">See what the community is looking for →</p>
+            </Link>
+            <Link href="/leaderboard" className="bg-[#0b1422] p-5 hover:bg-[#101b2c]">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/40">Community</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Top contributors</h2>
+              <p className="mt-1 text-sm text-white/50">View the live upload leaderboard →</p>
+            </Link>
           </section>
         </section>
       </div>
