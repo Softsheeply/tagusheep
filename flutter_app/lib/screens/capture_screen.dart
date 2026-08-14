@@ -10,6 +10,8 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/normalize.dart';
 import '../services/storage_service.dart';
+import '../services/usage_service.dart';
+import 'pro_screen.dart';
 import 'tag_detail_screen.dart';
 
 /// The mobile-only value prop: thrifting happens in the aisle, not at a
@@ -79,6 +81,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
       return;
     }
 
+    final usage = UsageService();
+    if (!await usage.canScan()) {
+      if (!mounted) return;
+      _showScanCapReached();
+      return;
+    }
+
     setState(() {
       _uploading = true;
       _error = null;
@@ -104,6 +113,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
         verificationStatus: 'pending',
       );
       final id = await FirestoreService().createTag(record);
+      await usage.recordScan();
       if (!mounted) return;
       _resetForm();
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => TagDetailScreen(tagId: id)));
@@ -115,6 +125,29 @@ class _CaptureScreenState extends State<CaptureScreen> {
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
+  }
+
+  void _showScanCapReached() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Free scan limit reached'),
+        content: Text(
+          'You\'ve used your ${UsageService.freeMonthlyScanLimit} free scans this month. '
+          'Upgrade to Pro for unlimited scans.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Not now')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProScreen()));
+            },
+            child: const Text('View Pro'),
+          ),
+        ],
+      ),
+    );
   }
 
   String? _valueOrNull(TextEditingController c) {

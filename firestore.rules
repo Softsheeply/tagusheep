@@ -202,5 +202,22 @@ service cloud.firestore {
       allow create, update: if signedIn() && request.auth.uid == uid && validProFields(request.resource.data);
       allow delete: if false;
     }
+
+    // Monthly scan-count counters backing the free-tier cap (see
+    // flutter_app/lib/services/usage_service.dart). Doc id is "yyyy-MM".
+    // Only allows the owner to move their own count up by exactly 1 per
+    // write (or create it at 1), so a modified client can't reset its
+    // count back down to dodge the cap -- it can still delete the doc
+    // outright, so treat this as a soft/UX-level cap, not a hard limit.
+    match /users/{uid}/usage/{period} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['scanCount', 'updatedAt']) &&
+        request.resource.data.scanCount == 1;
+      allow update: if signedIn() && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['scanCount', 'updatedAt']) &&
+        request.resource.data.scanCount == resource.data.scanCount + 1;
+      allow delete: if false;
+    }
   }
 }

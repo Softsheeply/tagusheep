@@ -128,8 +128,12 @@ not missing code:
    `pro_screen.dart`'s copy. Until these exist, `queryProducts()` returns
    `[]` and the screen shows a "not yet available" card instead of a
    purchase button — it fails safe rather than pretending to work.
-2. Gate the free-tier limits mentioned in `pro_screen.dart`'s feature list
-   (scan cap, export, ads) by reading `users/{uid}.isPro`.
+2. ~~Gate the free-tier limits mentioned in `pro_screen.dart`'s feature
+   list~~ — the scan cap is done: `lib/services/usage_service.dart` tracks
+   a monthly counter at `users/{uid}/usage/{yyyy-MM}`, `capture_screen.dart`
+   checks it before allowing a submit and shows an upgrade prompt at the
+   limit, and `profile_screen.dart` shows the running count. Bulk export
+   and ad removal are still just copy on the Pro screen, not implemented.
 3. **Before real launch**, add a Cloud Function that verifies
    `purchase.verificationData.serverVerificationData` against the Play
    Developer API and is the *only* writer of `isPro`/`proUntil` — the
