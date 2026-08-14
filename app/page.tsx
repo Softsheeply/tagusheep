@@ -90,9 +90,9 @@ export default function HomePage() {
 
   return (
     <main className="database-home">
-      <section className="archive-intro relative isolate overflow-hidden border-b border-white/10 bg-[#0b1423] px-4 py-6 sm:px-6 lg:px-8">
+      <section className="archive-intro relative isolate overflow-hidden border-b border-white/10 bg-[#0b1423] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         {backdropRecords.length > 0 && (
-          <div aria-hidden className="absolute inset-0 -z-10 grid grid-cols-4 opacity-[0.16] sm:grid-cols-6 lg:grid-cols-8">
+          <div aria-hidden className="absolute inset-0 -z-10 grid grid-cols-4 opacity-35 sm:grid-cols-6 lg:grid-cols-8">
             {backdropRecords.map((tag) => (
               <div key={tag.id} className="relative min-h-44 border-r border-[#0b1423] bg-white/5 last:border-r-0">
                 <SmartImage src={photoOf(tag)!} alt="" fill sizes="13vw" className="object-cover" loading="eager" />
@@ -100,15 +100,18 @@ export default function HomePage() {
             ))}
           </div>
         )}
-        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0b1423] via-[#0b1423]/90 to-[#0b1423]/70" />
+        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0b1423] via-[#0b1423]/90 to-[#0b1423]/35" />
 
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Community clothing archive</p>
-            <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight text-white sm:text-4xl">
-              Identify clothing from the label.
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Community clothing tag database</p>
+            <h1 className="mt-1 font-[family-name:var(--font-display)] text-5xl font-semibold leading-none text-white sm:text-6xl">
+              Tagsheep
             </h1>
-            <p className="mt-1 text-sm leading-5 text-white/60">
+            <p className="mt-2 font-[family-name:var(--font-display)] text-xl text-emerald-100 sm:text-2xl">
+              Identify clothing from the label.
+            </p>
+            <p className="mt-1 text-sm leading-5 text-white/70">
               Search brands, RN numbers and style codes—or add a label that is missing.
             </p>
           </div>
@@ -130,14 +133,11 @@ export default function HomePage() {
       </section>
 
       <nav aria-label="Archive shortcuts" className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/10 bg-[#08101d] px-4 py-3 text-sm sm:px-6 lg:px-8">
-        <span className="inline-flex items-center gap-2 font-semibold text-white">
-          <span className="archive-live-dot h-2 w-2 bg-emerald-300" aria-hidden />
-          {totalTags === null ? "Live archive" : `Live · ${totalTags.toLocaleString()} records`}
+        <span className="font-semibold text-white">
+          {totalTags === null ? "Archive" : `${totalTags.toLocaleString()} records`}
         </span>
         <Link href="/tags" className="text-white/65 hover:text-white">Recently added</Link>
         <Link href="/wanted" className="text-white/65 hover:text-white">Most searched</Link>
-        <Link href="/leaderboard" className="text-white/65 hover:text-white">Top contributors</Link>
-        <Link href="/upload" className="font-semibold text-emerald-300 hover:text-emerald-200">+ Add a tag</Link>
       </nav>
 
       <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -166,11 +166,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
-              <h2 className="font-semibold text-white">Have the label?</h2>
-              <p className="mt-1 text-xs leading-5 text-white/55">Photograph it, add the identifiers and help the archive grow.</p>
-              <Link href="/upload" className="mt-3 inline-block text-sm font-semibold text-emerald-300 hover:text-emerald-200">Submit a tag →</Link>
-            </div>
           </div>
         </aside>
 
@@ -183,19 +178,24 @@ export default function HomePage() {
             <Link href="/tags" className="shrink-0 text-sm text-emerald-300 hover:text-emerald-200">View all →</Link>
           </div>
 
-          <section className="mb-5 grid border border-emerald-300/20 bg-emerald-400/[0.055] sm:grid-cols-[1fr_auto]">
+          <section className="mb-5 border border-emerald-300/20 bg-emerald-400/[0.055]">
             <div className="p-4 sm:p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Build the archive</p>
               <h2 className="mt-1 text-lg font-semibold text-white">Have a clothing label nearby?</h2>
               <p className="mt-1 text-sm text-white/55">Photograph the tag, add its brand and identifiers, and publish a pending record.</p>
+              <ol className="mt-4 grid gap-3 border-t border-white/10 pt-4 text-sm sm:grid-cols-3">
+                <li><strong className="text-white">1. Photograph</strong><span className="block text-white/45">Make the label clear and readable.</span></li>
+                <li><strong className="text-white">2. Add identifiers</strong><span className="block text-white/45">Brand, RN or style number.</span></li>
+                <li><strong className="text-white">3. Submit</strong><span className="block text-white/45">It enters the archive as pending.</span></li>
+              </ol>
+              <Link href="/upload" className="mt-4 inline-flex bg-emerald-400 px-5 py-2.5 font-semibold text-black hover:bg-emerald-300">Contribute a tag</Link>
             </div>
-            <Link href="/upload" className="flex items-center justify-center border-t border-emerald-300/15 bg-emerald-400 px-6 py-3 font-semibold text-black hover:bg-emerald-300 sm:border-l sm:border-t-0">Contribute a tag</Link>
           </section>
 
           {recentRecords.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {recentRecords.map((tag, index) => (
-                <article key={tag.id} className="archive-card group min-w-0 border border-white/10 bg-[#0c1524] hover:border-emerald-300/45">
+                <article key={tag.id} className="archive-card group min-w-0 overflow-hidden rounded-sm border border-white/10 bg-[#0c1524] hover:border-emerald-300/35">
                   <Link href={`/tag/${tag.id}`} className="relative block aspect-[4/5] overflow-hidden bg-white/5">
                     <SmartImage
                       src={photoOf(tag)!}
@@ -205,11 +205,8 @@ export default function HomePage() {
                       className="object-cover transition duration-300 group-hover:scale-[1.025]"
                       loading={index < 8 ? "eager" : "lazy"}
                     />
-                    <span className={`absolute bottom-2 left-2 border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm ${statusStyle(tag.verificationStatus)}`}>
+                    <span className={`absolute bottom-2 left-2 rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm ${statusStyle(tag.verificationStatus)}`}>
                       {statusLabel(tag.verificationStatus)}
-                    </span>
-                    <span className="absolute right-2 top-2 border border-white/15 bg-black/65 px-1.5 py-0.5 font-mono text-[10px] text-white/70 backdrop-blur-sm">
-                      #{String(index + 1).padStart(2, "0")}
                     </span>
                   </Link>
                   <div className="flex min-h-24 items-start justify-between gap-2 p-3">
@@ -243,7 +240,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          <section className="mt-7 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">
+          <section className="mt-7 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-2">
             <Link href="/tags" className="bg-[#0b1422] p-5 hover:bg-[#101b2c]">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/40">Explore</p>
               <h2 className="mt-1 text-lg font-semibold text-white">Browse all records</h2>
@@ -253,11 +250,6 @@ export default function HomePage() {
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/40">Live activity</p>
               <h2 className="mt-1 text-lg font-semibold text-white">Most searched</h2>
               <p className="mt-1 text-sm text-white/50">See what the community is looking for →</p>
-            </Link>
-            <Link href="/leaderboard" className="bg-[#0b1422] p-5 hover:bg-[#101b2c]">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/40">Community</p>
-              <h2 className="mt-1 text-lg font-semibold text-white">Top contributors</h2>
-              <p className="mt-1 text-sm text-white/50">View the live upload leaderboard →</p>
             </Link>
           </section>
         </section>
