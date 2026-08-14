@@ -132,8 +132,12 @@ not missing code:
    list~~ — the scan cap is done: `lib/services/usage_service.dart` tracks
    a monthly counter at `users/{uid}/usage/{yyyy-MM}`, `capture_screen.dart`
    checks it before allowing a submit and shows an upgrade prompt at the
-   limit, and `profile_screen.dart` shows the running count. Bulk export
-   and ad removal are still just copy on the Pro screen, not implemented.
+   limit, and `profile_screen.dart` shows the running count.
+   ~~Bulk export~~ — also done: `lib/services/export_service.dart` writes a
+   CSV and hands it to the share sheet; the export button on the Saved tab
+   Pro-gates through the same `UsageService.isPro()` check. Ad removal is
+   still just copy — there's no ad SDK integrated at all yet (would need
+   AdMob or similar wired into `search_screen.dart`), so nothing to remove.
 3. **Before real launch**, add a Cloud Function that verifies
    `purchase.verificationData.serverVerificationData` against the Play
    Developer API and is the *only* writer of `isPro`/`proUntil` — the

@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 import '../main.dart';
 import '../models/tag_record.dart';
 import '../services/auth_service.dart';
+import '../services/export_service.dart';
 import '../services/firestore_service.dart';
+import '../services/usage_service.dart';
 import '../widgets/tag_card.dart';
+import 'pro_screen.dart';
 import 'tag_detail_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -45,11 +48,33 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
   }
 
+  Future<void> _exportCsv() async {
+    final tags = _tags;
+    if (tags == null || tags.isEmpty) return;
+    final isPro = await UsageService().isPro();
+    if (!mounted) return;
+    if (!isPro) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProScreen()));
+      return;
+    }
+    await ExportService().exportAndShare(tags, filename: 'tagsheep-saved.csv');
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Saved')),
+      appBar: AppBar(
+        title: const Text('Saved'),
+        actions: [
+          if (auth.isSignedIn && (_tags?.isNotEmpty ?? false))
+            IconButton(
+              icon: const Icon(Icons.ios_share_outlined),
+              tooltip: 'Export as CSV (Pro)',
+              onPressed: _exportCsv,
+            ),
+        ],
+      ),
       body: !auth.isSignedIn
           ? const SignInRequired(message: 'Sign in to save garments you want to remember.')
           : Builder(builder: (context) {
