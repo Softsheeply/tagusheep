@@ -33,7 +33,7 @@ export default function TopNav() {
 
   return (
     <nav className="sticky top-0 z-40 border-b border-white/10 bg-white/5 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-3 sm:px-6">
+      <div className="flex w-full items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-8">
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5 sm:gap-3" onClick={() => setMenuOpen(false)}>
           <SmartImage src="/badges/tagiconglass.png" alt="Tagsheep" width={56} height={56} loading="eager" className="h-11 w-11 object-contain sm:h-12 sm:w-12" />
           <span className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-white sm:text-2xl">
