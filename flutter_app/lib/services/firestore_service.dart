@@ -124,7 +124,9 @@ class FirestoreService {
     if (user == null) throw StateError('Must be signed in to save favorites.');
     final ref = _db.collection('users').doc(user.uid).collection('favorites').doc(tagId);
     if (isFavorite) {
-      await ref.set({'tagId': tagId, 'savedAt': FieldValue.serverTimestamp()});
+      // Field set must match validFavoriteData in ../../../firestore.rules
+      // exactly (hasOnly-restricted) — 'createdAt', not 'savedAt'.
+      await ref.set({'tagId': tagId, 'createdAt': FieldValue.serverTimestamp()});
     } else {
       await ref.delete();
     }

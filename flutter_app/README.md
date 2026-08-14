@@ -111,24 +111,38 @@ Before your first real release:
 
 ## Turning on Pro (monetization)
 
-`lib/screens/pro_screen.dart` has the full UI (feature list, pricing copy,
-upgrade button) but the button currently just shows a snackbar — no
-purchases happen yet. To wire real billing:
+The purchase code is real and wired end-to-end — `lib/services/purchase_service.dart`
+queries the store, drives `InAppPurchase.buyNonConsumable`, listens to the
+purchase stream, and writes the entitlement to Firestore
+(`users/{uid}.isPro`/`proUntil`/`proProductId`); `lib/screens/pro_screen.dart`
+calls it and shows live store prices when products exist. `firestore.rules`
+already has a `users/{uid}` match block that allows this write.
 
-1. Add `in_app_purchase` to `pubspec.yaml`.
-2. Create subscription products in Play Console (e.g.
-   `tagsheep_pro_monthly`, `tagsheep_pro_yearly`) matching the prices shown
-   in `pro_screen.dart`.
-3. In Firestore, add a `proUntil` (or similar) field under
-   `users/{uid}` and gate the free-tier limits mentioned in
-   `pro_screen.dart`'s feature list (scan cap, export, ads) by reading it.
-4. Verify purchases server-side (Cloud Function verifying the Play
-   Developer API receipt) before granting Pro — don't trust the client
-   purchase result alone.
+What's still missing is the two products themselves, which only exist once
+someone with Play Console access creates them — that's the actual blocker,
+not missing code:
 
-This wasn't built out further because it requires a Play Console developer
-account and a signed app already live — sequencing that has to happen
-after the Android build step above.
+1. In Play Console → Monetize → Products → Subscriptions, create
+   `tagsheep_pro_monthly` and `tagsheep_pro_yearly` (see the exact IDs in
+   `PurchaseService.monthlyId` / `.yearlyId`) with prices matching
+   `pro_screen.dart`'s copy. Until these exist, `queryProducts()` returns
+   `[]` and the screen shows a "not yet available" card instead of a
+   purchase button — it fails safe rather than pretending to work.
+2. Gate the free-tier limits mentioned in `pro_screen.dart`'s feature list
+   (scan cap, export, ads) by reading `users/{uid}.isPro`.
+3. **Before real launch**, add a Cloud Function that verifies
+   `purchase.verificationData.serverVerificationData` against the Play
+   Developer API and is the *only* writer of `isPro`/`proUntil` — the
+   current client-side write (see the doc comment on
+   `PurchaseService._grantEntitlement` and the `validProFields` comment in
+   `../firestore.rules`) is explicitly a client-trusted placeholder: a
+   modified client could grant itself Pro for free as it stands. Tighten
+   the `users/{uid}` rule to `allow write: if false` once that function
+   exists.
+
+This wasn't built out further because it requires a live Play Console
+developer account (yours) — that's a real external dependency, not
+unfinished code.
 
 ## Project layout
 

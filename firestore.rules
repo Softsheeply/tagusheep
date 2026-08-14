@@ -173,5 +173,34 @@ service cloud.firestore {
       allow update: if signedIn() && request.auth.uid == uid && validFavoriteData(request.resource.data, tagId);
       allow delete: if signedIn() && request.auth.uid == uid;
     }
+
+    // Tagsheep Pro entitlement, written by the mobile app's
+    // PurchaseService (flutter_app/lib/services/purchase_service.dart)
+    // right after a Play Billing purchase completes.
+    //
+    // TEMPORARY / CLIENT-TRUSTED: this lets a signed-in user mark
+    // themself Pro with no receipt check, because there is no purchase
+    // verification backend yet. That's fine for local testing but must
+    // NOT ship to production as-is -- a modified client (or anyone who
+    // opens devtools against a web build) could grant themselves Pro for
+    // free. Before launch, replace this with a Cloud Function that:
+    //   1. is the only writer of `isPro`/`proUntil`/`proProductId`
+    //      (validated via the Play Developer API against
+    //      verificationData.serverVerificationData), and
+    //   2. runs with the Admin SDK, which bypasses these rules entirely,
+    //      so the client-facing rule below can be tightened to
+    //      `allow write: if false` once that function exists.
+    function validProFields(data) {
+      return data.keys().hasOnly(['isPro', 'proProductId', 'proUntil', 'proPurchaseVerified']) &&
+        (data.get('isPro', null) == null || data.isPro is bool) &&
+        stringOrNull(data.get('proProductId', null), 120) &&
+        (data.get('proPurchaseVerified', null) == null || data.proPurchaseVerified is bool);
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && validProFields(request.resource.data);
+      allow delete: if false;
+    }
   }
 }
