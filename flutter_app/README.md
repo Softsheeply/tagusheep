@@ -84,11 +84,25 @@ flutter analyze   # should report "No issues found!"
 flutter run   # picks whatever device/emulator is connected
 ```
 
+## Getting a debug APK without installing anything
+
+This repo's dev sandbox blocks the Android SDK download host at the
+network-policy level, so a real build couldn't be produced or tested from
+there. `.github/workflows/flutter-ci.yml` runs on GitHub's own runners
+instead (normal internet access, Android SDK preinstalled) on every push
+that touches `flutter_app/`. Check the **Actions** tab on GitHub after a
+push — if it's green, a debug APK is attached as a downloadable artifact
+("tagsheep-mobile-debug-apk") on that run, installable on any Android
+device with "install from unknown sources" allowed. It'll open, but crash
+at the `Firebase.initializeApp()` call until `firebase_options.dart` has
+real values (see "Setup" above) — that part still needs your Firebase
+login, CI can't do that for you.
+
 ## Building the Android release (the "put in Android" step)
 
-This step needs the Android SDK, which wasn't available in the sandbox
-this app was built in — so it's untested end-to-end and is exactly the
-part you do next:
+The CI debug APK above is for quick device testing. For a real release
+build you do this yourself (needs the Android SDK, same as above but with
+signing set up — CI only builds unsigned debug so far):
 
 ```bash
 flutter build appbundle --release

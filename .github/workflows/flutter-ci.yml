@@ -1,0 +1,47 @@
+name: Flutter mobile CI
+
+on:
+  push:
+    paths: ["flutter_app/**", ".github/workflows/flutter-ci.yml"]
+  pull_request:
+    paths: ["flutter_app/**", ".github/workflows/flutter-ci.yml"]
+
+jobs:
+  analyze-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - run: flutter test
+
+      # This sandbox's dev environment blocks the Android SDK download
+      # host outright (org network policy), so this build step could not
+      # be verified locally -- GitHub-hosted runners have normal internet
+      # access and the Android SDK preinstalled, so it should just work
+      # here. If it doesn't on the first run, the error will be in this
+      # step's log.
+      #
+      # firebase_options.dart still has placeholder values until someone
+      # runs `flutterfire configure` (see flutter_app/README.md), so this
+      # produces a debug APK that installs and opens but will fail at the
+      # Firebase.initializeApp() call in main.dart until that's done.
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tagsheep-mobile-debug-apk
+          path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
