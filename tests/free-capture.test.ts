@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractFreeCapture } from "../lib/free-capture.ts";
+import { extractFreeCapture, suggestPhotoRoles } from "../lib/free-capture.ts";
 
 test("free OCR mode extracts a labelled brand and identifiers without AI", () => {
   const result = extractFreeCapture([
@@ -16,6 +16,36 @@ test("free OCR mode extracts a labelled brand and identifiers without AI", () =>
   assert.equal(result.materials, "100% COTTON");
   assert.equal(result.mainImageIndex, 0);
   assert.ok((result.brandConfidence || 0) > 0.8);
+});
+
+test("free OCR mode finds brand on RN/style photos when brand-label role is wrong", () => {
+  // Matches the common phone capture order: size tag, garment, brand/style tag
+  // with default roles full garment / brand label / RN/style tag.
+  const result = extractFreeCapture([
+    { role: "full garment", rawText: "S/P/C" },
+    { role: "brand label", rawText: "" },
+    {
+      role: "RN/style tag",
+      rawText: "FOREVER 21\nSTYLE 0090-3068-0027-109200\nMADE IN CHINA",
+      styleNumber: "0090-3068-0027-109200",
+      madeIn: "CHINA",
+    },
+  ]);
+  assert.equal(result.brand, "FOREVER 21");
+  assert.ok((result.brandConfidence || 0) >= 0.72);
+  assert.equal(result.styleNumber, "0090-3068-0027-109200");
+  assert.equal(result.size, "S/P/C");
+  assert.ok(result.mainImageIndex === 1, "garment photo should become main image");
+});
+
+test("suggestPhotoRoles prefers garment photo with little text as full garment", () => {
+  const roles = suggestPhotoRoles([
+    { role: "full garment", rawText: "S/P/C" },
+    { role: "brand label", rawText: "" },
+    { role: "RN/style tag", rawText: "FOREVER 21\nSTYLE 0090-3068-0027-109200", styleNumber: "0090-3068-0027-109200" },
+  ]);
+  assert.equal(roles[1], "full garment");
+  assert.equal(roles[2], "RN/style tag");
 });
 
 test("free OCR mode exposes conflicting identifiers for review", () => {

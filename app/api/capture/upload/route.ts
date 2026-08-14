@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { deleteCloudflareImage, isCloudflareImagesConfigured, putCloudflareImage } from "@/lib/cloudflare-images";
 import { evaluateCapture, type CaptureFields } from "@/lib/capture-policy";
 import { runCaptureTransaction } from "@/lib/capture-transaction";
 import { createTagDocument, findServerDuplicates, getTagDocument, updateTagDocument } from "@/lib/firestore-rest";
 import { prepareRecord, type TagRecord } from "@/lib/records";
+import { deleteStoredImage, putStoredImage } from "@/lib/server-object-storage";
 import { isFirebaseAdmin, verifyFirebaseBearer } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
@@ -32,8 +32,8 @@ export async function POST(request: Request) {
   if (!(await isFirebaseAdmin(user.uid, user.idToken))) {
     return NextResponse.json({ error: "Access denied. TagSheep admin access is required." }, { status: 403 });
   }
-  if (!isCloudflareImagesConfigured()) {
-    return NextResponse.json({ error: "Cloudflare image storage is not configured. No record was created." }, { status: 503 });
+  if (!process.env.NEXT_PUBLIC_FB_STORAGE_BUCKET?.trim()) {
+    return NextResponse.json({ error: "Image storage is not configured. No record was created." }, { status: 503 });
   }
 
   try {
@@ -69,10 +69,9 @@ export async function POST(request: Request) {
       upload: async (file, index) => {
         const extension = file.type === "image/png" ? "png" : file.type === "image/avif" ? "avif" : file.type === "image/webp" ? "webp" : "jpg";
         const path = `tagusheep/uploads/${user.uid}/capture-${Date.now()}-${crypto.randomUUID()}-${index}.${extension}`;
-        const image = await putCloudflareImage(path, new Uint8Array(await file.arrayBuffer()), file.type);
-        return { ...image, storagePath: path };
+        return putStoredImage(path, new Uint8Array(await file.arrayBuffer()), file.type, user.idToken);
       },
-      rollback: async (image) => deleteCloudflareImage(image.storagePath),
+      rollback: async (image) => deleteStoredImage(image, user.idToken),
       persist: async (uploaded) => {
         const requestedMainIndex = Number.isInteger(extracted.mainImageIndex) ? Number(extracted.mainImageIndex) : 0;
         const mainIndex = requestedMainIndex >= 0 && requestedMainIndex < uploaded.length ? requestedMainIndex : 0;
