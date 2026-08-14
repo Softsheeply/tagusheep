@@ -50,6 +50,13 @@ function statusLabel(status?: string | null) {
   return "Archive record";
 }
 
+function statusStyle(status?: string | null) {
+  if (status === "verified") return "border-emerald-300/35 bg-emerald-400/90 text-emerald-950";
+  if (status === "reviewed") return "border-sky-300/35 bg-sky-400/90 text-sky-950";
+  if (status === "needs_info") return "border-amber-300/35 bg-amber-300/90 text-amber-950";
+  return "border-white/15 bg-black/70 text-white/80";
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -83,7 +90,7 @@ export default function HomePage() {
 
   return (
     <main className="database-home">
-      <section className="relative isolate overflow-hidden border-b border-white/10 bg-[#0b1423] px-4 py-6 sm:px-6 lg:px-8">
+      <section className="archive-intro relative isolate overflow-hidden border-b border-white/10 bg-[#0b1423] px-4 py-6 sm:px-6 lg:px-8">
         {backdropRecords.length > 0 && (
           <div aria-hidden className="absolute inset-0 -z-10 grid grid-cols-4 opacity-[0.16] sm:grid-cols-6 lg:grid-cols-8">
             {backdropRecords.map((tag) => (
@@ -123,8 +130,9 @@ export default function HomePage() {
       </section>
 
       <nav aria-label="Archive shortcuts" className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/10 bg-[#08101d] px-4 py-3 text-sm sm:px-6 lg:px-8">
-        <span className="font-semibold text-white">
-          {totalTags === null ? "Archive" : `${totalTags.toLocaleString()} records`}
+        <span className="inline-flex items-center gap-2 font-semibold text-white">
+          <span className="archive-live-dot h-2 w-2 bg-emerald-300" aria-hidden />
+          {totalTags === null ? "Live archive" : `Live · ${totalTags.toLocaleString()} records`}
         </span>
         <Link href="/tags" className="text-white/65 hover:text-white">Recently added</Link>
         <Link href="/wanted" className="text-white/65 hover:text-white">Most searched</Link>
@@ -187,7 +195,7 @@ export default function HomePage() {
           {recentRecords.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {recentRecords.map((tag, index) => (
-                <article key={tag.id} className="group min-w-0 border border-white/10 bg-[#0c1524] hover:border-white/25">
+                <article key={tag.id} className="archive-card group min-w-0 border border-white/10 bg-[#0c1524] hover:border-emerald-300/45">
                   <Link href={`/tag/${tag.id}`} className="relative block aspect-[4/5] overflow-hidden bg-white/5">
                     <SmartImage
                       src={photoOf(tag)!}
@@ -197,8 +205,11 @@ export default function HomePage() {
                       className="object-cover transition duration-300 group-hover:scale-[1.025]"
                       loading={index < 8 ? "eager" : "lazy"}
                     />
-                    <span className="absolute bottom-2 left-2 border border-black/10 bg-black/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/80 backdrop-blur-sm">
+                    <span className={`absolute bottom-2 left-2 border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm ${statusStyle(tag.verificationStatus)}`}>
                       {statusLabel(tag.verificationStatus)}
+                    </span>
+                    <span className="absolute right-2 top-2 border border-white/15 bg-black/65 px-1.5 py-0.5 font-mono text-[10px] text-white/70 backdrop-blur-sm">
+                      #{String(index + 1).padStart(2, "0")}
                     </span>
                   </Link>
                   <div className="flex min-h-24 items-start justify-between gap-2 p-3">
