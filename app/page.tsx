@@ -92,7 +92,7 @@ export default function HomePage() {
     <main className="database-home">
       <section className="archive-intro relative isolate overflow-hidden border-b border-white/10 bg-[#0b1423] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         {backdropRecords.length > 0 && (
-          <div aria-hidden className="absolute inset-0 -z-10 grid grid-cols-4 opacity-35 sm:grid-cols-6 lg:grid-cols-8">
+          <div aria-hidden className="absolute inset-0 -z-10 grid grid-cols-4 opacity-45 sm:grid-cols-6 lg:grid-cols-8">
             {backdropRecords.map((tag) => (
               <div key={tag.id} className="relative min-h-44 border-r border-[#0b1423] bg-white/5 last:border-r-0">
                 <SmartImage src={photoOf(tag)!} alt="" fill sizes="13vw" className="object-cover" loading="eager" />
@@ -100,7 +100,7 @@ export default function HomePage() {
             ))}
           </div>
         )}
-        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0b1423] via-[#0b1423]/90 to-[#0b1423]/35" />
+        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0b1423] via-[#0b1423]/82 to-[#0b1423]/20" />
 
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-xl">
@@ -122,7 +122,7 @@ export default function HomePage() {
               aria-label="Search Tagsheep"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Brand, RN, style number, garment…"
+              placeholder="Brand, RN or style…"
               className="min-w-0 flex-1 border border-white/20 bg-[#060c16] px-4 py-3 text-base text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
             />
             <button type="submit" className="shrink-0 bg-emerald-400 px-5 py-3 font-semibold text-black hover:bg-emerald-300">
@@ -132,12 +132,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      <nav aria-label="Archive shortcuts" className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/10 bg-[#08101d] px-4 py-3 text-sm sm:px-6 lg:px-8">
-        <span className="font-semibold text-white">
-          {totalTags === null ? "Archive" : `${totalTags.toLocaleString()} records`}
+      <nav aria-label="Archive shortcuts" className="flex flex-wrap items-center gap-y-2 border-b border-white/10 bg-[#08101d] px-4 py-3 text-sm sm:px-6 lg:px-8">
+        <span className="mr-4 text-xs font-semibold uppercase tracking-[0.12em] text-white/45">
+          {totalTags === null ? "Records" : `${totalTags.toLocaleString()} records`}
         </span>
-        <Link href="/tags" className="text-white/65 hover:text-white">Recently added</Link>
-        <Link href="/wanted" className="text-white/65 hover:text-white">Most searched</Link>
+        <div className="flex items-center gap-5 border-l border-white/15 pl-4">
+          <Link href="/tags" className="text-white/65 hover:text-white">Recently added</Link>
+          <Link href="/wanted" className="text-white/65 hover:text-white">Most searched</Link>
+        </div>
       </nav>
 
       <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -179,16 +181,13 @@ export default function HomePage() {
           </div>
 
           <section className="mb-5 border border-emerald-300/20 bg-emerald-400/[0.055]">
-            <div className="p-4 sm:p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Build the archive</p>
-              <h2 className="mt-1 text-lg font-semibold text-white">Have a clothing label nearby?</h2>
-              <p className="mt-1 text-sm text-white/55">Photograph the tag, add its brand and identifiers, and publish a pending record.</p>
-              <ol className="mt-4 grid gap-3 border-t border-white/10 pt-4 text-sm sm:grid-cols-3">
-                <li><strong className="text-white">1. Photograph</strong><span className="block text-white/45">Make the label clear and readable.</span></li>
-                <li><strong className="text-white">2. Add identifiers</strong><span className="block text-white/45">Brand, RN or style number.</span></li>
-                <li><strong className="text-white">3. Submit</strong><span className="block text-white/45">It enters the archive as pending.</span></li>
-              </ol>
-              <Link href="/upload" className="mt-4 inline-flex bg-emerald-400 px-5 py-2.5 font-semibold text-black hover:bg-emerald-300">Contribute a tag</Link>
+            <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Build the archive</p>
+                <h2 className="mt-1 text-lg font-semibold text-white">Have a clothing label nearby?</h2>
+                <p className="mt-1 text-sm text-white/55">Photograph the label, add its identifiers, and publish it as pending.</p>
+              </div>
+              <Link href="/upload" className="inline-flex shrink-0 self-start bg-emerald-400 px-5 py-2.5 font-semibold text-black hover:bg-emerald-300 sm:self-auto">Contribute a tag</Link>
             </div>
           </section>
 
