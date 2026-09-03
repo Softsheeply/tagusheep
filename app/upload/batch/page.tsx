@@ -188,8 +188,8 @@ export default function BatchUploadPage() {
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Community contribution</p>
           <h1 className="mt-1 text-3xl font-semibold">Batch upload</h1>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-white/65">
-            Photograph a stack of tags, drop them all in here, and each one gets scanned for RN/style
-            number automatically. Fill in whatever the scan misses, then submit — each ready tag goes
+            Photograph a stack of tags, drop them all in here, and each one gets scanned for RN/CA and
+            style/SN automatically. Fill in whatever the scan misses, then submit — each ready tag goes
             live as pending.
           </p>
         </div>
@@ -291,8 +291,8 @@ function BatchRow({ item, onChange, onRemove }: { item: BatchItem; onChange: (pa
           <input
             value={item.styleNumber}
             onChange={(e) => onChange({ styleNumber: e.target.value })}
-            placeholder="Style number"
-            aria-label="Style number"
+            placeholder="Style / SN"
+            aria-label="Style or SN number"
             disabled={item.submitStatus === "done"}
             className="rounded-lg border border-white/12 bg-[#09111f] px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-emerald-300/60 disabled:opacity-50"
           />

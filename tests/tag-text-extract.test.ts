@@ -5,6 +5,7 @@ import {
   extractRn,
   extractStyleNumber,
   isMakerRegistrationNumber,
+  makerIdKind,
 } from "../lib/tag-text-extract.mjs";
 
 test("extractRn still captures labeled US RN values", () => {
@@ -39,4 +40,10 @@ test("isMakerRegistrationNumber recognizes RN/CA tokens only", () => {
   assert.equal(isMakerRegistrationNumber("RN66170"), true);
   assert.equal(isMakerRegistrationNumber("SN ABC-123"), false);
   assert.equal(isMakerRegistrationNumber("0090-3068"), false);
+});
+
+test("makerIdKind labels CA vs RN for upload OCR messaging", () => {
+  assert.equal(makerIdKind("CA 04025\nSN RT-1", "04025"), "CA");
+  assert.equal(makerIdKind("RN 66170\nCA 04025", "66170"), "RN");
+  assert.equal(makerIdKind("no maker id", "12345"), null);
 });

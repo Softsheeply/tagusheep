@@ -67,9 +67,9 @@ function UploadPage() {
   const rnWarning = !rn
     ? null
     : !/^\d+$/.test(rn)
-      ? "RN must be digits only."
+      ? "RN/CA must be digits only."
       : rn.length > 7
-        ? "RN looks too long."
+        ? "RN/CA looks too long."
         : null;
   const hasBrand = brand.trim().length > 0;
   const hasIdentifier = rn.trim().length > 0 || styleNumber.trim().length > 0;
@@ -122,8 +122,14 @@ function UploadPage() {
       const result = await scanTagPhoto(file);
       const found: string[] = [];
 
-      if (result.rn && !rn) { setRn(result.rn); found.push(`RN ${result.rn}`); }
-      if (result.styleNumber && !styleNumber) { setStyleNumber(result.styleNumber); found.push(`style ${result.styleNumber}`); }
+      if (result.rn && !rn) {
+        setRn(result.rn);
+        found.push(`${result.rnKind || "RN"} ${result.rn}`);
+      }
+      if (result.styleNumber && !styleNumber) {
+        setStyleNumber(result.styleNumber);
+        found.push(`style/SN ${result.styleNumber}`);
+      }
       if (result.madeIn && !madeIn) { setMadeIn(result.madeIn); found.push(`made in ${result.madeIn}`); }
       if (result.materials && !materials) { setMaterials(result.materials); found.push("materials"); }
       if (result.madeIn || result.materials) setShowOptional(true);
@@ -353,7 +359,7 @@ function UploadPage() {
               {rnWarning && <p className="text-xs text-amber-300">{rnWarning}</p>}
               {visibleRnBrandSuggestions.length > 0 && (
                 <div>
-                  <p className="text-xs text-white/45">This RN is linked to:</p>
+                  <p className="text-xs text-white/45">This RN/CA is linked to:</p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {visibleRnBrandSuggestions.map((b) => (
                       <button key={b} type="button" onClick={() => { setBrand(b); setRnBrandSuggestions([]); }}

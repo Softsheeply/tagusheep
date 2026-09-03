@@ -1,9 +1,11 @@
 import { createWorker, type Worker } from "tesseract.js";
-import { extractMadeIn, extractMaterials, extractRn, extractStyleNumber } from "@/lib/scrape";
+import { extractMadeIn, extractMaterials, extractRn, extractStyleNumber, makerIdKind } from "@/lib/scrape";
 
 export type OcrSuggestions = {
   rawText: string;
   rn: string | null;
+  /** Which label OCR matched for `rn` — RN (US) or CA (Canada). */
+  rnKind: "RN" | "CA" | null;
   styleNumber: string | null;
   madeIn: string | null;
   materials: string | null;
@@ -37,9 +39,11 @@ export async function createOcrWorker(): Promise<Worker> {
 export async function recognizeTagPhoto(worker: Worker, file: File): Promise<OcrSuggestions> {
   const { data } = await worker.recognize(file);
   const text = data.text || "";
+  const rn = extractRn(text);
   return {
     rawText: text,
-    rn: extractRn(text),
+    rn,
+    rnKind: makerIdKind(text, rn),
     styleNumber: extractStyleNumber(text),
     madeIn: extractMadeIn(text),
     materials: extractMaterials(text),
