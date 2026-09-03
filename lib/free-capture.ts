@@ -1,5 +1,5 @@
 import type { CaptureFields } from "@/lib/capture-policy";
-import { extractRn, extractStyleNumber } from "./tag-text-extract.mjs";
+import { extractMakerRegistrationNumbers, extractRn, extractStyleNumber } from "./tag-text-extract.mjs";
 
 export type FreeOcrInput = {
   role: string;
@@ -12,7 +12,7 @@ export type FreeOcrInput = {
 
 export type PhotoRole = "full garment" | "brand label" | "RN/style tag" | "materials/care tag" | "detail";
 
-const NON_BRAND_LINE = /\b(rn|style|size|sz|made|care|wash|dry|iron|bleach|fabric|shell|lining|cotton|polyester|nylon|wool|viscose|elastane|spandex|exclusive|distributed|imported|www\.|\.com|machine|hand|tumble|cycle)\b/i;
+const NON_BRAND_LINE = /\b(rn|ca|sn|style|size|sz|made|care|wash|dry|iron|bleach|fabric|shell|lining|cotton|polyester|nylon|wool|viscose|elastane|spandex|exclusive|distributed|imported|www\.|\.com|machine|hand|tumble|cycle)\b/i;
 const CARE_HINT = /\b(wash|care|bleach|iron|dry\s*clean|tumble|machine|hand\s*wash|do\s+not|%|cotton|polyester|nylon|elastane|spandex|acrylic|rayon|viscose)\b/i;
 const SIZE_CODE = /\b((?:XX[SL]|X[SL]|[SML]|[0-9]{1,2})(?:\s*\/\s*[A-Z0-9]{1,3}){1,3})\b/i;
 
@@ -44,11 +44,18 @@ function extractSize(text: string) {
 }
 
 function styleFromText(text: string, provided?: string | null) {
-  return provided || extractStyleNumber(text) || text.match(/\b(\d{4}[- ]\d{3,5}[- ]\d{3,5}[- ]\d{4,})\b/)?.[1]?.replace(/\s+/g, "-") || null;
+  const extracted = provided || extractStyleNumber(text) || text.match(/\b(\d{4}[- ]\d{3,5}[- ]\d{3,5}[- ]\d{4,})\b/)?.[1]?.replace(/\s+/g, "-") || null;
+  // Guard: never promote a CA/RN maker id into style/SN.
+  if (extracted && /^(?:RN|CA)\b/i.test(extracted.trim())) return null;
+  return extracted;
 }
 
 function rnFromText(text: string, provided?: string | null) {
   return provided || extractRn(text);
+}
+
+function makerIdsFromText(text: string, provided?: string | null) {
+  return Array.from(new Set([provided, ...extractMakerRegistrationNumbers(text)].filter(Boolean) as string[]));
 }
 
 function scoreRole(input: FreeOcrInput, role: PhotoRole) {
@@ -162,7 +169,7 @@ export function extractFreeCapture(inputs: FreeOcrInput[]): CaptureFields {
   }));
 
   const { brands: detectedBrands, confidence: brandConfidence } = resolveBrands(normalized);
-  const detectedRns = unique(normalized.map((input) => input.rn));
+  const detectedRns = unique(normalized.flatMap((input) => makerIdsFromText(input.rawText, input.rn)));
   const detectedStyleNumbers = unique(normalized.map((input) => input.styleNumber));
   const madeInValues = unique(normalized.map((input) => input.madeIn));
   const materialsValues = unique(normalized.map((input) => input.materials));
@@ -176,7 +183,9 @@ export function extractFreeCapture(inputs: FreeOcrInput[]): CaptureFields {
       .slice(0, 4000) || null;
   const mainImageIndex = normalized.findIndex((input) => input.role === "full garment");
   const brand = detectedBrands[0] || null;
-  const rn = detectedRns.length === 1 ? detectedRns[0] : detectedRns[0] || null;
+  // Prefer an explicit RN digit string when both RN and CA appear on the tag.
+  const rnPreferred = extractRn(allText) || detectedRns[0] || null;
+  const rn = rnPreferred;
   const styleNumber = detectedStyleNumbers.length === 1 ? detectedStyleNumbers[0] : detectedStyleNumbers[0] || null;
 
   return {

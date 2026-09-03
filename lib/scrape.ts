@@ -16,6 +16,8 @@ import {
 export {
   extractStyleNumber,
   extractRn,
+  extractMakerRegistrationNumbers,
+  isMakerRegistrationNumber,
   extractMadeIn,
   extractYear,
   extractCategory,

@@ -25,8 +25,8 @@ const STOP_LABELS: Record<CaptureStopReason, string> = {
   missing_brand: "Brand is missing.",
   low_brand_confidence: "Brand confidence is low—check it below.",
   conflicting_brands: "Multiple conflicting brands were detected.",
-  conflicting_identifiers: "Conflicting RN or style numbers were detected.",
-  missing_identifier_or_description: "Add an RN, style number, or useful product description.",
+  missing_identifier_or_description: "Add an RN/CA, style number, or useful product description.",
+  conflicting_identifiers: "Conflicting RN/CA or style numbers were detected.",
   duplicate: "A probable duplicate needs your decision.",
 };
 
@@ -333,7 +333,7 @@ function CaptureTool() {
 
 function CaptureForm({ fields, onChange }: { fields: CaptureFields; onChange: (key: keyof CaptureFields, value: string) => void }) {
   const entries: Array<[keyof CaptureFields, string, boolean]> = [
-    ["brand", "Brand", true], ["productName", "Searchable product title", true], ["rn", "RN", false], ["styleNumber", "Style number", false],
+    ["brand", "Brand", true], ["productName", "Searchable product title", true], ["rn", "RN / CA", false], ["styleNumber", "Style / SN", false],
     ["size", "Size", false], ["color", "Color", false], ["category", "Category", false], ["subCategory", "Sub-category", false],
     ["garmentType", "Garment type", false], ["gender", "Gender / fit", false], ["madeIn", "Made in", false], ["materials", "Materials", true],
     ["careText", "Care text", true], ["notes", "Visible design details", true], ["tags", "Tags, comma separated", false],

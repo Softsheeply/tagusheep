@@ -9,8 +9,8 @@ const schema = {
   properties: {
     brand: { type: ["string", "null"] },
     productName: { type: ["string", "null"] },
-    rn: { type: ["string", "null"] },
-    styleNumber: { type: ["string", "null"] },
+    rn: { type: ["string", "null"], description: "US RN or Canadian CA maker registration digits only. Prefer RN when both are present." },
+    styleNumber: { type: ["string", "null"], description: "Garment style / SN / S/N code. Never a CA or RN maker number." },
     size: { type: ["string", "null"] },
     color: { type: ["string", "null"] },
     category: { type: ["string", "null"] },
@@ -55,7 +55,7 @@ export async function analyzeGarmentImages(files: File[], ocrText: string[]): Pr
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({
       model: process.env.OPENAI_CAPTURE_MODEL?.trim() || "gpt-5-mini",
-      instructions: "You extract conservative clothing records for TagSheep. Treat every image as one garment. Use visible evidence and supplied OCR only. Never guess or invent a missing field. Return null for unsupported fields. Preserve identifiers exactly except harmless whitespace. List every conflicting brand, RN, or style value detected. Pick the full-garment photo as mainImageIndex when one exists; otherwise choose the clearest useful photo. productName must be a concise searchable garment title, not marketing copy. notes contains only visible design details.",
+      instructions: "You extract conservative clothing records for TagSheep. Treat every image as one garment. Use visible evidence and supplied OCR only. Never guess or invent a missing field. Return null for unsupported fields. Preserve identifiers exactly except harmless whitespace. Maker registration numbers: US labels use RN (e.g. RN 66170) and Canadian labels use CA (e.g. CA 04025). Put RN or CA digits into rn (prefer RN when both appear) and list every RN/CA value in detectedRns. Style numbers may be labeled Style, Style No, SN, or S/N — put those in styleNumber / detectedStyleNumbers. Never put a CA or RN value into styleNumber. List every conflicting brand, RN/CA, or style value detected. Pick the full-garment photo as mainImageIndex when one exists; otherwise choose the clearest useful photo. productName must be a concise searchable garment title, not marketing copy. notes contains only visible design details.",
       input: [{
         role: "user",
         content: [

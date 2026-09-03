@@ -282,8 +282,8 @@ function BatchRow({ item, onChange, onRemove }: { item: BatchItem; onChange: (pa
           <input
             value={item.rn}
             onChange={(e) => onChange({ rn: e.target.value.replace(/\D+/g, "") })}
-            placeholder="RN number"
-            aria-label="RN number"
+            placeholder="RN / CA"
+            aria-label="RN or CA number"
             inputMode="numeric"
             disabled={item.submitStatus === "done"}
             className="rounded-lg border border-white/12 bg-[#09111f] px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-emerald-300/60 disabled:opacity-50"
@@ -301,11 +301,11 @@ function BatchRow({ item, onChange, onRemove }: { item: BatchItem; onChange: (pa
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {item.ocrStatus === "scanning" && <span className="text-white/45">Scanning…</span>}
           {item.ocrStatus === "done" && !item.rn && !item.styleNumber && (
-            <span className="text-white/45">No RN/style found — fill in manually.</span>
+            <span className="text-white/45">No RN/CA or style/SN found — fill in manually.</span>
           )}
           {item.ocrStatus === "error" && <span className="text-rose-300">Scan failed — fill in manually.</span>}
           {!ready && item.ocrStatus !== "scanning" && (
-            <span className="text-amber-300/80">Needs brand + RN or style number.</span>
+            <span className="text-amber-300/80">Needs brand + RN/CA or style/SN.</span>
           )}
           {item.submitStatus === "uploading" && <span className="text-white/60">Uploading…</span>}
           {item.submitStatus === "done" && <span className="text-emerald-300">Submitted</span>}

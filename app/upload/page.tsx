@@ -132,7 +132,7 @@ function UploadPage() {
         kind: "done",
         message: found.length > 0
           ? `Found ${found.join(", ")} — double-check before submitting.`
-          : "Couldn't recognize any RN or style number in this photo. Fill them in manually below.",
+          : "Couldn't recognize any RN/CA or style/SN in this photo. Fill them in manually below.",
       });
     } catch {
       setOcrStatus({ kind: "error", message: "Scan failed. You can still fill in the fields manually." });
@@ -249,7 +249,7 @@ function UploadPage() {
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Community contribution</p>
           <h1 className="mt-1 text-3xl font-semibold">Submit a tag</h1>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-white/65">
-            Photo + brand + RN or style number goes live as a pending tag. Everything else fills in the record.
+            Photo + brand + RN/CA or style/SN goes live as a pending tag. Everything else fills in the record.
           </p>
           <Link href="/upload/batch" className="mt-2 inline-block text-xs text-emerald-200/80 underline hover:text-emerald-200">
             Have a stack of tags to do at once? Try batch upload →
@@ -349,7 +349,7 @@ function UploadPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Field label="RN number" value={rn} onChange={(v) => setRn(v.replace(/\D+/g, ""))} placeholder="66170" inputMode="numeric" />
+              <Field label="RN / CA number" value={rn} onChange={(v) => setRn(v.replace(/\D+/g, ""))} placeholder="66170 or 04025" inputMode="numeric" />
               {rnWarning && <p className="text-xs text-amber-300">{rnWarning}</p>}
               {visibleRnBrandSuggestions.length > 0 && (
                 <div>
@@ -370,7 +370,7 @@ function UploadPage() {
 
           {!hasIdentifier && (brand || file) && (
             <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-              Add an <b>RN</b> or <b>style number</b> — at least one is needed to match duplicates.
+              Add an <b>RN/CA</b> or <b>style/SN</b> — at least one is needed to match duplicates.
             </div>
           )}
         </div>
@@ -453,7 +453,7 @@ function UploadPage() {
             <p className="text-xs text-amber-300/80 sm:hidden">Add a brand.</p>
           )}
           {user && !canSubmit && file && hasBrand && !hasIdentifier && (
-            <p className="text-xs text-amber-300/80 sm:hidden">Add RN or style number.</p>
+            <p className="text-xs text-amber-300/80 sm:hidden">Add RN/CA or style/SN.</p>
           )}
         </div>
       </form>
