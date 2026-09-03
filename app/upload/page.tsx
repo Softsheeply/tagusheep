@@ -365,7 +365,7 @@ function UploadPage() {
                 </div>
               )}
             </div>
-            <Field label="Style number" value={styleNumber} onChange={setStyleNumber} placeholder="ABC-1234" />
+            <Field label="Style / SN" value={styleNumber} onChange={setStyleNumber} placeholder="ABC-1234 or SN code" />
           </div>
 
           {!hasIdentifier && (brand || file) && (
