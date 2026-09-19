@@ -5,12 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import SmartImage from "@/app/components/SmartImage";
 import SaveButton from "@/app/components/SaveButton";
+import PhotoManager from "@/app/components/PhotoManager";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
 import { buildSearchText, CATEGORY_OPTIONS, getVerificationPercent, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
 import { safeHostnameFromUrl } from "@/lib/validation";
-import { IMAGE_POLICY, normalizeThumbnailImage, normalizeUploadedImage } from "@/lib/images";
-import { deleteImageObject, uploadImageObject } from "@/lib/object-storage";
+import { IMAGE_POLICY, normalizeUploadedImage } from "@/lib/images";
+import { uploadImageObject } from "@/lib/object-storage";
 
 type TagDoc = {
   brand?: string | null;
@@ -51,9 +52,9 @@ export default function TagDetailClient() {
   const [canEdit, setCanEdit] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [ftcCheckMessage, setFtcCheckMessage] = useState<string | null>(null);
-  const [newFile, setNewFile] = useState<File | null>(null);
   const [extraImageUrls, setExtraImageUrls] = useState<string[]>([]);
   const [extraImageBusy, setExtraImageBusy] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [status, setStatus] = useState<{ kind: "idle" | "info" | "success" | "error"; text: string | null; pct?: number }>({ kind: "idle", text: null });
 
   const [brand, setBrand] = useState("");
@@ -116,6 +117,7 @@ export default function TagDetailClient() {
       setNotes(data.notes ?? "");
       setSourceUrl(data.sourceUrl ?? "");
       setExtraImageUrls(data.extraImageUrls ?? []);
+      setSelectedPhotoIndex(0);
       setSourceType(data.sourceType ?? "unknown");
       setVerificationStatus(data.verificationStatus ?? "pending");
       setLoading(false);
@@ -228,24 +230,104 @@ export default function TagDetailClient() {
   // reference from the record -- it doesn't delete the underlying storage
   // object. Harmless (an orphaned file costs a little space, not
   // correctness), just not a full cleanup.
-  function removeExtraImage(index: number) {
-    setExtraImageUrls((prev) => prev.filter((_, i) => i !== index));
+  function galleryPhotos() {
+    return [tag?.imageUrl, ...extraImageUrls].filter((url): url is string => Boolean(url));
   }
 
-  async function addExtraImage(file: File) {
+  async function persistGallery(urls: string[], nextSelected = selectedPhotoIndex) {
+    const unique = urls.filter(Boolean);
+    const cover = unique[0] || "";
+    const extras = unique.slice(1);
+    setExtraImageUrls(extras);
+    setSelectedPhotoIndex(Math.max(0, Math.min(nextSelected, Math.max(unique.length - 1, 0))));
+    setTag((prev) => (prev ? { ...prev, imageUrl: cover, thumbnailUrl: cover || prev.thumbnailUrl, extraImageUrls: extras } : prev));
+    if (!id) return;
+    await updateDoc(doc(db, "tags", id), {
+      imageUrl: cover,
+      thumbnailUrl: cover || null,
+      extraImageUrls: extras,
+    });
+  }
+
+  async function uploadPhotoFile(file: File) {
     const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setStatus({ kind: "error", text: "You must be signed in to add photos." });
-      return;
-    }
+    if (!uid) throw new Error("You must be signed in to change photos.");
+    const normalized = await normalizeUploadedImage(file);
+    const path = `tagusheep/uploads/${uid}/photo_${Date.now()}_${normalized.name}`;
+    return uploadImageObject(normalized, path);
+  }
+
+  async function movePhoto(from: number, to: number) {
+    const photos = galleryPhotos();
+    if (to < 0 || to >= photos.length || from === to) return;
+    const next = [...photos];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
     setExtraImageBusy(true);
     try {
-      const normalized = await normalizeUploadedImage(file);
-      const path = `tagusheep/uploads/${uid}/extra_${Date.now()}_${normalized.name}`;
-      const uploaded = await uploadImageObject(normalized, path);
-      setExtraImageUrls((prev) => [...prev, uploaded.url].slice(0, IMAGE_POLICY.maxImportedImageUrlCount));
+      await persistGallery(next, to);
+      setStatus({ kind: "success", text: "Photo order saved." });
+      setTimeout(() => setStatus({ kind: "idle", text: null }), 900);
     } catch (error: unknown) {
-      setStatus({ kind: "error", text: error instanceof Error ? error.message : "Could not add photo." });
+      setStatus({ kind: "error", text: error instanceof Error ? error.message : "Could not reorder photos." });
+    } finally {
+      setExtraImageBusy(false);
+    }
+  }
+
+  async function setCoverPhoto(index: number) {
+    await movePhoto(index, 0);
+  }
+
+  async function removePhoto(index: number) {
+    const photos = galleryPhotos();
+    if (photos.length < 2) return;
+    setExtraImageBusy(true);
+    try {
+      await persistGallery(photos.filter((_, i) => i !== index), index === 0 ? 0 : selectedPhotoIndex);
+      setStatus({ kind: "success", text: "Photo removed." });
+      setTimeout(() => setStatus({ kind: "idle", text: null }), 900);
+    } catch (error: unknown) {
+      setStatus({ kind: "error", text: error instanceof Error ? error.message : "Could not remove photo." });
+    } finally {
+      setExtraImageBusy(false);
+    }
+  }
+
+  async function replacePhoto(index: number, file: File) {
+    setExtraImageBusy(true);
+    try {
+      const uploaded = await uploadPhotoFile(file);
+      const next = galleryPhotos();
+      next[index] = uploaded.url;
+      await persistGallery(next, index);
+      setStatus({ kind: "success", text: "Photo replaced." });
+      setTimeout(() => setStatus({ kind: "idle", text: null }), 900);
+    } catch (error: unknown) {
+      setStatus({ kind: "error", text: error instanceof Error ? error.message : "Could not replace photo." });
+    } finally {
+      setExtraImageBusy(false);
+    }
+  }
+
+  async function addPhotos(files: File[]) {
+    setExtraImageBusy(true);
+    try {
+      const current = galleryPhotos();
+      const room = IMAGE_POLICY.maxImportedImageUrlCount - current.length;
+      const uploaded = [];
+      for (const file of files.slice(0, Math.max(room, 0))) {
+        uploaded.push(await uploadPhotoFile(file));
+      }
+      if (!uploaded.length) {
+        setStatus({ kind: "error", text: `Photo limit is ${IMAGE_POLICY.maxImportedImageUrlCount}.` });
+        return;
+      }
+      await persistGallery([...current, ...uploaded.map((item) => item.url)], current.length);
+      setStatus({ kind: "success", text: uploaded.length === 1 ? "Photo added." : `${uploaded.length} photos added.` });
+      setTimeout(() => setStatus({ kind: "idle", text: null }), 900);
+    } catch (error: unknown) {
+      setStatus({ kind: "error", text: error instanceof Error ? error.message : "Could not add photos." });
     } finally {
       setExtraImageBusy(false);
     }
@@ -265,30 +347,9 @@ export default function TagDetailClient() {
 
     try {
       setStatus({ kind: "info", text: "Saving…" });
-      let imageUrl = tag.imageUrl;
-      let thumbnailUrl = tag.thumbnailUrl ?? null;
-      let storagePath = tag.storagePath ?? null;
-      if (newFile) {
-        if (storagePath) {
-          try { await deleteImageObject(storagePath); } catch {}
-        }
-        const file = await normalizeUploadedImage(newFile);
-        const thumbnail = await normalizeThumbnailImage(newFile);
-        const uid = auth.currentUser?.uid;
-        if (!uid) {
-          throw new Error("You must be signed in to replace the image.");
-        }
-        const baseName = `${Date.now()}_${file.name}`;
-        const newPath = `tagusheep/uploads/${uid}/${baseName}`;
-        const thumbPath = `tagusheep/uploads/${uid}/thumb_${baseName}`;
-        setStatus({ kind: "info", text: "Uploading…", pct: 10 });
-        const primary = await uploadImageObject(file, newPath);
-        setStatus({ kind: "info", text: "Uploading…", pct: 70 });
-        const thumb = await uploadImageObject(thumbnail, thumbPath);
-        imageUrl = primary.url;
-        thumbnailUrl = thumb.url;
-        storagePath = primary.storagePath;
-      }
+      const imageUrl = tag.imageUrl;
+      const thumbnailUrl = tag.thumbnailUrl ?? imageUrl ?? null;
+      const storagePath = tag.storagePath ?? null;
 
       const cleanBrand = normalizeBrand(brand);
       const cleanStyleNumber = normalizeStyleNumber(styleNumber);
@@ -355,7 +416,6 @@ export default function TagDetailClient() {
 
       await updateDoc(doc(db, "tags", id), payload);
       setTag({ ...(tag as TagDoc), ...(payload as TagDoc) });
-      setNewFile(null);
       setStatus({ kind: "success", text: "Saved ✅" });
       setTimeout(() => setStatus({ kind: "idle", text: null }), 1200);
     } catch (err: unknown) {
@@ -415,42 +475,20 @@ export default function TagDetailClient() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(340px,0.85fr)_minmax(420px,1.15fr)] items-start">
         <div className="space-y-4 sticky top-6 self-start">
-          {tag.imageUrl ? (
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={tag.imageUrl} alt={tag.brand ?? "tag"} className="h-full w-full object-contain" />
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-2xl border border-emerald-300/20 bg-emerald-400/8 p-6 text-center space-y-3">
-              <svg className="mx-auto h-10 w-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
-              <div>
-                <div className="font-medium text-white">No photo for this tag yet</div>
-                <p className="mt-1 text-sm text-white/60">Own this item or seen it before? Be the first to snap the label.</p>
-              </div>
-              <Link
-                href={`/upload?${new URLSearchParams({ ...(tag.brand ? { brand: tag.brand } : {}), ...(tag.rn ? { rn: tag.rn } : {}), ...(tag.styleNumber ? { styleNumber: tag.styleNumber } : {}) }).toString()}`}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-300"
-              >
-                Submit a photo
-              </Link>
-            </div>
-          )}
-
-          {tag.extraImageUrls && tag.extraImageUrls.length > 0 && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
-              <div>
-                <div className="text-xs uppercase tracking-[0.18em] text-white/45">Extra detail photos</div>
-                <p className="mt-1 text-sm text-white/65">Additional tag angles, RN closeups, care labels, or supporting garment details.</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {tag.extraImageUrls.map((url, index) => (
-                  <a key={url} href={url} target="_blank" rel="noreferrer" className="relative block aspect-square w-full overflow-hidden rounded-xl border border-white/10 bg-white/5 transition hover:border-white/25">
-                    <SmartImage src={url} alt={`${tag.brand || "tag"} detail ${index + 1}`} fill sizes="(min-width: 640px) 33vw, 50vw" className="object-cover" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
+          <PhotoManager
+            photos={galleryPhotos()}
+            brand={tag.brand}
+            canEdit={canEdit}
+            busy={extraImageBusy}
+            maxPhotos={IMAGE_POLICY.maxImportedImageUrlCount}
+            selectedIndex={selectedPhotoIndex}
+            onSelect={setSelectedPhotoIndex}
+            onMove={movePhoto}
+            onSetCover={setCoverPhoto}
+            onRemove={removePhoto}
+            onReplace={replacePhoto}
+            onAdd={addPhotos}
+          />
 
           <div className="flex flex-wrap gap-2 text-sm">
             <a href={tag.imageUrl} target="_blank" rel="noreferrer" className="rounded border border-white/15 px-3 py-1 hover:border-white/40 transition">Open image</a>
@@ -622,45 +660,6 @@ export default function TagDetailClient() {
                 Only admins can grant &quot;reviewed&quot;, &quot;verified&quot;, or &quot;rejected&quot; status.
               </p>
             )}
-          </div>
-          <input type="file" accept="image/*" aria-label="Replace image" className="w-full border rounded p-2 bg-white text-black" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
-          <p className="text-xs text-white/60">Replacement uploads are normalized to {IMAGE_POLICY.format.toUpperCase()} at up to {IMAGE_POLICY.maxDimension}px.</p>
-
-          <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Extra detail photos</p>
-            {extraImageUrls.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {extraImageUrls.map((url, index) => (
-                  <div key={url} className="relative aspect-square overflow-hidden rounded-lg border border-white/10 bg-white">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={`Detail ${index + 1}`} className="h-full w-full object-contain" />
-                    <button
-                      type="button"
-                      onClick={() => removeExtraImage(index)}
-                      title="Remove this photo"
-                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white transition hover:bg-rose-500"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              aria-label="Add extra photo"
-              disabled={extraImageBusy || extraImageUrls.length >= IMAGE_POLICY.maxImportedImageUrlCount}
-              className="w-full border rounded p-2 bg-white text-black disabled:opacity-50"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) await addExtraImage(file);
-              }}
-            />
-            <p className="text-xs text-white/45">
-              {extraImageBusy ? "Uploading…" : `Remove or add extra angles/close-ups (up to ${IMAGE_POLICY.maxImportedImageUrlCount}). Changes apply when you hit Save below.`}
-            </p>
           </div>
           <div className="flex gap-2 flex-wrap">
             <button type="submit" disabled={!canEdit || status.kind === "info"} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">

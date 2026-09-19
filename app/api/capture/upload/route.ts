@@ -3,6 +3,7 @@ import { evaluateCapture, type CaptureFields } from "@/lib/capture-policy";
 import { runCaptureTransaction } from "@/lib/capture-transaction";
 import { createTagDocument, findServerDuplicates, getTagDocument, updateTagDocument } from "@/lib/firestore-rest";
 import { prepareRecord, type TagRecord } from "@/lib/records";
+import { syncRegistryFromCapture } from "@/lib/registry/sync-from-capture";
 import { deleteStoredImage, putStoredImage } from "@/lib/server-object-storage";
 import { isFirebaseAdmin, verifyFirebaseBearer } from "@/lib/server-auth";
 
@@ -96,6 +97,7 @@ export async function POST(request: Request) {
           delete update.id;
           delete update.createdAt;
           await updateTagDocument(existingId, tagRecordPayload(update), user.idToken);
+          await syncRegistryFromCapture({ rn: merged.rn, ca: extracted.ca, brand: merged.brand }, user.idToken);
           return { id: existingId, brand: merged.brand, identifier: merged.styleNumber || merged.rn || merged.productName, thumbnailUrl: merged.thumbnailUrl || merged.imageUrl, updatedExisting: true };
         }
 
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
           importedAt: now,
         });
         const id = await createTagDocument(tagRecordPayload(prepared), user.idToken);
+        await syncRegistryFromCapture({ rn: prepared.rn, ca: extracted.ca, brand: prepared.brand }, user.idToken);
         return { id, brand: prepared.brand, identifier: prepared.styleNumber || prepared.rn || prepared.productName, thumbnailUrl: prepared.thumbnailUrl || prepared.imageUrl };
       },
     });

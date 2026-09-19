@@ -5,11 +5,12 @@ import type { CaptureFields } from "@/lib/capture-policy";
 const schema = {
   type: "object",
   additionalProperties: false,
-  required: ["brand", "productName", "rn", "styleNumber", "size", "color", "category", "subCategory", "garmentType", "gender", "materials", "careText", "madeIn", "notes", "tags", "confidence", "brandConfidence", "detectedBrands", "detectedRns", "detectedStyleNumbers", "mainImageIndex"],
+  required: ["brand", "productName", "rn", "ca", "styleNumber", "size", "color", "category", "subCategory", "garmentType", "gender", "materials", "careText", "madeIn", "notes", "tags", "confidence", "brandConfidence", "detectedBrands", "detectedRns", "detectedStyleNumbers", "mainImageIndex"],
   properties: {
     brand: { type: ["string", "null"] },
     productName: { type: ["string", "null"] },
-    rn: { type: ["string", "null"], description: "US RN or Canadian CA maker registration digits only. Prefer RN when both are present." },
+    rn: { type: ["string", "null"], description: "US RN maker registration digits only. Prefer RN when both RN and CA are present." },
+    ca: { type: ["string", "null"], description: "Canadian CA number if visible, digits only." },
     styleNumber: { type: ["string", "null"], description: "Garment style / SN / S/N code. Never a CA or RN maker number." },
     size: { type: ["string", "null"] },
     color: { type: ["string", "null"] },

@@ -86,10 +86,10 @@ export default function WantedPage() {
                     <td className="px-4 py-3">{row.count ?? 1}</td>
                     <td className="px-4 py-3">
                       <Link
-                        href={`/upload?${new URLSearchParams({ brand: row.query || "" }).toString()}`}
+                        href="/capture"
                         className="underline"
                       >
-                        Upload this
+                        Capture
                       </Link>
                     </td>
                     <td className="px-4 py-3">

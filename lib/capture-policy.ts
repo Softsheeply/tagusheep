@@ -2,6 +2,7 @@ export type CaptureFields = {
   brand?: string | null;
   productName?: string | null;
   rn?: string | null;
+  ca?: string | null;
   styleNumber?: string | null;
   size?: string | null;
   color?: string | null;

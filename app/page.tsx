@@ -109,10 +109,10 @@ export default function HomePage() {
               Tagsheep
             </h1>
             <p className="mt-2 font-[family-name:var(--font-display)] text-xl text-emerald-100 sm:text-2xl">
-              Identify clothing from the label.
+              See the garment. Then the tags that prove it.
             </p>
             <p className="mt-1 text-sm leading-5 text-white/70">
-              Search brands, RN numbers and style codes—or add a label that is missing.
+              Search brands, RN numbers and style codes. Click a piece to open its labels.
             </p>
           </div>
 
@@ -183,11 +183,11 @@ export default function HomePage() {
           <section className="mb-5 border border-emerald-300/20 bg-emerald-400/[0.055]">
             <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Build the archive</p>
-                <h2 className="mt-1 text-lg font-semibold text-white">Have a clothing label nearby?</h2>
-                <p className="mt-1 text-sm text-white/55">Photograph the label, add its identifiers, and publish it as pending.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">How search works</p>
+                <h2 className="mt-1 text-lg font-semibold text-white">Find the piece. Then the proof.</h2>
+                <p className="mt-1 text-sm text-white/55">The browse photo is the garment. Tag close-ups and RN/CA live on the record.</p>
               </div>
-              <Link href="/upload" className="inline-flex shrink-0 self-start bg-emerald-400 px-5 py-2.5 font-semibold text-black hover:bg-emerald-300 sm:self-auto">Contribute a tag</Link>
+              <Link href="/tags" className="inline-flex shrink-0 self-start bg-emerald-400 px-5 py-2.5 font-semibold text-black hover:bg-emerald-300 sm:self-auto">Browse the archive</Link>
             </div>
           </section>
 
@@ -224,11 +224,10 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="border border-dashed border-white/15 bg-white/[0.025] px-6 py-20 text-center">
-              <h2 className="text-xl font-semibold text-white">No archive records loaded</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-white/55">Search the archive or contribute a clear photograph of a clothing label.</p>
+              <h2 className="text-xl font-semibold text-white">Archive photos coming soon</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-white/55">Tagsheep is being rebuilt from our own garments. Browse fills in as Capture uploads land.</p>
               <div className="mt-5 flex justify-center gap-3">
-                <Link href="/tags" className="border border-white/20 px-4 py-2 text-sm text-white hover:border-white/40">Browse</Link>
-                <Link href="/upload" className="bg-emerald-400 px-4 py-2 text-sm font-semibold text-black">Add a tag</Link>
+                <Link href="/tags" className="bg-emerald-400 px-4 py-2 text-sm font-semibold text-black">Browse</Link>
               </div>
             </div>
           )}

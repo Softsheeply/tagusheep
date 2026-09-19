@@ -375,7 +375,7 @@ function TagsPageInner() {
           <h1 className="text-2xl font-semibold">Browse clothing tags</h1>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <Link href="/import" className="underline opacity-80 hover:opacity-100">Import URL</Link>
+          <Link href="/tags" className="underline opacity-80 hover:opacity-100">Browse</Link>
         </div>
       </div>
 
@@ -468,13 +468,7 @@ function TagsPageInner() {
       ) : hasNoResults ? (
         <div className="mt-8 space-y-4 text-center">
           <p className="text-white/60">No records found for <b className="text-white">{q}</b>.</p>
-          <p className="text-sm text-white/45">This tag isn&apos;t in the database yet.</p>
-          <Link
-            href={`/upload?${new URLSearchParams({ ...(searchIntent.normalizedRn ? { rn: searchIntent.normalizedRn } : {}), ...(searchIntent.normalizedStyle ? { styleNumber: searchIntent.normalizedStyle } : {}), ...(q && !searchIntent.normalizedRn && !searchIntent.normalizedStyle ? { brand: q } : {}) }).toString()}`}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
-          >
-            Be the first to submit this tag
-          </Link>
+          <p className="text-sm text-white/45">This tag isn&apos;t in the database yet. Public submissions are paused while the archive is rebuilt from our own photos.</p>
         </div>
       ) : (
         <>

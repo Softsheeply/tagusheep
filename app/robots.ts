@@ -14,6 +14,7 @@ export default function robots(): MetadataRoute.Robots {
           "/admin-test",
           "/storage-test",
           "/export",
+          "/capture",
           "/import",
           "/import/",
           "/imports-review",
