@@ -147,3 +147,41 @@ export async function updateTagDocument(id: string, record: Record<string, unkno
   const url = `${root()}/documents/tags/${encodeURIComponent(id)}?updateMask.fieldPaths=${fieldPaths}`;
   await requestJson(url, idToken, { method: "PATCH", body: JSON.stringify({ fields }) });
 }
+
+export async function deleteTagDocument(id: string, idToken: string) {
+  await requestJson(`${root()}/documents/tags/${encodeURIComponent(id)}`, idToken, { method: "DELETE" });
+}
+
+export async function listAllTagDocuments(idToken: string, pageSize = 300) {
+  const rows: Array<Partial<TagRecord> & { id: string }> = [];
+  let pageToken = "";
+  do {
+    const url = `${root()}/documents/tags?pageSize=${pageSize}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`;
+    const payload = (await requestJson(url, idToken)) as { documents?: FirestoreDocument[]; nextPageToken?: string };
+    for (const document of payload.documents || []) rows.push(decodeDocument(document));
+    pageToken = payload.nextPageToken || "";
+  } while (pageToken);
+  return rows;
+}
+
+export async function deleteAllTagDocuments(idToken: string) {
+  const tags = await listAllTagDocuments(idToken);
+  const chunkSize = 20;
+  for (let index = 0; index < tags.length; index += chunkSize) {
+    await Promise.all(tags.slice(index, index + chunkSize).map((tag) => deleteTagDocument(tag.id, idToken)));
+  }
+  return tags.length;
+}
+
+export async function upsertRegistryDocument(collectionId: string, id: string, record: Record<string, unknown>, idToken: string) {
+  const name = `${databaseName()}/documents/${collectionId}/${encodeURIComponent(id)}`;
+  await requestJson(`${root()}/documents:commit`, idToken, {
+    method: "POST",
+    body: JSON.stringify({
+      writes: [{
+        update: { name, fields: encodeFields(record) },
+        updateTransforms: [{ fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME" }],
+      }],
+    }),
+  });
+}

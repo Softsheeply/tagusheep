@@ -375,7 +375,7 @@ function TagsPageInner() {
           <h1 className="text-2xl font-semibold">Browse clothing tags</h1>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <Link href="/import" className="underline opacity-80 hover:opacity-100">Import URL</Link>
+          <Link href="/tags" className="underline opacity-80 hover:opacity-100">Browse</Link>
         </div>
       </div>
 

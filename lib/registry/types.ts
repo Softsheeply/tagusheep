@@ -2,11 +2,13 @@ export type RnRegistryEntry = {
   rn: string;
   rnType?: string | null;
   legalName?: string | null;
+  retailBrand?: string | null;
   productLines?: string[];
   ftcDetailUrl?: string | null;
   source: "ftc" | "import" | "manual";
   fetchedAt?: string | null;
   hitCount?: number;
+  notes?: string | null;
 };
 
 export type CaRegistryEntry = {

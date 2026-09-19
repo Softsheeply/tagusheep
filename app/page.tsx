@@ -168,7 +168,7 @@ export default function HomePage() {
               The clothing tag database.
             </p>
             <p className="max-w-lg text-sm leading-snug text-white/75 sm:text-[0.95rem] sm:leading-6">
-              Look up garments by brand, RN, or style number — browse tags people are photographing into the archive.
+              Look up garments by brand, RN, or style number — built from real tag photos, starting with our own closet.
             </p>
 
             <form onSubmit={onSearch} className="flex max-w-xl flex-col gap-2 pt-0.5 sm:flex-row sm:gap-2.5">
@@ -194,9 +194,6 @@ export default function HomePage() {
                   <span className="font-medium text-white">{totalTags.toLocaleString()}</span> tags indexed
                 </span>
               )}
-              <Link href="/upload" className="underline decoration-white/25 underline-offset-4 transition hover:text-white hover:decoration-white/60">
-                Submit a tag
-              </Link>
               <Link href="/tags" className="underline decoration-white/25 underline-offset-4 transition hover:text-white hover:decoration-white/60">
                 Browse all
               </Link>
@@ -267,12 +264,12 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="border border-dashed border-white/15 bg-white/[0.03] px-6 py-16 text-center">
-            <p className="font-[family-name:var(--font-display)] text-xl text-white">The archive is waiting for its first photos.</p>
+            <p className="font-[family-name:var(--font-display)] text-xl text-white">Archive reset — closet photos coming soon.</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-white/60">
-              Submit a clear tag photo with brand and an RN or style number — it goes live as pending right away.
+              Tagsheep is being rebuilt from our own garments only. Browse fills in as Capture uploads land.
             </p>
-            <Link href="/upload" className="mt-6 inline-flex bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
-              Submit the first tag
+            <Link href="/tags" className="mt-6 inline-flex bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300">
+              Browse tags
             </Link>
           </div>
         )}
@@ -300,29 +297,21 @@ export default function HomePage() {
 
       <section className="border-y border-emerald-300/10 bg-emerald-400/[0.06]">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">How to contribute</p>
-              <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
-                Three things. Live as pending.
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70 sm:text-base">
-                No approval gate — your tag shows up in search right away so the archive grows with every photo.
-              </p>
-            </div>
-            <Link
-              href="/upload"
-              className="inline-flex shrink-0 items-center justify-center bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
-            >
-              Submit a tag
-            </Link>
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">How it works</p>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
+              Real tags. Real photos. No scraped listings.
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70 sm:text-base">
+              Each record is photographed in hand — brand label, care tag, RN or style number — then verified before it hits browse.
+            </p>
           </div>
 
           <ol className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
-              { step: "1", title: "Photograph the tag", body: "Clear, bright, readable — brand label, care tag, or style sticker." },
-              { step: "2", title: "Add brand + RN or style", body: "Those identifiers are what make Tagsheep searchable later." },
-              { step: "3", title: "Hit submit", body: "It goes live as pending. Save favorites while you browse others." },
+              { step: "1", title: "Photograph your tag", body: "Clear, bright, readable — your own clothes only." },
+              { step: "2", title: "Confirm identifiers", body: "Brand plus RN, CA, or style number from the label." },
+              { step: "3", title: "Search the archive", body: "Browse by brand, RN, or style when you need a match." },
             ].map((item) => (
               <li key={item.step} className="border-t border-white/15 pt-4">
                 <div className="text-xs uppercase tracking-[0.2em] text-emerald-200/70">Step {item.step}</div>

@@ -24,6 +24,7 @@ const ROUTES = [
   "/import/csv",
   "/import/paste",
   "/tools",
+  "/tools/reset",
   "/tools/rn-audit",
   "/tools/rn-audit/bulk-edit",
   "/tools/wanted",
@@ -66,11 +67,11 @@ test("capture APIs reject unauthenticated callers", async ({ request }) => {
   expect(upload.status()).toBe(401);
 });
 
-test("admin import APIs reject unauthenticated callers", async ({ request }) => {
+test("retired import APIs stay disabled", async ({ request }) => {
   const product = await request.get("/api/import?url=https%3A%2F%2Fexample.com");
-  expect(product.status()).toBe(401);
+  expect(product.status()).toBe(410);
   const image = await request.get("/api/import-image?url=https%3A%2F%2Fexample.com%2Fimage.jpg");
-  expect(image.status()).toBe(401);
+  expect(image.status()).toBe(410);
 });
 
 for (const route of ROUTES) {

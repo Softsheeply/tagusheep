@@ -5,11 +5,12 @@ import type { CaptureFields } from "@/lib/capture-policy";
 const schema = {
   type: "object",
   additionalProperties: false,
-  required: ["brand", "productName", "rn", "styleNumber", "size", "color", "category", "subCategory", "garmentType", "gender", "materials", "careText", "madeIn", "notes", "tags", "confidence", "brandConfidence", "detectedBrands", "detectedRns", "detectedStyleNumbers", "mainImageIndex"],
+  required: ["brand", "productName", "rn", "ca", "styleNumber", "size", "color", "category", "subCategory", "garmentType", "gender", "materials", "careText", "madeIn", "notes", "tags", "confidence", "brandConfidence", "detectedBrands", "detectedRns", "detectedStyleNumbers", "mainImageIndex"],
   properties: {
     brand: { type: ["string", "null"] },
     productName: { type: ["string", "null"] },
     rn: { type: ["string", "null"] },
+    ca: { type: ["string", "null"], description: "Canadian CA number if visible, digits only." },
     styleNumber: { type: ["string", "null"] },
     size: { type: ["string", "null"] },
     color: { type: ["string", "null"] },

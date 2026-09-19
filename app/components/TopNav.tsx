@@ -44,8 +44,7 @@ export default function TopNav() {
         {/* Desktop links */}
         <div className="hidden items-center gap-2 text-sm md:flex">
           <NavLink href="/tags">Browse</NavLink>
-          <NavLink href="/wanted">Top searches</NavLink>
-          <NavLink href="/upload">Submit a tag</NavLink>
+          {isAdmin && <NavLink href="/capture">Capture</NavLink>}
           {isAdmin && <NavLink href="/tools">Tools</NavLink>}
           {user && <NavLink href="/favorites">Favorites</NavLink>}
           {user && <NavLink href="/profile">Profile</NavLink>}
@@ -56,13 +55,23 @@ export default function TopNav() {
 
         {/* Mobile: primary CTA + menu */}
         <div className="flex items-center gap-1 md:hidden">
-          <Link
-            href="/upload"
-            className="rounded-lg bg-emerald-400/90 px-2.5 py-1.5 text-xs font-semibold text-black"
-            onClick={() => setMenuOpen(false)}
-          >
-            Submit
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/capture"
+              className="rounded-lg bg-emerald-400/90 px-2.5 py-1.5 text-xs font-semibold text-black"
+              onClick={() => setMenuOpen(false)}
+            >
+              Capture
+            </Link>
+          ) : (
+            <Link
+              href="/tags"
+              className="rounded-lg bg-emerald-400/90 px-2.5 py-1.5 text-xs font-semibold text-black"
+              onClick={() => setMenuOpen(false)}
+            >
+              Browse
+            </Link>
+          )}
           <div className="ml-0.5">
             <AuthPanel compact />
           </div>
@@ -89,8 +98,7 @@ export default function TopNav() {
         <div id="mobile-nav-menu" className="border-t border-white/10 px-3 pb-3 md:hidden">
           <div className="flex flex-col gap-1 pt-2 text-sm">
             <MobileNavLink href="/tags" onClick={() => setMenuOpen(false)}>Browse</MobileNavLink>
-            <MobileNavLink href="/wanted" onClick={() => setMenuOpen(false)}>Top searches</MobileNavLink>
-            <MobileNavLink href="/upload" onClick={() => setMenuOpen(false)}>Submit a tag</MobileNavLink>
+            {isAdmin && <MobileNavLink href="/capture" onClick={() => setMenuOpen(false)}>Capture</MobileNavLink>}
             {user && <MobileNavLink href="/favorites" onClick={() => setMenuOpen(false)}>Favorites</MobileNavLink>}
             {user && <MobileNavLink href="/profile" onClick={() => setMenuOpen(false)}>Profile</MobileNavLink>}
             {isAdmin && <MobileNavLink href="/tools" onClick={() => setMenuOpen(false)}>Tools</MobileNavLink>}
