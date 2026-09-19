@@ -147,8 +147,8 @@ export type CoreVerificationField = (typeof CORE_VERIFICATION_FIELDS)[number];
 export const CORE_VERIFICATION_FIELD_LABELS: Record<CoreVerificationField, string> = {
   brand: "Brand",
   productName: "Product name",
-  rn: "RN",
-  styleNumber: "Style number",
+  rn: "RN / CA",
+  styleNumber: "Style / SN",
   garmentType: "Garment type",
   size: "Size",
   materials: "Materials",

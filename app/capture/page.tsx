@@ -7,9 +7,8 @@ import { auth } from "@/lib/firebase";
 import { createOcrWorker, recognizeTagPhoto } from "@/lib/ocr";
 import { normalizeCaptureImage } from "@/lib/images";
 import type { CaptureFields, CaptureStopReason } from "@/lib/capture-policy";
-import { extractFreeCapture, type FreeOcrInput } from "@/lib/free-capture";
+import { extractFreeCapture, suggestPhotoRoles, type FreeOcrInput, type PhotoRole } from "@/lib/free-capture";
 
-type PhotoRole = "full garment" | "brand label" | "RN/style tag" | "materials/care tag" | "detail";
 type Photo = { id: string; file: File; previewUrl: string; role: PhotoRole };
 type Duplicate = { id: string; brand?: string; productName?: string; rn?: string; styleNumber?: string; imageUrl?: string; thumbnailUrl?: string; matchReason: string };
 type Success = { id: string; brand?: string; identifier?: string; thumbnailUrl?: string; updatedExisting?: boolean };
@@ -24,8 +23,8 @@ const STOP_LABELS: Record<CaptureStopReason, string> = {
   missing_brand: "Brand is missing.",
   low_brand_confidence: "Brand confidence is low—check it below.",
   conflicting_brands: "Multiple conflicting brands were detected.",
-  conflicting_identifiers: "Conflicting RN or style numbers were detected.",
-  missing_identifier_or_description: "Add an RN, style number, or useful product description.",
+  missing_identifier_or_description: "Add an RN/CA, style number, or useful product description.",
+  conflicting_identifiers: "Conflicting RN/CA or style numbers were detected.",
   duplicate: "A probable duplicate needs your decision.",
 };
 
@@ -118,12 +117,10 @@ function CaptureTool() {
 
       setMessage("Reading labels with OCR…");
       const worker = await createOcrWorker();
-      const ocrText: string[] = [];
       const freeOcrInputs: FreeOcrInput[] = [];
       try {
         for (let index = 0; index < normalized.length; index++) {
           const result = await recognizeTagPhoto(worker, normalized[index]);
-          ocrText.push(`${photos[index].role}: ${result.rawText}`);
           freeOcrInputs.push({ role: photos[index].role, ...result });
           setProgress(25 + Math.round(((index + 1) / normalized.length) * 20));
         }
@@ -131,13 +128,24 @@ function CaptureTool() {
         await worker.terminate();
       }
 
+      // Default phone order often puts a tag first; OCR-based roles fix free extraction
+      // and ensure the garment photo (not a tag) is what gets saved on the record.
+      const suggestedRoles = suggestPhotoRoles(freeOcrInputs);
+      const roleAdjusted = freeOcrInputs.map((input, index) => ({
+        ...input,
+        role: suggestedRoles[index] || input.role,
+      }));
+      setPhotos((current) =>
+        current.map((photo, index) => ({ ...photo, role: suggestedRoles[index] || photo.role }))
+      );
+
       setMessage(usePaidAi ? "Analyzing this garment with AI…" : "Extracting tag information for free…"); setProgress(50);
       const body = new FormData();
       normalized.forEach((file) => body.append("images", file));
-      ocrText.forEach((text) => body.append("ocrText", text));
+      roleAdjusted.forEach((input) => body.append("ocrText", `${input.role}: ${input.rawText}`));
       body.set("mode", usePaidAi ? "ai" : "free");
       body.set("websiteImageCount", String(photos.length));
-      if (!usePaidAi) body.set("freeExtracted", JSON.stringify(extractFreeCapture(freeOcrInputs)));
+      if (!usePaidAi) body.set("freeExtracted", JSON.stringify(extractFreeCapture(roleAdjusted)));
       const analyzed = await parseResponse(await fetch("/api/capture/analyze", { method: "POST", headers: await authHeaders(), body }));
       setFields(analyzed.extracted || EMPTY_FIELDS);
       setStopReasons(analyzed.stopReasons || []);
@@ -145,9 +153,20 @@ function CaptureTool() {
       setProgress(70);
 
       if (analyzed.instantUpload) {
-        await upload(recordFiles(normalized), { ...analyzed.extracted, mainImageIndex: 0 }, "create");
+        await upload(recordFiles(normalized, suggestedRoles), { ...analyzed.extracted, mainImageIndex: 0 }, "create");
       } else {
-        setPhase("review"); setMessage("Review the extracted information below."); setProgress(70);
+        const emptyFree =
+          !usePaidAi &&
+          !analyzed.extracted?.brand &&
+          !analyzed.extracted?.rn &&
+          !analyzed.extracted?.styleNumber;
+        setPhase("review");
+        setMessage(
+          emptyFree
+            ? "Free OCR could not read enough tag text. Check photo roles, retake closer label photos, or turn on paid AI."
+            : "Review the extracted information below."
+        );
+        setProgress(70);
       }
     } catch (error: unknown) {
       setPhase("error");
@@ -178,17 +197,18 @@ function CaptureTool() {
   async function uploadReviewed(action: "reviewed_create" | "create_separate" | "update_existing", existingId = "") {
     try {
       const files = normalizedFiles.length === photos.length ? normalizedFiles : await Promise.all(photos.map((photo) => normalizeCaptureImage(photo.file)));
-      await upload(recordFiles(files), { ...fields, mainImageIndex: 0 }, action, existingId);
+      await upload(recordFiles(files, photos.map((photo) => photo.role)), { ...fields, mainImageIndex: 0 }, action, existingId);
     } catch (error: unknown) {
       setPhase("error"); setMessage(error instanceof Error ? error.message : "Could not prepare the photos.");
     }
   }
 
-  function recordFiles(files: File[]) {
-    return files
-      .map((file, index) => ({ file, role: photos[index]?.role || "detail" as PhotoRole }))
+  function recordFiles(files: File[], roles?: PhotoRole[]) {
+    const selected = files
+      .map((file, index) => ({ file, role: roles?.[index] || photos[index]?.role || "detail" as PhotoRole }))
       .sort((left, right) => RECORD_ROLE_ORDER.indexOf(left.role) - RECORD_ROLE_ORDER.indexOf(right.role))
       .map((item) => item.file);
+    return selected.length ? selected : files.slice(0, 1);
   }
 
   function resetCapture() {
@@ -213,7 +233,7 @@ function CaptureTool() {
             <input type="checkbox" checked={usePaidAi} onChange={(event) => { setUsePaidAi(event.target.checked); localStorage.setItem("tagsheep:paid-ai-capture", String(event.target.checked)); }} />
             Use paid AI analysis
           </label>
-          <p className="max-w-xs text-xs text-white/45">{usePaidAi ? "AI reads the whole garment and labels. API charges apply." : "Free mode: on-device OCR reads printed tag text. No AI charge."}</p>
+          <p className="max-w-xs text-xs text-white/45">{usePaidAi ? "AI reads the whole garment and labels. API charges apply." : "Free mode: on-device OCR reads printed tag text only (no style guesses). No AI charge."}</p>
           <label className="flex items-center gap-2 text-sm text-white/65">
             <input type="checkbox" checked={autoNext} onChange={(event) => { setAutoNext(event.target.checked); localStorage.setItem("tagsheep:auto-next-capture", String(event.target.checked)); }} />
             Automatically start next capture
@@ -233,7 +253,7 @@ function CaptureTool() {
 
           {photos.length > 0 && (
             <div className="mt-5">
-              <p className="mb-3 text-xs text-white/55">Mark one shot <b className="text-white/70">full garment</b> — that becomes the browse photo. Tag and label shots are saved on the record too.</p>
+              <p className="mb-3 text-xs text-white/55">Best order: full garment, brand label, RN/style tag, care tag. The garment is the browse photo. Tag shots are saved on the record too. Roles auto-adjust after OCR if the order was off.</p>
               <div className="grid gap-3 sm:grid-cols-2">
               {photos.map((photo) => (
                 <div key={photo.id} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
@@ -309,7 +329,7 @@ function CaptureTool() {
 
 function CaptureForm({ fields, onChange }: { fields: CaptureFields; onChange: (key: keyof CaptureFields, value: string) => void }) {
   const entries: Array<[keyof CaptureFields, string, boolean]> = [
-    ["brand", "Brand", true], ["productName", "Searchable product title", true], ["rn", "RN", false], ["styleNumber", "Style number", false],
+    ["brand", "Brand", true], ["productName", "Searchable product title", true], ["rn", "RN / CA", false], ["styleNumber", "Style / SN", false],
     ["size", "Size", false], ["color", "Color", false], ["category", "Category", false], ["subCategory", "Sub-category", false],
     ["garmentType", "Garment type", false], ["gender", "Gender / fit", false], ["madeIn", "Made in", false], ["materials", "Materials", true],
     ["careText", "Care text", true], ["notes", "Visible design details", true], ["tags", "Tags, comma separated", false],
