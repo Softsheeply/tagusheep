@@ -18,9 +18,7 @@ const ROLES: PhotoRole[] = ["full garment", "brand label", "RN/style tag", "mate
 const DEFAULT_ROLES: PhotoRole[] = ["full garment", "brand label", "RN/style tag", "materials/care tag"];
 const MAX_REQUEST_BYTES = 3_800_000;
 
-function isWebsitePhoto(role: PhotoRole) {
-  return role === "full garment" || role === "detail";
-}
+const RECORD_ROLE_ORDER: PhotoRole[] = ["full garment", "detail", "brand label", "RN/style tag", "materials/care tag"];
 const STOP_LABELS: Record<CaptureStopReason, string> = {
   no_usable_image: "No usable image was found.",
   missing_brand: "Brand is missing.",
@@ -138,7 +136,7 @@ function CaptureTool() {
       normalized.forEach((file) => body.append("images", file));
       ocrText.forEach((text) => body.append("ocrText", text));
       body.set("mode", usePaidAi ? "ai" : "free");
-      body.set("websiteImageCount", String(photos.filter((photo) => isWebsitePhoto(photo.role)).length));
+      body.set("websiteImageCount", String(photos.length));
       if (!usePaidAi) body.set("freeExtracted", JSON.stringify(extractFreeCapture(freeOcrInputs)));
       const analyzed = await parseResponse(await fetch("/api/capture/analyze", { method: "POST", headers: await authHeaders(), body }));
       setFields(analyzed.extracted || EMPTY_FIELDS);
@@ -147,7 +145,7 @@ function CaptureTool() {
       setProgress(70);
 
       if (analyzed.instantUpload) {
-        await upload(websiteFiles(normalized), { ...analyzed.extracted, mainImageIndex: 0 }, "create");
+        await upload(recordFiles(normalized), { ...analyzed.extracted, mainImageIndex: 0 }, "create");
       } else {
         setPhase("review"); setMessage("Review the extracted information below."); setProgress(70);
       }
@@ -180,17 +178,16 @@ function CaptureTool() {
   async function uploadReviewed(action: "reviewed_create" | "create_separate" | "update_existing", existingId = "") {
     try {
       const files = normalizedFiles.length === photos.length ? normalizedFiles : await Promise.all(photos.map((photo) => normalizeCaptureImage(photo.file)));
-      await upload(websiteFiles(files), { ...fields, mainImageIndex: 0 }, action, existingId);
+      await upload(recordFiles(files), { ...fields, mainImageIndex: 0 }, action, existingId);
     } catch (error: unknown) {
       setPhase("error"); setMessage(error instanceof Error ? error.message : "Could not prepare the photos.");
     }
   }
 
-  function websiteFiles(files: File[]) {
+  function recordFiles(files: File[]) {
     return files
-      .map((file, index) => ({ file, role: photos[index]?.role }))
-      .filter((item) => item.role && isWebsitePhoto(item.role))
-      .sort((left, right) => Number(right.role === "full garment") - Number(left.role === "full garment"))
+      .map((file, index) => ({ file, role: photos[index]?.role || "detail" as PhotoRole }))
+      .sort((left, right) => RECORD_ROLE_ORDER.indexOf(left.role) - RECORD_ROLE_ORDER.indexOf(right.role))
       .map((item) => item.file);
   }
 
@@ -209,7 +206,7 @@ function CaptureTool() {
         <div>
           <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">Admin capture</p>
           <h1 className="mt-1 text-3xl font-semibold">Instant garment uploader</h1>
-          <p className="mt-2 max-w-xl text-sm text-white/65">Add every photo for one garment, then analyze and upload it as one reviewed TagSheep record.</p>
+          <p className="mt-2 max-w-xl text-sm text-white/65">Shoot the garment first — that’s what search shows. Then add tag/label photos so the record has identifiers after you click in.</p>
         </div>
         <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
           <label className="flex items-center gap-2 text-sm text-white/80">
@@ -236,7 +233,7 @@ function CaptureTool() {
 
           {photos.length > 0 && (
             <div className="mt-5">
-              <p className="mb-3 text-xs text-white/55">Full-garment and detail photos appear on the saved record. Label and tag photos are used only to read information.</p>
+              <p className="mb-3 text-xs text-white/55">Mark one shot <b className="text-white/70">full garment</b> — that becomes the browse photo. Tag and label shots are saved on the record too.</p>
               <div className="grid gap-3 sm:grid-cols-2">
               {photos.map((photo) => (
                 <div key={photo.id} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">

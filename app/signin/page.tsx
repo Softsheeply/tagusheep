@@ -145,7 +145,7 @@ function SignInPage() {
               <Link href={nextPath || "/favorites"} className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black">
                 {nextPath ? "Continue" : "Your favorites"}
               </Link>
-              <Link href="/upload" className="rounded-xl border border-white/15 px-4 py-2 text-white">Go to upload</Link>
+              <Link href="/tags" className="rounded-xl border border-white/15 px-4 py-2 text-white">Browse tags</Link>
               <Link href="/profile" className="rounded-xl border border-white/15 px-4 py-2 text-white">View profile</Link>
             </div>
           </div>

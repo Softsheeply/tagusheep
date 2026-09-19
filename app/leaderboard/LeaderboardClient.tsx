@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildContributorStats, getUnlockedBadges, type ContributorStats } from "@/lib/badges";
@@ -79,11 +78,7 @@ export default function LeaderboardClient() {
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">
-          No contributors yet.{" "}
-          <Link href="/upload" className="underline">
-            Be the first
-          </Link>
-          .
+          No contributors yet. The archive is being rebuilt from our own photos first.
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">

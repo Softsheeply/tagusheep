@@ -168,7 +168,7 @@ export default function HomePage() {
               The clothing tag database.
             </p>
             <p className="max-w-lg text-sm leading-snug text-white/75 sm:text-[0.95rem] sm:leading-6">
-              Look up garments by brand, RN, or style number — built from real tag photos, starting with our own closet.
+              Look up garments by brand, RN, or style number — see the piece first, then the tags that prove it.
             </p>
 
             <form onSubmit={onSearch} className="flex max-w-xl flex-col gap-2 pt-0.5 sm:flex-row sm:gap-2.5">
@@ -208,10 +208,10 @@ export default function HomePage() {
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-emerald-200/80">From the archive</p>
             <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-white sm:text-3xl">
-              Clothing, identified.
+              Find the piece. Then the proof.
             </h2>
             <p className="mt-1 max-w-2xl text-sm leading-5 text-white/65 sm:leading-6">
-              Every record starts with a tag photo. Scroll a few — this is the product.
+              Search an RN and the garment should jump out. Click in for tag close-ups and identifiers.
             </p>
           </div>
           <Link href="/tags" className="hidden shrink-0 text-sm text-white/55 underline underline-offset-4 hover:text-white sm:inline">
@@ -303,15 +303,15 @@ export default function HomePage() {
               Real tags. Real photos. No scraped listings.
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70 sm:text-base">
-              Each record is photographed in hand — brand label, care tag, RN or style number — then verified before it hits browse.
+              Search shows the garment. The record behind it holds the tag photos, RN, and style number.
             </p>
           </div>
 
           <ol className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
-              { step: "1", title: "Photograph your tag", body: "Clear, bright, readable — your own clothes only." },
-              { step: "2", title: "Confirm identifiers", body: "Brand plus RN, CA, or style number from the label." },
-              { step: "3", title: "Search the archive", body: "Browse by brand, RN, or style when you need a match." },
+              { step: "1", title: "Photograph the garment", body: "That’s the browse photo — the red tee people recognize." },
+              { step: "2", title: "Add the tags", body: "Brand label plus RN, CA, or style number. Saved on the record, not the search card." },
+              { step: "3", title: "Search and click in", body: "Match the piece, then open it for proof and identifiers." },
             ].map((item) => (
               <li key={item.step} className="border-t border-white/15 pt-4">
                 <div className="text-xs uppercase tracking-[0.2em] text-emerald-200/70">Step {item.step}</div>

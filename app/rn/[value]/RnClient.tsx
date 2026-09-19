@@ -127,10 +127,10 @@ export default function RnClient() {
         <div className="mt-8 space-y-4 text-center">
           <p className="text-white/60">No records for RN <b className="text-white">{rn}</b> yet.</p>
           <Link
-            href={`/upload?rn=${encodeURIComponent(rn)}`}
+            href="/tags"
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/90 px-5 py-3 font-semibold text-black transition hover:bg-emerald-300"
           >
-            Submit a tag with this RN
+            Browse other tags
           </Link>
         </div>
       ) : (

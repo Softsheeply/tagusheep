@@ -111,13 +111,12 @@ export default function ProfilePage() {
             <div className="flex items-end justify-between gap-3 flex-wrap">
               <div>
                 <h2 className="text-2xl font-semibold">Keep going</h2>
-                <p className="mt-2 text-sm text-white/65">The fastest way to level up is still the same: upload clear tag photos with style numbers and RN info.</p>
+                <p className="mt-2 text-sm text-white/65">Search the archive by brand, RN, or style number. Public submissions are paused while we rebuild from our own photos.</p>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
-              <Link href="/upload" className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black">Submit a tag</Link>
+              <Link href="/tags" className="rounded-xl bg-emerald-400/90 px-4 py-2 font-semibold text-black">Browse tags</Link>
               <Link href="/favorites" className="rounded-xl border border-white/15 px-4 py-2 text-white">Your favorites</Link>
-              <Link href="/tags" className="rounded-xl border border-white/15 px-4 py-2 text-white">Browse tags</Link>
             </div>
           </div>
         </>

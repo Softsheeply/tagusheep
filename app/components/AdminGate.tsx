@@ -71,7 +71,7 @@ export default function AdminGate({ title, description, children }: AdminGatePro
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/75">
           Please sign in first. Uploading is open to signed-in contributors, while these tools stay admin-only for now.
           <div className="mt-3">
-            <Link href="/upload" className="text-sm underline">Go to upload</Link>
+            <Link href="/signin" className="text-sm underline">Sign in</Link>
           </div>
         </div>
       </main>
@@ -89,7 +89,7 @@ export default function AdminGate({ title, description, children }: AdminGatePro
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/75">
           These tools are locked to admins for now while Tagsheep is still in controlled beta.
           <div className="mt-3">
-            <Link href="/upload" className="text-sm underline">Go to upload</Link>
+            <Link href="/signin" className="text-sm underline">Sign in</Link>
           </div>
         </div>
       </main>
