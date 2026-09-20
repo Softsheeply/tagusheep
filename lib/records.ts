@@ -56,6 +56,7 @@ export type TagRecord = {
   brand?: string | null;
   productName?: string | null;
   rn?: string | null;
+  ca?: string | null;
   styleNumber?: string | null;
   garmentType?: string | null;
   size?: string | null;
@@ -100,11 +101,16 @@ export function normalizeRn(value?: string | null) {
   return value?.replace(/\D+/g, "").slice(0, 7) || null;
 }
 
+export function normalizeCa(value?: string | null) {
+  return value?.replace(/\D+/g, "").slice(0, 5) || null;
+}
+
 export function buildSearchText(record: Partial<TagRecord>) {
   const parts = [
     record.brand,
     record.productName,
     record.rn,
+    record.ca,
     record.styleNumber,
     record.garmentType,
     record.size,
@@ -147,7 +153,7 @@ export type CoreVerificationField = (typeof CORE_VERIFICATION_FIELDS)[number];
 export const CORE_VERIFICATION_FIELD_LABELS: Record<CoreVerificationField, string> = {
   brand: "Brand",
   productName: "Product name",
-  rn: "RN / CA",
+  rn: "RN",
   styleNumber: "Style / SN",
   garmentType: "Garment type",
   size: "Size",
@@ -179,6 +185,7 @@ export function prepareRecord(record: Partial<TagRecord>): Partial<TagRecord> {
   const brand = normalizeBrand(record.brand);
   const styleNumber = normalizeStyleNumber(record.styleNumber);
   const rn = normalizeRn(record.rn);
+  const ca = normalizeCa(record.ca);
   const productName = safeTrim(record.productName, 200);
   const garmentType = safeTrim(record.garmentType, 120);
   const size = safeTrim(record.size, 60);
@@ -201,6 +208,7 @@ export function prepareRecord(record: Partial<TagRecord>): Partial<TagRecord> {
     ...record,
     brand,
     rn,
+    ca,
     styleNumber,
     productName,
     garmentType,

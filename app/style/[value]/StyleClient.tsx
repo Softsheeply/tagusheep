@@ -122,8 +122,8 @@ export default function StyleClient() {
             {docs.map((d) => (
               <div key={d.id} className="mb-4 break-inside-avoid overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                 <Link href={`/tag/${d.id}`} className="block">
-                  <div className="relative aspect-[4/5] bg-white overflow-hidden">
-                    <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="object-contain" />
+                  <div className="relative aspect-[4/5] overflow-hidden bg-black/20">
+                    <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="object-cover" />
                   </div>
                 </Link>
                 <div className="p-3 text-sm space-y-1">

@@ -154,7 +154,7 @@ function Card({ d }: { d: TagDoc }) {
       <Link href={`/tag/${d.id}`} className="block">
         <div className="relative aspect-[4/5] overflow-hidden">
           {d.thumbnailUrl || d.imageUrl ? (
-            <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="bg-white object-contain" />
+            <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="object-cover" />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 bg-white/[0.03] text-center p-3">
               <div className="text-xs text-white/30">No photo</div>

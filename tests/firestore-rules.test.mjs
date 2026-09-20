@@ -137,6 +137,12 @@ test("tags: the dataset importer's full payload shape is accepted", async () => 
   );
 });
 
+test("tags: a 5-digit ca is accepted as its own field", async () => {
+  await assertSucceeds(
+    addDoc(collection(ctxFor(OWNER_UID), "tags"), validTagPayload({ ca: "28629", rn: "94974" }))
+  );
+});
+
 test("tags: an 8-digit rn is rejected (importer must clamp to 7)", async () => {
   await assertFails(
     addDoc(collection(ctxFor(OWNER_UID), "tags"), validTagPayload({ rn: "12345678" }))

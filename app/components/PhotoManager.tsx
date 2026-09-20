@@ -46,9 +46,9 @@ export default function PhotoManager({
   return (
     <div className="space-y-4">
       {preview ? (
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white p-4">
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt={brand ?? "tag"} className="h-full w-full object-contain" />
+          <img src={preview} alt={brand ?? "tag"} className="max-h-[70vh] w-full object-contain" />
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-6 py-16 text-center">

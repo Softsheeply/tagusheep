@@ -9,9 +9,9 @@ export const IMAGE_POLICY = {
 } as const;
 
 const CAPTURE_IMAGE_POLICY = {
-  maxDimension: 1280,
-  quality: 0.68,
-  maxBytes: 380_000,
+  maxDimension: 900,
+  quality: 0.5,
+  maxBytes: 180_000,
 } as const;
 
 async function readExifOrientation(file: File): Promise<number | null> {
@@ -97,17 +97,46 @@ function applyCanvasOrientation(
   }
 }
 
+async function decodeBitmap(file: File): Promise<{ width: number; height: number; draw: (ctx: CanvasRenderingContext2D, dw: number, dh: number) => void; close: () => void }> {
+  try {
+    const bmp = await createImageBitmap(file);
+    return {
+      width: bmp.width,
+      height: bmp.height,
+      draw: (ctx, dw, dh) => ctx.drawImage(bmp, 0, 0, dw, dh),
+      close: () => bmp.close(),
+    };
+  } catch {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Could not decode image"));
+      image.src = url;
+    });
+    return {
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      draw: (ctx, dw, dh) => ctx.drawImage(img, 0, 0, dw, dh),
+      close: () => URL.revokeObjectURL(url),
+    };
+  }
+}
+
 async function normalizeImage(file: File, maxDimension: number, quality: number): Promise<File> {
   try {
     const orientation = await readExifOrientation(file);
-    const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, maxDimension / Math.max(bmp.width, bmp.height));
-    const srcW = Math.round(bmp.width * scale);
-    const srcH = Math.round(bmp.height * scale);
+    const decoded = await decodeBitmap(file);
+    const scale = Math.min(1, maxDimension / Math.max(decoded.width, decoded.height));
+    const srcW = Math.round(decoded.width * scale);
+    const srcH = Math.round(decoded.height * scale);
 
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
+    if (!ctx) {
+      decoded.close();
+      return file;
+    }
 
     if (orientation && orientation >= 5 && orientation <= 8) {
       canvas.width = srcH;
@@ -118,12 +147,13 @@ async function normalizeImage(file: File, maxDimension: number, quality: number)
     }
 
     const { dw, dh } = applyCanvasOrientation(ctx, srcW, srcH, orientation || 1);
-    ctx.drawImage(bmp, 0, 0, dw, dh);
+    decoded.draw(ctx, dw, dh);
+    decoded.close();
 
     const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, IMAGE_POLICY.mimeType, quality));
     if (!blob) return file;
 
-    const name = file.name.replace(/\.(png|jpe?g|gif|webp)$/i, "") + ".webp";
+    const name = file.name.replace(/\.(png|jpe?g|gif|webp|heic|heif)$/i, "") + ".webp";
     return new File([blob], name, { type: IMAGE_POLICY.mimeType });
   } catch {
     return file;
@@ -135,14 +165,40 @@ export async function normalizeUploadedImage(file: File): Promise<File> {
 }
 
 export async function normalizeCaptureImage(file: File): Promise<File> {
-  let normalized = await normalizeImage(file, CAPTURE_IMAGE_POLICY.maxDimension, CAPTURE_IMAGE_POLICY.quality);
-  if (normalized.size > CAPTURE_IMAGE_POLICY.maxBytes) {
-    normalized = await normalizeImage(normalized, 1080, 0.58);
-  }
-  if (normalized.size > CAPTURE_IMAGE_POLICY.maxBytes) {
-    normalized = await normalizeImage(normalized, 900, 0.5);
+  const steps: Array<[number, number]> = [
+    [CAPTURE_IMAGE_POLICY.maxDimension, CAPTURE_IMAGE_POLICY.quality],
+    [800, 0.44],
+    [720, 0.4],
+    [640, 0.36],
+    [540, 0.32],
+    [480, 0.28],
+  ];
+  let normalized = file;
+  for (const [dimension, quality] of steps) {
+    normalized = await normalizeImage(normalized, dimension, quality);
+    if (normalized.size <= CAPTURE_IMAGE_POLICY.maxBytes) return normalized;
   }
   return normalized;
+}
+
+export async function fitCaptureImages(files: File[], maxTotalBytes: number): Promise<File[]> {
+  const prepared: File[] = [];
+  for (const file of files) {
+    prepared.push(await normalizeCaptureImage(file));
+  }
+
+  const extraSteps: Array<[number, number]> = [
+    [420, 0.26],
+    [360, 0.22],
+  ];
+  for (const [dimension, quality] of extraSteps) {
+    const total = prepared.reduce((sum, file) => sum + file.size, 0);
+    if (total <= maxTotalBytes) return prepared;
+    for (let index = 0; index < prepared.length; index++) {
+      prepared[index] = await normalizeImage(prepared[index], dimension, quality);
+    }
+  }
+  return prepared;
 }
 
 export async function normalizeThumbnailImage(file: File): Promise<File> {
