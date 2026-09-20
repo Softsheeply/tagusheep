@@ -52,7 +52,7 @@ function parseSearchIntent(input: string): SearchIntent {
   const normalizedRn = raw.replace(/\D+/g, "") || null;
   const normalizedStyle = normalizeStyleNumber(raw);
   const words = normalizedText.split(/\s+/).filter(Boolean);
-  const brandWords = words.filter((word) => !/^rn$/i.test(word) && !/^style$/i.test(word) && !/^#/.test(word) && !/^\d+$/.test(word) && !/^rn\d+$/i.test(word));
+  const brandWords = words.filter((word) => !/^(rn|ca|cn|style)$/i.test(word) && !/^#/.test(word) && !/^\d+$/.test(word) && !/^rn\d+$/i.test(word) && !/^ca\d+$/i.test(word));
   const styleTokens = (normalizedStyle || "").split(/[^A-Z0-9]+/).filter(Boolean);
   const exactIdentifierQuery = !!raw && ((normalizedRn?.length ?? 0) >= 3 || styleTokens.some((token) => /\d/.test(token)));
 
@@ -78,7 +78,8 @@ function rankDoc(doc: TagDoc, intent: SearchIntent) {
   const tags = (doc.tags || []).join(" ").toLowerCase();
   const normalizedDocStyle = normalizeStyleNumber(doc.styleNumber);
   const normalizedDocRn = (doc.rn || "").replace(/\D+/g, "") || null;
-  const haystack = [brand, productName, normalizedDocRn || "", normalizedDocStyle || "", garmentType, category, tags, notes].join(" ");
+  const normalizedDocCa = (doc.ca || "").replace(/\D+/g, "") || null;
+  const haystack = [brand, productName, normalizedDocRn || "", normalizedDocCa || "", normalizedDocStyle || "", garmentType, category, tags, notes].join(" ");
 
   let score = 0;
 
@@ -86,12 +87,17 @@ function rankDoc(doc: TagDoc, intent: SearchIntent) {
 
   if (intent.normalizedStyle && normalizedDocStyle === intent.normalizedStyle) score += 1000;
   if (intent.normalizedRn && normalizedDocRn === intent.normalizedRn) score += 950;
+  if (intent.normalizedRn && normalizedDocCa === intent.normalizedRn) score += 950;
 
   if (intent.brandWords.length && intent.normalizedStyle && normalizedDocStyle === intent.normalizedStyle && brandWordMatches.length > 0) {
     score += 1200 + brandWordMatches.length * 90;
   }
 
   if (intent.brandWords.length && intent.normalizedRn && normalizedDocRn === intent.normalizedRn && brandWordMatches.length > 0) {
+    score += 1150 + brandWordMatches.length * 90;
+  }
+
+  if (intent.brandWords.length && intent.normalizedRn && normalizedDocCa === intent.normalizedRn && brandWordMatches.length > 0) {
     score += 1150 + brandWordMatches.length * 90;
   }
 
@@ -147,6 +153,7 @@ function TagsPageInner() {
   const [admin, setAdmin] = useState(false);
   const [exactStyleHits, setExactStyleHits] = useState<TagDoc[]>([]);
   const [exactRnHits, setExactRnHits] = useState<TagDoc[]>([]);
+  const [exactCaHits, setExactCaHits] = useState<TagDoc[]>([]);
   const [lookupLoading, setLookupLoading] = useState(false);
   const me = auth.currentUser?.uid ?? null;
 
@@ -213,18 +220,22 @@ function TagsPageInner() {
       if (!searchIntent.exactIdentifierQuery) {
         setExactStyleHits([]);
         setExactRnHits([]);
+        setExactCaHits([]);
         setLookupLoading(false);
         return;
       }
 
       setLookupLoading(true);
       try {
-        const [styleSnap, rnSnap] = await Promise.all([
+        const [styleSnap, rnSnap, caSnap] = await Promise.all([
           searchIntent.normalizedStyle
             ? getDocs(query(collection(db, "tags"), where("styleNumber", "==", searchIntent.normalizedStyle), orderBy("createdAt", "desc"), limit(24)))
             : Promise.resolve(null),
           searchIntent.normalizedRn
             ? getDocs(query(collection(db, "tags"), where("rn", "==", searchIntent.normalizedRn), orderBy("createdAt", "desc"), limit(24)))
+            : Promise.resolve(null),
+          searchIntent.normalizedRn
+            ? getDocs(query(collection(db, "tags"), where("ca", "==", searchIntent.normalizedRn), limit(24)))
             : Promise.resolve(null),
         ]);
 
@@ -232,10 +243,12 @@ function TagsPageInner() {
 
         setExactStyleHits(styleSnap ? styleSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })) : []);
         setExactRnHits(rnSnap ? rnSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })) : []);
+        setExactCaHits(caSnap ? caSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TagDoc, "id">) })) : []);
       } catch {
         if (!cancelled) {
           setExactStyleHits([]);
           setExactRnHits([]);
+          setExactCaHits([]);
         }
       } finally {
         if (!cancelled) setLookupLoading(false);
@@ -257,6 +270,7 @@ function TagsPageInner() {
         d.brand ?? "",
         d.productName ?? "",
         d.rn ?? "",
+        d.ca ?? "",
         d.styleNumber ?? "",
         d.garmentType ?? "",
         d.size ?? "",
@@ -273,9 +287,11 @@ function TagsPageInner() {
 
       const normalizedDocStyle = normalizeStyleNumber(d.styleNumber) || "";
       const normalizedDocRn = (d.rn || "").replace(/\D+/g, "");
+      const normalizedDocCa = (d.ca || "").replace(/\D+/g, "");
       const exactStyleMatch = !!searchIntent.normalizedStyle && normalizedDocStyle === searchIntent.normalizedStyle;
       const exactRnMatch = !!searchIntent.normalizedRn && normalizedDocRn === searchIntent.normalizedRn;
-      const matchText = t ? haystack.includes(t) || exactStyleMatch || exactRnMatch : true;
+      const exactCaMatch = !!searchIntent.normalizedRn && normalizedDocCa === searchIntent.normalizedRn;
+      const matchText = t ? haystack.includes(t) || exactStyleMatch || exactRnMatch || exactCaMatch : true;
       const matchRN = onlyWithRN ? !!d.rn && d.rn.trim().length > 0 : true;
       const matchStyle = onlyWithStyle ? !!d.styleNumber && d.styleNumber.trim().length > 0 : true;
       const matchVerified = verifiedOnly ? d.verificationStatus === "verified" || d.verificationStatus === "reviewed" : true;
@@ -321,10 +337,21 @@ function TagsPageInner() {
     return Array.from(map.values()).sort((a, b) => rankDoc(b, searchIntent) - rankDoc(a, searchIntent));
   }, [exactRnHits, filtered, searchIntent]);
 
-  const highlightedIds = useMemo(() => new Set([...exactStyleMatches, ...exactRnMatches].map((d) => d.id)), [exactStyleMatches, exactRnMatches]);
+  const exactCaMatches = useMemo(() => {
+    const map = new Map<string, TagDoc>();
+    for (const d of exactCaHits) map.set(d.id, d);
+    for (const d of filtered) {
+      if (searchIntent.normalizedRn && (d.ca || "").replace(/\D+/g, "") === searchIntent.normalizedRn) {
+        map.set(d.id, d);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => rankDoc(b, searchIntent) - rankDoc(a, searchIntent));
+  }, [exactCaHits, filtered, searchIntent]);
+
+  const highlightedIds = useMemo(() => new Set([...exactStyleMatches, ...exactRnMatches, ...exactCaMatches].map((d) => d.id)), [exactStyleMatches, exactRnMatches, exactCaMatches]);
   const generalResults = useMemo(() => filtered.filter((d) => !highlightedIds.has(d.id)), [filtered, highlightedIds]);
 
-  const hasNoResults = exactStyleMatches.length === 0 && exactRnMatches.length === 0 && generalResults.length === 0;
+  const hasNoResults = exactStyleMatches.length === 0 && exactRnMatches.length === 0 && exactCaMatches.length === 0 && generalResults.length === 0;
 
   // Signed-in searches feed the public global Top 10. Debouncing avoids
   // counting every intermediate keystroke while someone is still typing.
@@ -381,13 +408,13 @@ function TagsPageInner() {
       </div>
 
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.2)] space-y-4">
-        <input type="search" aria-label="Search tags" className="w-full rounded-xl border border-white/12 bg-[#09111f] p-3 text-white placeholder:text-white/40 outline-none transition focus:border-emerald-300/60" placeholder="Search brand, product name, RN, style number, category, year, source..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" aria-label="Search tags" className="w-full rounded-xl border border-white/12 bg-[#09111f] p-3 text-white placeholder:text-white/40 outline-none transition focus:border-emerald-300/60" placeholder="Search brand, product name, RN, CA, style number, category, year, source..." value={q} onChange={(e) => setQ(e.target.value)} />
 
         {searchIntent.exactIdentifierQuery && (
           <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/5 px-4 py-3 text-sm text-emerald-100">
             <div className="font-medium">Identifier-first lookup is active</div>
             <div className="mt-1 text-emerald-100/75">
-              Exact style number and RN matches are fetched directly from the database and shown first before broader text matches.
+              Exact style number, RN, and CA matches are fetched directly from the database and shown first before broader text matches.
             </div>
             {lookupLoading && <div className="mt-2 text-xs text-emerald-100/65">Checking exact identifier matches…</div>}
           </div>
@@ -479,6 +506,10 @@ function TagsPageInner() {
 
           {exactRnMatches.length > 0 && (
             <ResultsSection title={`Exact RN matches${searchIntent.normalizedRn ? `: ${searchIntent.normalizedRn}` : ""}`} docs={exactRnMatches.filter((d) => !exactStyleMatches.some((styleDoc) => styleDoc.id === d.id))} admin={admin} me={me} busyId={busyId} moveToTrash={moveToTrash} />
+          )}
+
+          {exactCaMatches.length > 0 && (
+            <ResultsSection title={`Exact CA matches${searchIntent.normalizedRn ? `: ${searchIntent.normalizedRn}` : ""}`} docs={exactCaMatches.filter((d) => !exactStyleMatches.some((styleDoc) => styleDoc.id === d.id) && !exactRnMatches.some((rnDoc) => rnDoc.id === d.id))} admin={admin} me={me} busyId={busyId} moveToTrash={moveToTrash} />
           )}
 
           {generalResults.length > 0 && (
