@@ -20,6 +20,14 @@
       "collectionGroup": "tags",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "ca", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tags",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "styleNumber", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
