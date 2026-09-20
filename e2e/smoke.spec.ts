@@ -24,7 +24,6 @@ const ROUTES = [
   "/import/csv",
   "/import/paste",
   "/tools",
-  "/tools/reset",
   "/tools/rn-audit",
   "/tools/rn-audit/bulk-edit",
   "/tools/wanted",

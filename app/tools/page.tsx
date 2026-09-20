@@ -28,12 +28,7 @@ export default function ToolsHome() {
 
           <Link href="/export" className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-emerald-300/40">
             <div className="font-semibold">Export backup</div>
-            <p className="mt-2 text-sm text-white/70">Download JSON/CSV before any reset.</p>
-          </Link>
-
-          <Link href="/tools/reset" className="rounded-2xl border border-rose-300/30 bg-rose-400/10 p-4 transition hover:border-rose-200/50">
-            <div className="font-semibold text-rose-100">Reset archive</div>
-            <p className="mt-2 text-sm text-rose-50/80">Clear all tag records and start fresh with your closet.</p>
+            <p className="mt-2 text-sm text-white/70">Download JSON/CSV of the archive.</p>
           </Link>
 
           <Link href="/tools/rn-audit" className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-emerald-300/40">
