@@ -5,7 +5,7 @@ import type { CaptureFields } from "@/lib/capture-policy";
 const schema = {
   type: "object",
   additionalProperties: false,
-  required: ["brand", "productName", "rn", "ca", "styleNumber", "size", "color", "category", "subCategory", "garmentType", "gender", "materials", "careText", "madeIn", "notes", "tags", "confidence", "brandConfidence", "detectedBrands", "detectedRns", "detectedStyleNumbers", "mainImageIndex"],
+  required: ["brand", "productName", "rn", "ca", "styleNumber", "size", "color", "category", "subCategory", "garmentType", "gender", "materials", "careText", "madeIn", "notes", "tags", "confidence", "brandConfidence", "detectedBrands", "detectedRns", "detectedCas", "detectedStyleNumbers", "mainImageIndex"],
   properties: {
     brand: { type: ["string", "null"] },
     productName: { type: ["string", "null"] },
@@ -26,7 +26,8 @@ const schema = {
     confidence: { type: "number", minimum: 0, maximum: 1 },
     brandConfidence: { type: "number", minimum: 0, maximum: 1 },
     detectedBrands: { type: "array", items: { type: "string" } },
-    detectedRns: { type: "array", items: { type: "string" } },
+    detectedRns: { type: "array", items: { type: "string" }, description: "Every RN value visible. Do not put CA numbers here." },
+    detectedCas: { type: "array", items: { type: "string" }, description: "Every CA value visible. Do not put RN numbers here." },
     detectedStyleNumbers: { type: "array", items: { type: "string" } },
     mainImageIndex: { type: ["integer", "null"], minimum: 0 },
   },
@@ -56,7 +57,7 @@ export async function analyzeGarmentImages(files: File[], ocrText: string[]): Pr
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({
       model: process.env.OPENAI_CAPTURE_MODEL?.trim() || "gpt-5-mini",
-      instructions: "You extract conservative clothing records for TagSheep. Treat every image as one garment. Use visible evidence and supplied OCR only. Never guess or invent a missing field. Return null for unsupported fields. Preserve identifiers exactly except harmless whitespace. Maker registration numbers: US labels use RN (e.g. RN 66170) and Canadian labels use CA (e.g. CA 04025). Put RN or CA digits into rn (prefer RN when both appear) and list every RN/CA value in detectedRns. Style numbers may be labeled Style, Style No, SN, or S/N — put those in styleNumber / detectedStyleNumbers. Never put a CA or RN value into styleNumber. List every conflicting brand, RN/CA, or style value detected. Pick the full-garment photo as mainImageIndex when one exists; otherwise choose the clearest useful photo. productName must be a concise searchable garment title, not marketing copy. notes contains only visible design details.",
+      instructions: "You extract conservative clothing records for TagSheep. Treat every image as one garment. Use visible evidence and supplied OCR only. Never guess or invent a missing field. Return null for unsupported fields. Preserve identifiers exactly except harmless whitespace. Maker registration numbers: US labels use RN (e.g. RN 66170) and Canadian labels use CA (e.g. CA 04025). Put RN digits only in rn and detectedRns. Put CA digits only in ca and detectedCas. A tag with both RN and CA is normal — keep both, never treat that as a conflict. Style numbers may be labeled Style, Style No, SN, or S/N — put those in styleNumber / detectedStyleNumbers. Never put a CA or RN value into styleNumber. List conflicting values only when two different RNs, two different CAs, or two different style numbers appear. Pick the full-garment photo as mainImageIndex when one exists; otherwise choose the clearest useful photo. productName must be a concise searchable garment title, not marketing copy. notes contains only visible design details.",
       input: [{
         role: "user",
         content: [

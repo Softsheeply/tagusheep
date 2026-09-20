@@ -48,7 +48,7 @@ test("suggestPhotoRoles prefers garment photo with little text as full garment",
   assert.equal(roles[2], "RN/style tag");
 });
 
-test("free OCR mode captures CA as rn and keeps SN out of rn", () => {
+test("free OCR mode captures CA separately from RN", () => {
   const result = extractFreeCapture([
     { role: "brand label", rawText: "ROOTS" },
     {
@@ -56,10 +56,22 @@ test("free OCR mode captures CA as rn and keeps SN out of rn", () => {
       rawText: "CA 04025\nSN RT-77821\nMADE IN CANADA",
     },
   ]);
-  assert.equal(result.rn, "04025");
+  assert.equal(result.rn, null);
+  assert.equal(result.ca, "04025");
   assert.equal(result.styleNumber, "RT-77821");
   assert.ok(!(result.styleNumber || "").toUpperCase().includes("CA"));
-  assert.deepEqual(result.detectedRns, ["04025"]);
+  assert.deepEqual(result.detectedCas, ["04025"]);
+});
+
+test("free OCR mode keeps both RN and CA when a tag has both", () => {
+  const result = extractFreeCapture([
+    { role: "brand label", rawText: "STUSSY" },
+    { role: "materials/care tag", rawText: "RN 94974 CA 28629\n100% COTTON" },
+  ]);
+  assert.equal(result.rn, "94974");
+  assert.equal(result.ca, "28629");
+  assert.deepEqual(result.detectedRns, ["94974"]);
+  assert.deepEqual(result.detectedCas, ["28629"]);
 });
 
 test("free OCR mode does not treat STYLE CA ##### as a style number", () => {
@@ -67,7 +79,8 @@ test("free OCR mode does not treat STYLE CA ##### as a style number", () => {
     { role: "brand label", rawText: "ARITZIA" },
     { role: "RN/style tag", rawText: "STYLE\nCA 12345" },
   ]);
-  assert.equal(result.rn, "12345");
+  assert.equal(result.rn, null);
+  assert.equal(result.ca, "12345");
   assert.equal(result.styleNumber, null);
 });
 

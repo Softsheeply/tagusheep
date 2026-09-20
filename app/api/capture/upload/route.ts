@@ -18,13 +18,15 @@ function cleanObject(value: Record<string, unknown>) {
 }
 
 const TAG_RECORD_KEYS = [
-  "brand", "productName", "rn", "styleNumber", "garmentType", "size", "availableSizes", "tags", "category", "subCategory", "gender", "year", "season",
+  "brand", "productName", "rn", "ca", "styleNumber", "garmentType", "size", "availableSizes", "tags", "category", "subCategory", "gender", "year", "season",
   "madeIn", "materials", "careText", "color", "notes", "imageUrl", "thumbnailUrl", "extraImageUrls", "sourceUrl", "sourceName", "sourceType",
   "confidence", "verificationStatus", "searchText", "storagePath", "createdBy", "importedAt",
 ] as const;
 
 function tagRecordPayload(value: Partial<TagRecord>) {
-  return cleanObject(Object.fromEntries(TAG_RECORD_KEYS.map((key) => [key, value[key]])));
+  const payload = cleanObject(Object.fromEntries(TAG_RECORD_KEYS.map((key) => [key, value[key]])));
+  if (!payload.ca) delete payload.ca;
+  return payload;
 }
 
 export async function POST(request: Request) {
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
       brandConfidence: 1,
       detectedBrands: extracted.brand ? [extracted.brand] : [],
       detectedRns: extracted.rn ? [extracted.rn] : [],
+      detectedCas: extracted.ca ? [extracted.ca] : [],
       detectedStyleNumbers: extracted.styleNumber ? [extracted.styleNumber] : [],
     } : extracted;
     const stopReasons = evaluateCapture(reviewedFields, { usableImageCount: files.length, duplicateCount: action === "create_separate" || action === "update_existing" ? 0 : duplicates.length });
@@ -97,8 +100,8 @@ export async function POST(request: Request) {
           delete update.id;
           delete update.createdAt;
           await updateTagDocument(existingId, tagRecordPayload(update), user.idToken);
-          await syncRegistryFromCapture({ rn: merged.rn, ca: extracted.ca, brand: merged.brand }, user.idToken);
-          return { id: existingId, brand: merged.brand, identifier: merged.styleNumber || merged.rn || merged.productName, thumbnailUrl: merged.thumbnailUrl || merged.imageUrl, updatedExisting: true };
+          await syncRegistryFromCapture({ rn: merged.rn, ca: merged.ca, brand: merged.brand }, user.idToken);
+          return { id: existingId, brand: merged.brand, identifier: merged.styleNumber || merged.rn || merged.ca || merged.productName, thumbnailUrl: merged.thumbnailUrl || merged.imageUrl, updatedExisting: true };
         }
 
         const prepared = prepareRecord({
@@ -113,8 +116,8 @@ export async function POST(request: Request) {
           importedAt: now,
         });
         const id = await createTagDocument(tagRecordPayload(prepared), user.idToken);
-        await syncRegistryFromCapture({ rn: prepared.rn, ca: extracted.ca, brand: prepared.brand }, user.idToken);
-        return { id, brand: prepared.brand, identifier: prepared.styleNumber || prepared.rn || prepared.productName, thumbnailUrl: prepared.thumbnailUrl || prepared.imageUrl };
+        await syncRegistryFromCapture({ rn: prepared.rn, ca: prepared.ca, brand: prepared.brand }, user.idToken);
+        return { id, brand: prepared.brand, identifier: prepared.styleNumber || prepared.rn || prepared.ca || prepared.productName, thumbnailUrl: prepared.thumbnailUrl || prepared.imageUrl };
       },
     });
     return NextResponse.json(result);

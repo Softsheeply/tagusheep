@@ -4,6 +4,7 @@ import {
   firstMatch,
   extractStyleNumber,
   extractRn,
+  extractCa,
   extractMakerRegistrationNumbers,
   isMakerRegistrationNumber,
   makerIdKind,
@@ -19,6 +20,7 @@ import {
 export {
   extractStyleNumber,
   extractRn,
+  extractCa,
   extractMakerRegistrationNumbers,
   isMakerRegistrationNumber,
   makerIdKind,
@@ -258,6 +260,7 @@ export function extractRecordFromHtml(url: string, html: string): Partial<TagRec
     productNode?.sku ||
     extractStyleNumber(`${description || ""} ${bodyText} ${url}`);
   const rn = extractRn(`${description || ""} ${bodyText}`);
+  const ca = extractCa(`${description || ""} ${bodyText}`);
   const madeIn = embedded.madeIn || extractMadeIn(`${description || ""} ${bodyText}`);
   const year = embedded.year || extractYear(`${title || ""} ${description || ""} ${bodyText}`);
   // extractCategory actually returns a garment-type word (e.g. "hoodie",
@@ -275,6 +278,7 @@ export function extractRecordFromHtml(url: string, html: string): Partial<TagRec
     productName: title || null,
     styleNumber: styleNumber || null,
     rn: rn || null,
+    ca: ca || null,
     garmentType: garmentTypeGuess || null,
     category: category || null,
     madeIn: madeIn || null,

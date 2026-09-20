@@ -8,7 +8,7 @@ import SaveButton from "@/app/components/SaveButton";
 import PhotoManager from "@/app/components/PhotoManager";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
-import { buildSearchText, CATEGORY_OPTIONS, getVerificationPercent, normalizeBrand, normalizeRn, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
+import { buildSearchText, CATEGORY_OPTIONS, getVerificationPercent, normalizeBrand, normalizeCa, normalizeRn, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
 import { safeHostnameFromUrl } from "@/lib/validation";
 import { IMAGE_POLICY, normalizeUploadedImage } from "@/lib/images";
 import { uploadImageObject } from "@/lib/object-storage";
@@ -17,6 +17,7 @@ type TagDoc = {
   brand?: string | null;
   productName?: string | null;
   rn?: string | null;
+  ca?: string | null;
   styleNumber?: string | null;
   garmentType?: string | null;
   size?: string | null;
@@ -60,6 +61,7 @@ export default function TagDetailClient() {
   const [brand, setBrand] = useState("");
   const [productName, setProductName] = useState("");
   const [rn, setRn] = useState("");
+  const [ca, setCa] = useState("");
   const [styleNumber, setStyleNumber] = useState("");
   const [garmentType, setGarmentType] = useState("");
   const [tags, setTags] = useState("");
@@ -103,6 +105,7 @@ export default function TagDetailClient() {
       setBrand(data.brand ?? "");
       setProductName(data.productName ?? "");
       setRn(data.rn ?? "");
+      setCa(data.ca ?? "");
       setStyleNumber(data.styleNumber ?? "");
       setGarmentType(data.garmentType ?? "");
       setTags((data.tags || []).join(", "));
@@ -354,6 +357,7 @@ export default function TagDetailClient() {
       const cleanBrand = normalizeBrand(brand);
       const cleanStyleNumber = normalizeStyleNumber(styleNumber);
       const cleanRn = normalizeRn(rn);
+      const cleanCa = normalizeCa(ca);
       const cleanProductName = productName.trim() || null;
       const cleanGarmentType = garmentType.trim() || null;
       const cleanTags = tags.split(",").map((v) => v.trim()).filter(Boolean).slice(0, 25);
@@ -379,6 +383,7 @@ export default function TagDetailClient() {
           brand: cleanBrand,
           productName: cleanProductName,
           rn: cleanRn,
+          ca: cleanCa,
           styleNumber: cleanStyleNumber,
           garmentType: cleanGarmentType,
           size: cleanSize,
@@ -399,6 +404,7 @@ export default function TagDetailClient() {
       if (cleanBrand) payload.brand = cleanBrand;
       if (cleanProductName) payload.productName = cleanProductName;
       if (cleanRn) payload.rn = cleanRn;
+      if (cleanCa) payload.ca = cleanCa;
       if (cleanStyleNumber) payload.styleNumber = cleanStyleNumber;
       if (cleanGarmentType) payload.garmentType = cleanGarmentType;
       if (cleanSize) payload.size = cleanSize;
@@ -524,7 +530,7 @@ export default function TagDetailClient() {
               )}
             </div>
 
-            {(tag.rn || tag.styleNumber) && (
+            {(tag.rn || tag.ca || tag.styleNumber) && (
               <div className="flex flex-wrap gap-3">
                 {tag.rn && (
                   <Link href={`/rn/${tag.rn}`} className="group rounded-xl border border-emerald-300/25 bg-emerald-400/8 px-4 py-2.5 transition hover:border-emerald-300/50 hover:bg-emerald-400/12">
@@ -534,6 +540,12 @@ export default function TagDetailClient() {
                       <div className="mt-1 text-[10px] text-emerald-300/50">Registered circa {estimateRnYear(tag.rn)}</div>
                     )}
                   </Link>
+                )}
+                {tag.ca && (
+                  <div className="rounded-xl border border-teal-300/25 bg-teal-400/8 px-4 py-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-teal-300/60">CA Number</div>
+                    <div className="mt-0.5 text-xl font-semibold text-teal-200">{tag.ca}</div>
+                  </div>
                 )}
                 {tag.styleNumber && (
                   <Link href={`/style/${encodeURIComponent(tag.styleNumber)}`} className="group rounded-xl border border-sky-300/25 bg-sky-400/8 px-4 py-2.5 transition hover:border-sky-300/50 hover:bg-sky-400/12">
@@ -606,6 +618,7 @@ export default function TagDetailClient() {
           )}
           <Field label="Product name" value={productName} onChange={setProductName} />
           <Field label="RN" value={rn} onChange={handleRnChange} />
+          <Field label="CA" value={ca} onChange={(value) => setCa(value.replace(/\D+/g, "").slice(0, 5))} />
           {rnWarning && <p className="text-xs text-amber-300">{rnWarning}</p>}
           {isAdmin && rn.trim() && (
             <div className="flex items-center gap-2">
@@ -687,7 +700,7 @@ export default function TagDetailClient() {
               <Link key={s.id} href={`/tag/${s.id}`} className="group rounded-2xl border border-white/10 bg-white/5 overflow-hidden transition hover:border-white/25">
                 <div className="relative aspect-[4/5] overflow-hidden">
                   {s.thumbnailUrl || s.imageUrl ? (
-                    <SmartImage src={s.thumbnailUrl || s.imageUrl} alt={s.brand ?? "tag"} fill sizes="(min-width: 1024px) 16vw, 33vw" className="bg-white object-contain" />
+                    <SmartImage src={s.thumbnailUrl || s.imageUrl} alt={s.brand ?? "tag"} fill sizes="(min-width: 1024px) 16vw, 33vw" className="object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center bg-white/[0.03] text-xs text-white/25">No photo</div>
                   )}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import AdminGate from "@/app/components/AdminGate";
 import { auth } from "@/lib/firebase";
 import { createOcrWorker, recognizeTagPhoto } from "@/lib/ocr";
-import { normalizeCaptureImage } from "@/lib/images";
+import { fitCaptureImages, normalizeCaptureImage } from "@/lib/images";
 import type { CaptureFields, CaptureStopReason } from "@/lib/capture-policy";
 import { extractFreeCapture, suggestPhotoRoles, type FreeOcrInput, type PhotoRole } from "@/lib/free-capture";
 
@@ -23,12 +23,12 @@ const STOP_LABELS: Record<CaptureStopReason, string> = {
   missing_brand: "Brand is missing.",
   low_brand_confidence: "Brand confidence is low—check it below.",
   conflicting_brands: "Multiple conflicting brands were detected.",
-  missing_identifier_or_description: "Add an RN/CA, style number, or useful product description.",
-  conflicting_identifiers: "Conflicting RN/CA or style numbers were detected.",
+  missing_identifier_or_description: "Add an RN, CA, style number, or useful product description.",
+  conflicting_identifiers: "Conflicting RN numbers, CA numbers, or style numbers were detected.",
   duplicate: "A probable duplicate needs your decision.",
 };
 
-const EMPTY_FIELDS: CaptureFields = { brand: "", productName: "", rn: "", styleNumber: "", size: "", color: "", category: "", subCategory: "", garmentType: "", gender: "", materials: "", careText: "", madeIn: "", notes: "", tags: [] };
+const EMPTY_FIELDS: CaptureFields = { brand: "", productName: "", rn: "", ca: "", styleNumber: "", size: "", color: "", category: "", subCategory: "", garmentType: "", gender: "", materials: "", careText: "", madeIn: "", notes: "", tags: [] };
 
 export default function CapturePage() {
   return (
@@ -104,14 +104,11 @@ function CaptureTool() {
     if (!canAnalyze) return;
     setPhase("working"); setMessage("Normalizing photos…"); setProgress(5); setStopReasons([]); setDuplicates([]); setSuccess(null);
     try {
-      const normalized: File[] = [];
-      for (let index = 0; index < photos.length; index++) {
-        normalized.push(await normalizeCaptureImage(photos[index].file));
-        setProgress(5 + Math.round(((index + 1) / photos.length) * 20));
-      }
+      const normalized = await fitCaptureImages(photos.map((photo) => photo.file), MAX_REQUEST_BYTES);
+      setProgress(25);
       const requestBytes = normalized.reduce((total, file) => total + file.size, 0);
       if (requestBytes > MAX_REQUEST_BYTES) {
-        throw new Error(`These photos are still ${(requestBytes / 1_000_000).toFixed(1)} MB after compression. Remove one photo and retry.`);
+        throw new Error(`These photos are still ${(requestBytes / 1_000_000).toFixed(1)} MB after shrinking. Remove one photo and retry.`);
       }
       setNormalizedFiles(normalized);
 
@@ -159,6 +156,7 @@ function CaptureTool() {
           !usePaidAi &&
           !analyzed.extracted?.brand &&
           !analyzed.extracted?.rn &&
+          !analyzed.extracted?.ca &&
           !analyzed.extracted?.styleNumber;
         setPhase("review");
         setMessage(
@@ -284,7 +282,7 @@ function CaptureTool() {
         </div>
       )}
 
-      {(phase === "review" || (phase === "error" && Boolean(fields.brand || fields.productName || fields.rn || fields.styleNumber))) && (
+      {(phase === "review" || (phase === "error" && Boolean(fields.brand || fields.productName || fields.rn || fields.ca || fields.styleNumber))) && (
         <section className="mt-6 space-y-5 rounded-2xl border border-amber-300/20 bg-amber-400/5 p-5">
           <div><h2 className="text-xl font-semibold">Check extracted information</h2><p className="mt-1 text-sm text-white/60">Nothing has been added to Firestore yet.</p></div>
           {stopReasons.length > 0 && <ul className="space-y-1 text-sm text-amber-200">{stopReasons.map((reason) => <li key={reason}>• {STOP_LABELS[reason]}</li>)}</ul>}
@@ -329,7 +327,7 @@ function CaptureTool() {
 
 function CaptureForm({ fields, onChange }: { fields: CaptureFields; onChange: (key: keyof CaptureFields, value: string) => void }) {
   const entries: Array<[keyof CaptureFields, string, boolean]> = [
-    ["brand", "Brand", true], ["productName", "Searchable product title", true], ["rn", "RN / CA", false], ["styleNumber", "Style / SN", false],
+    ["brand", "Brand", true], ["productName", "Searchable product title", true], ["rn", "RN", false], ["ca", "CA", false], ["styleNumber", "Style / SN", false],
     ["size", "Size", false], ["color", "Color", false], ["category", "Category", false], ["subCategory", "Sub-category", false],
     ["garmentType", "Garment type", false], ["gender", "Gender / fit", false], ["madeIn", "Made in", false], ["materials", "Materials", true],
     ["careText", "Care text", true], ["notes", "Visible design details", true], ["tags", "Tags, comma separated", false],

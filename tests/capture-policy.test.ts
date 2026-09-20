@@ -41,6 +41,20 @@ test("stops for conflicting style or RN values", () => {
   assert.ok(reasons.includes("conflicting_identifiers"));
 });
 
+test("does not treat a matching RN plus CA as a conflict", () => {
+  const reasons = evaluateCapture(
+    {
+      ...highConfidence,
+      rn: "94974",
+      ca: "28629",
+      detectedRns: ["94974"],
+      detectedCas: ["28629"],
+    },
+    { usableImageCount: 2 }
+  );
+  assert.deepEqual(reasons, []);
+});
+
 test("stops without identifier or useful description", () => {
   const reasons = evaluateCapture({ brand: "Acme", brandConfidence: 0.99 }, { usableImageCount: 1 });
   assert.ok(reasons.includes("missing_identifier_or_description"));

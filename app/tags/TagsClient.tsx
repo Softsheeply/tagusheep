@@ -14,6 +14,7 @@ type TagDoc = {
   brand?: string | null;
   productName?: string | null;
   rn?: string | null;
+  ca?: string | null;
   styleNumber?: string | null;
   garmentType?: string | null;
   size?: string | null;
@@ -518,7 +519,7 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
       <Link href={`/tag/${d.id}`} className="block overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition hover:border-white/20 hover:shadow-md">
         <div className="relative aspect-[4/5] overflow-hidden">
           {d.thumbnailUrl || d.imageUrl ? (
-            <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="bg-white object-contain" />
+            <SmartImage src={d.thumbnailUrl || d.imageUrl} alt={d.brand ?? "tag"} fill sizes="(min-width: 1024px) 25vw, 50vw" className="object-cover" />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 bg-white/[0.03] p-4 text-center">
               <svg className="h-8 w-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
@@ -533,6 +534,7 @@ function RecordCard({ d, admin, me, busyId, moveToTrash }: { d: TagDoc; admin: b
           <div className="font-medium truncate text-white">{d.brand || "Unknown brand"}</div>
           <div className="truncate text-white/78">{d.productName || "—"}</div>
           <div className="text-white/70">RN: {d.rn || "—"}</div>
+          <div className="text-white/70">CA: {d.ca || "—"}</div>
           <div className="text-white/70">Style: {d.styleNumber || "—"}</div>
           <div className="text-white/70">Type: {d.garmentType || "—"}</div>
           <div className="text-white/70">Size: {d.size || ((d.availableSizes || []).length ? d.availableSizes?.join(", ") : "—")}</div>

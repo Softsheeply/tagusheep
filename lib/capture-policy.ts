@@ -19,6 +19,7 @@ export type CaptureFields = {
   brandConfidence?: number | null;
   detectedBrands?: string[];
   detectedRns?: string[];
+  detectedCas?: string[];
   detectedStyleNumbers?: string[];
   mainImageIndex?: number | null;
 };
@@ -45,6 +46,7 @@ export function evaluateCapture(
   const hasDescription = Boolean(fields.productName?.trim() || fields.garmentType?.trim());
   const brands = compactUnique(fields.detectedBrands).map((value) => value.toLocaleLowerCase());
   const rns = compactUnique(fields.detectedRns);
+  const cas = compactUnique(fields.detectedCas);
   const styles = compactUnique(fields.detectedStyleNumbers).map((value) => value.toLocaleUpperCase());
   const threshold = options.brandConfidenceThreshold ?? 0.72;
 
@@ -52,8 +54,8 @@ export function evaluateCapture(
   if (!brand) reasons.push("missing_brand");
   if (brand && (fields.brandConfidence ?? 0) < threshold) reasons.push("low_brand_confidence");
   if (new Set(brands).size > 1) reasons.push("conflicting_brands");
-  if (new Set(rns).size > 1 || new Set(styles).size > 1) reasons.push("conflicting_identifiers");
-  if (!fields.rn?.trim() && !fields.styleNumber?.trim() && !hasDescription) {
+  if (new Set(rns).size > 1 || new Set(cas).size > 1 || new Set(styles).size > 1) reasons.push("conflicting_identifiers");
+  if (!fields.rn?.trim() && !fields.ca?.trim() && !fields.styleNumber?.trim() && !hasDescription) {
     reasons.push("missing_identifier_or_description");
   }
   if ((options.duplicateCount || 0) > 0) reasons.push("duplicate");

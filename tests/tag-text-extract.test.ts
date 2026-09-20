@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  extractCa,
   extractMakerRegistrationNumbers,
   extractRn,
   extractStyleNumber,
@@ -13,14 +14,18 @@ test("extractRn still captures labeled US RN values", () => {
   assert.equal(extractRn("RN#123456"), "123456");
 });
 
-test("extractRn captures Canadian CA dealer numbers into the rn field", () => {
-  assert.equal(extractRn("CA 04025\n100% COTTON"), "04025");
-  assert.equal(extractRn("CA#12345"), "12345");
-  assert.equal(extractRn("Dealer No. CA 98765"), "98765");
+test("extractCa captures Canadian CA dealer numbers separately from RN", () => {
+  assert.equal(extractCa("CA 04025\n100% COTTON"), "04025");
+  assert.equal(extractCa("CA#12345"), "12345");
+  assert.equal(extractCa("Dealer No. CA 98765"), "98765");
+  assert.equal(extractRn("CA 04025\n100% COTTON"), null);
 });
 
-test("extractRn prefers RN when both RN and CA appear", () => {
+test("extractRn prefers RN and leaves CA for extractCa when both appear", () => {
   assert.equal(extractRn("RN 66170\nCA 04025"), "66170");
+  assert.equal(extractCa("RN 66170\nCA 04025"), "04025");
+  assert.equal(extractRn("RN 94974 CA 28629"), "94974");
+  assert.equal(extractCa("RN 94974 CA 28629"), "28629");
 });
 
 test("extractMakerRegistrationNumbers returns both RN and CA digits", () => {

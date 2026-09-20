@@ -1,10 +1,11 @@
 import type { CaptureFields } from "@/lib/capture-policy";
-import { extractMakerRegistrationNumbers, extractRn, extractStyleNumber } from "./tag-text-extract.mjs";
+import { extractCa, extractCaNumbers, extractRn, extractRnNumbers, extractStyleNumber } from "./tag-text-extract.mjs";
 
 export type FreeOcrInput = {
   role: string;
   rawText: string;
   rn?: string | null;
+  ca?: string | null;
   styleNumber?: string | null;
   madeIn?: string | null;
   materials?: string | null;
@@ -54,8 +55,8 @@ function rnFromText(text: string, provided?: string | null) {
   return provided || extractRn(text);
 }
 
-function makerIdsFromText(text: string, provided?: string | null) {
-  return Array.from(new Set([provided, ...extractMakerRegistrationNumbers(text)].filter(Boolean) as string[]));
+function caFromText(text: string, provided?: string | null) {
+  return provided || extractCa(text);
 }
 
 function scoreRole(input: FreeOcrInput, role: PhotoRole) {
@@ -165,11 +166,13 @@ export function extractFreeCapture(inputs: FreeOcrInput[]): CaptureFields {
     ...input,
     role: suggestedRoles[index] || input.role,
     rn: rnFromText(input.rawText, input.rn),
+    ca: caFromText(input.rawText, input.ca),
     styleNumber: styleFromText(input.rawText, input.styleNumber),
   }));
 
   const { brands: detectedBrands, confidence: brandConfidence } = resolveBrands(normalized);
-  const detectedRns = unique(normalized.flatMap((input) => makerIdsFromText(input.rawText, input.rn)));
+  const detectedRns = unique(normalized.flatMap((input) => [input.rn, ...extractRnNumbers(input.rawText)]));
+  const detectedCas = unique(normalized.flatMap((input) => [input.ca, ...extractCaNumbers(input.rawText)]));
   const detectedStyleNumbers = unique(normalized.map((input) => input.styleNumber));
   const madeInValues = unique(normalized.map((input) => input.madeIn));
   const materialsValues = unique(normalized.map((input) => input.materials));
@@ -183,15 +186,15 @@ export function extractFreeCapture(inputs: FreeOcrInput[]): CaptureFields {
       .slice(0, 4000) || null;
   const mainImageIndex = normalized.findIndex((input) => input.role === "full garment");
   const brand = detectedBrands[0] || null;
-  // Prefer an explicit RN digit string when both RN and CA appear on the tag.
-  const rnPreferred = extractRn(allText) || detectedRns[0] || null;
-  const rn = rnPreferred;
+  const rn = extractRn(allText) || detectedRns[0] || null;
+  const ca = extractCa(allText) || detectedCas[0] || null;
   const styleNumber = detectedStyleNumbers.length === 1 ? detectedStyleNumbers[0] : detectedStyleNumbers[0] || null;
 
   return {
     brand,
     productName: null,
     rn,
+    ca,
     styleNumber,
     size: extractSize(allText),
     color: null,
@@ -204,10 +207,11 @@ export function extractFreeCapture(inputs: FreeOcrInput[]): CaptureFields {
     madeIn: madeInValues.length === 1 ? madeInValues[0] : madeInValues[0] || null,
     notes: null,
     tags: [],
-    confidence: brand && (rn || styleNumber) ? 0.78 : brand ? 0.55 : 0.35,
+    confidence: brand && (rn || ca || styleNumber) ? 0.78 : brand ? 0.55 : 0.35,
     brandConfidence,
     detectedBrands,
     detectedRns,
+    detectedCas,
     detectedStyleNumbers,
     mainImageIndex: mainImageIndex >= 0 ? mainImageIndex : 0,
   };

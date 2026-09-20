@@ -1,6 +1,6 @@
 import "server-only";
 
-import { normalizeBrand, normalizeRn, normalizeStyleNumber, type TagRecord } from "@/lib/records";
+import { normalizeBrand, normalizeCa, normalizeRn, normalizeStyleNumber, type TagRecord } from "@/lib/records";
 import { titleSimilarity } from "@/lib/capture-policy";
 
 type FirestoreValue = Record<string, unknown>;
@@ -98,10 +98,12 @@ export async function findServerDuplicates(record: Partial<TagRecord>, idToken: 
   const brand = normalizeBrand(record.brand);
   const style = normalizeStyleNumber(record.styleNumber);
   const rn = normalizeRn(record.rn);
+  const ca = normalizeCa(record.ca);
   const productTitle = [brand, record.productName, record.garmentType, record.color].filter(Boolean).join(" ");
   const checks: Array<Promise<Array<Partial<TagRecord> & { id: string }>>> = [];
 
   if (rn) checks.push(runEqualQuery("rn", rn, idToken));
+  if (ca) checks.push(runEqualQuery("ca", ca, idToken));
   if (style) checks.push(runEqualQuery("styleNumber", style, idToken));
   if (brand) checks.push(runEqualQuery("brand", brand, idToken, 60));
   if (!checks.length) return [];
@@ -111,11 +113,12 @@ export async function findServerDuplicates(record: Partial<TagRecord>, idToken: 
   for (const candidate of rows) {
     const sameStyle = Boolean(brand && style && normalizeBrand(candidate.brand)?.toLocaleLowerCase() === brand.toLocaleLowerCase() && normalizeStyleNumber(candidate.styleNumber) === style);
     const sameRn = Boolean(rn && normalizeRn(candidate.rn) === rn);
+    const sameCa = Boolean(ca && normalizeCa(candidate.ca) === ca);
     const candidateTitle = [candidate.brand, candidate.productName, candidate.garmentType, candidate.color].filter(Boolean).join(" ");
     const score = titleSimilarity(productTitle, candidateTitle);
-    if (!sameStyle && !sameRn && score < 0.82) continue;
-    const matchReason = sameStyle ? "brand + style number" : sameRn ? "RN" : "similar product title";
-    found.set(candidate.id, { ...candidate, matchReason, score: sameStyle || sameRn ? 1 : score });
+    if (!sameStyle && !sameRn && !sameCa && score < 0.82) continue;
+    const matchReason = sameStyle ? "brand + style number" : sameRn ? "RN" : sameCa ? "CA" : "similar product title";
+    found.set(candidate.id, { ...candidate, matchReason, score: sameStyle || sameRn || sameCa ? 1 : score });
   }
   return Array.from(found.values()).sort((a, b) => b.score - a.score).slice(0, 8);
 }
