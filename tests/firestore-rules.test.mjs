@@ -22,6 +22,8 @@ import {
   getDoc,
   getDocs,
   serverTimestamp,
+  increment,
+  arrayUnion,
 } from "firebase/firestore";
 
 const OWNER_UID = "owner-uid";
@@ -396,4 +398,75 @@ test("favorites: tagId must match document id", async () => {
   await assertFails(
     setDoc(doc(ctxFor(OWNER_UID), "users", OWNER_UID, "favorites", "tag-fav-5"), validFavoritePayload("mismatched-id"))
   );
+});
+
+// --- anonymous traffic ---
+
+const TRAFFIC_ID = "2026-10-04_12345678-1234-1234-1234-123456789abc";
+
+function validTrafficPayload(overrides = {}) {
+  return {
+    visitorId: "12345678-1234-1234-1234-123456789abc",
+    day: "2026-10-04",
+    firstSeenAt: serverTimestamp(),
+    lastSeenAt: serverTimestamp(),
+    views: 1,
+    paths: ["/"],
+    ...overrides,
+  };
+}
+
+test("traffic: anonymous visitor can create a valid daily counter", async () => {
+  await assertSucceeds(setDoc(doc(anon(), "traffic_visitors", TRAFFIC_ID), validTrafficPayload()));
+});
+
+test("traffic: anonymous visitor can increment one view", async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "traffic_visitors", TRAFFIC_ID), {
+      visitorId: "12345678-1234-1234-1234-123456789abc",
+      day: "2026-10-04",
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+      views: 1,
+      paths: ["/"],
+    });
+  });
+  await assertSucceeds(updateDoc(doc(anon(), "traffic_visitors", TRAFFIC_ID), {
+    lastSeenAt: serverTimestamp(),
+    views: increment(1),
+    paths: arrayUnion("/tags"),
+  }));
+});
+
+test("traffic: visitor cannot inflate a counter by more than one", async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "traffic_visitors", TRAFFIC_ID), {
+      visitorId: "12345678-1234-1234-1234-123456789abc",
+      day: "2026-10-04",
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+      views: 1,
+      paths: ["/"],
+    });
+  });
+  await assertFails(updateDoc(doc(anon(), "traffic_visitors", TRAFFIC_ID), {
+    lastSeenAt: serverTimestamp(),
+    views: increment(50),
+  }));
+});
+
+test("traffic: only admins can read counters", async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "traffic_visitors", TRAFFIC_ID), {
+      visitorId: "12345678-1234-1234-1234-123456789abc",
+      day: "2026-10-04",
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+      views: 1,
+      paths: ["/"],
+    });
+  });
+  await assertFails(getDoc(doc(anon(), "traffic_visitors", TRAFFIC_ID)));
+  await assertFails(getDoc(doc(ctxFor(OWNER_UID), "traffic_visitors", TRAFFIC_ID)));
+  await assertSucceeds(getDoc(doc(ctxFor(ADMIN_UID), "traffic_visitors", TRAFFIC_ID)));
 });

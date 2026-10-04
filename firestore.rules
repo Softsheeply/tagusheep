@@ -139,6 +139,36 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    function validTrafficVisitor(data, visitorId) {
+      return data.keys().hasOnly(['visitorId', 'day', 'firstSeenAt', 'lastSeenAt', 'views', 'paths']) &&
+        data.visitorId is string && data.visitorId == visitorId && data.visitorId.size() <= 64 &&
+        data.day is string && data.day.size() == 10 &&
+        data.firstSeenAt is timestamp && data.lastSeenAt is timestamp &&
+        data.views is number && data.views >= 1 && data.views <= 100000 &&
+        data.paths is list && data.paths.size() <= 100;
+    }
+
+    // Anonymous first-party traffic totals. Visitors can only create their
+    // own random daily counter or increment it one view at a time. Only
+    // admins can read the dashboard data.
+    match /traffic_visitors/{dailyVisitorId} {
+      allow read, delete: if isAdmin();
+      allow create: if
+        dailyVisitorId == request.resource.data.day + '_' + request.resource.data.visitorId &&
+        validTrafficVisitor(request.resource.data, request.resource.data.visitorId) &&
+        request.resource.data.views == 1 &&
+        request.resource.data.firstSeenAt == request.time &&
+        request.resource.data.lastSeenAt == request.time;
+      allow update: if
+        dailyVisitorId == resource.data.day + '_' + resource.data.visitorId &&
+        request.resource.data.visitorId == resource.data.visitorId &&
+        request.resource.data.day == resource.data.day &&
+        request.resource.data.firstSeenAt == resource.data.firstSeenAt &&
+        request.resource.data.lastSeenAt == request.time &&
+        request.resource.data.views == resource.data.views + 1 &&
+        validTrafficVisitor(request.resource.data, resource.data.visitorId);
+    }
+
     match /imports_review/{importId} {
       allow read, create, update, delete: if isAdmin();
     }
