@@ -480,7 +480,7 @@ export default function TagDetailClient() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(340px,0.85fr)_minmax(420px,1.15fr)] items-start">
-        <div className="space-y-4 sticky top-6 self-start">
+        <div className="space-y-4 self-start lg:sticky lg:top-6">
           <PhotoManager
             photos={galleryPhotos()}
             brand={tag.brand}
