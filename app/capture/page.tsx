@@ -18,6 +18,13 @@ const DEFAULT_ROLES: PhotoRole[] = ["full garment", "brand label", "RN/style tag
 const MAX_REQUEST_BYTES = 3_800_000;
 
 const RECORD_ROLE_ORDER: PhotoRole[] = ["full garment", "detail", "brand label", "RN/style tag", "materials/care tag"];
+
+function garmentFirstIndexes(roles: PhotoRole[]) {
+  return roles
+    .map((role, index) => ({ role, index }))
+    .sort((left, right) => RECORD_ROLE_ORDER.indexOf(left.role) - RECORD_ROLE_ORDER.indexOf(right.role))
+    .map((item) => item.index);
+}
 const STOP_LABELS: Record<CaptureStopReason, string> = {
   no_usable_image: "No usable image was found.",
   missing_brand: "Brand is missing.",
@@ -132,10 +139,6 @@ function CaptureTool() {
         ...input,
         role: suggestedRoles[index] || input.role,
       }));
-      setPhotos((current) =>
-        current.map((photo, index) => ({ ...photo, role: suggestedRoles[index] || photo.role }))
-      );
-
       setMessage(usePaidAi ? "Analyzing this garment with AI…" : "Extracting tag information for free…"); setProgress(50);
       const body = new FormData();
       normalized.forEach((file) => body.append("images", file));
@@ -144,13 +147,28 @@ function CaptureTool() {
       body.set("websiteImageCount", String(photos.length));
       if (!usePaidAi) body.set("freeExtracted", JSON.stringify(extractFreeCapture(roleAdjusted)));
       const analyzed = await parseResponse(await fetch("/api/capture/analyze", { method: "POST", headers: await authHeaders(), body }));
+      const requestedMainIndex = Number(analyzed.extracted?.mainImageIndex);
+      const detectedMainIndex = Number.isInteger(requestedMainIndex) && requestedMainIndex >= 0 && requestedMainIndex < normalized.length
+        ? requestedMainIndex
+        : suggestedRoles.findIndex((role) => role === "full garment");
+      const finalRoles = suggestedRoles.map((role, index) => {
+        if (index === detectedMainIndex) return "full garment" as PhotoRole;
+        return role === "full garment" ? "detail" as PhotoRole : role;
+      });
+      const order = garmentFirstIndexes(finalRoles);
+      const orderedFiles = order.map((index) => normalized[index]);
+      setNormalizedFiles(orderedFiles);
+      setPhotos((current) => order.map((index) => ({
+        ...current[index],
+        role: finalRoles[index] || current[index].role,
+      })));
       setFields(analyzed.extracted || EMPTY_FIELDS);
       setStopReasons(analyzed.stopReasons || []);
       setDuplicates(analyzed.duplicates || []);
       setProgress(70);
 
       if (analyzed.instantUpload) {
-        await upload(recordFiles(normalized, suggestedRoles), { ...analyzed.extracted, mainImageIndex: 0 }, "create");
+        await upload(orderedFiles, { ...analyzed.extracted, mainImageIndex: 0 }, "create");
       } else {
         const emptyFree =
           !usePaidAi &&
