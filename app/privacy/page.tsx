@@ -37,8 +37,11 @@ export default function PrivacyPage() {
             <li>
               <span className="text-white/90">Usage signals</span> — optional product analytics and
               error monitoring (for example Vercel Analytics / Speed Insights and Sentry) when those
-              services are enabled in the deployed environment. These help us understand load and
-              fix crashes; they are not used to sell ads.
+              services are enabled in the deployed environment. Tagsheep also keeps a random browser
+              identifier, visit dates, page-view totals, and visited page paths for a 30-day admin
+              traffic summary. It does not attach names, email addresses, IP addresses, or device
+              details to that summary. These signals help us understand use and fix crashes; they are
+              not used to sell ads.
             </li>
           </ul>
         </section>

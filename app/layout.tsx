@@ -5,6 +5,7 @@ import { Fraunces, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import TopNav from "./components/TopNav";
 import SiteFooter from "./components/SiteFooter";
+import TrafficTracker from "./components/TrafficTracker";
 import { getSiteUrl } from "@/lib/site";
 
 const display = Fraunces({
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteFooter />
         <Analytics />
         <SpeedInsights />
+        <TrafficTracker />
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import AdminGate from "@/app/components/AdminGate";
+import TrafficDashboard from "@/app/components/TrafficDashboard";
 
 export default function ToolsHome() {
   return (
@@ -14,6 +15,8 @@ export default function ToolsHome() {
             Your own photos only. Use Capture to build the archive and registry from real tags on your clothes.
           </p>
         </div>
+
+        <TrafficDashboard />
 
         <div className="grid gap-4 md:grid-cols-2">
           <Link
