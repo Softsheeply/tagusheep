@@ -10,7 +10,7 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit as qlimit, setDoc } from "firebase/firestore";
 import { buildSearchText, CATEGORY_OPTIONS, getVerificationPercent, normalizeBrand, normalizeCa, normalizeRn, normalizeStyleNumber, type SourceType, type VerificationStatus } from "@/lib/records";
 import { safeHostnameFromUrl } from "@/lib/validation";
-import { IMAGE_POLICY, normalizeUploadedImage } from "@/lib/images";
+import { cropImage, IMAGE_POLICY, normalizeUploadedImage, rotateImageClockwise, type ImageCrop } from "@/lib/images";
 import { uploadImageObject } from "@/lib/object-storage";
 
 type TagDoc = {
@@ -313,6 +313,37 @@ export default function TagDetailClient() {
     }
   }
 
+  async function saveEditedPhoto(index: number, edit: () => Promise<File>, successText: string) {
+    if (!isAdmin) return;
+    const photos = galleryPhotos();
+    if (!photos[index]) return;
+    setExtraImageBusy(true);
+    try {
+      const uploaded = await uploadPhotoFile(await edit());
+      const next = [...photos];
+      next[index] = uploaded.url;
+      await persistGallery(next, index);
+      setStatus({ kind: "success", text: successText });
+      setTimeout(() => setStatus({ kind: "idle", text: null }), 900);
+    } catch (error: unknown) {
+      setStatus({ kind: "error", text: error instanceof Error ? error.message : "Could not edit photo." });
+    } finally {
+      setExtraImageBusy(false);
+    }
+  }
+
+  async function rotatePhoto(index: number) {
+    const source = galleryPhotos()[index];
+    if (!source) return;
+    await saveEditedPhoto(index, () => rotateImageClockwise(source), "Photo rotated and saved.");
+  }
+
+  async function cropPhoto(index: number, crop: ImageCrop) {
+    const source = galleryPhotos()[index];
+    if (!source) return;
+    await saveEditedPhoto(index, () => cropImage(source, crop), "Photo cropped and saved.");
+  }
+
   async function addPhotos(files: File[]) {
     setExtraImageBusy(true);
     try {
@@ -485,6 +516,7 @@ export default function TagDetailClient() {
             photos={galleryPhotos()}
             brand={tag.brand}
             canEdit={canEdit}
+            isAdmin={isAdmin}
             busy={extraImageBusy}
             maxPhotos={IMAGE_POLICY.maxImportedImageUrlCount}
             selectedIndex={selectedPhotoIndex}
@@ -493,6 +525,8 @@ export default function TagDetailClient() {
             onSetCover={setCoverPhoto}
             onRemove={removePhoto}
             onReplace={replacePhoto}
+            onRotate={rotatePhoto}
+            onCrop={cropPhoto}
             onAdd={addPhotos}
           />
 

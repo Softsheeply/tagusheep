@@ -123,6 +123,72 @@ async function decodeBitmap(file: File): Promise<{ width: number; height: number
   }
 }
 
+async function imageFileFromUrl(url: string) {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Could not download image (${response.status}).`);
+  return new File([await response.blob()], "photo-edit-source", {
+    type: response.headers.get("content-type") || "image/jpeg",
+  });
+}
+
+function canvasFile(canvas: HTMLCanvasElement, prefix: string) {
+  return new Promise<File>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => blob
+        ? resolve(new File([blob], `${prefix}-${Date.now()}.${IMAGE_POLICY.format}`, { type: IMAGE_POLICY.mimeType }))
+        : reject(new Error("Could not encode the edited image.")),
+      IMAGE_POLICY.mimeType,
+      IMAGE_POLICY.quality
+    );
+  });
+}
+
+export async function rotateImageClockwise(url: string): Promise<File> {
+  const decoded = await decodeBitmap(await imageFileFromUrl(url));
+  const canvas = document.createElement("canvas");
+  canvas.width = decoded.height;
+  canvas.height = decoded.width;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    decoded.close();
+    throw new Error("This browser could not rotate the image.");
+  }
+  ctx.translate(canvas.width, 0);
+  ctx.rotate(Math.PI / 2);
+  decoded.draw(ctx, decoded.width, decoded.height);
+  decoded.close();
+  return canvasFile(canvas, "rotated");
+}
+
+export type ImageCrop = { x: number; y: number; width: number; height: number };
+
+export async function cropImage(url: string, crop: ImageCrop): Promise<File> {
+  const decoded = await decodeBitmap(await imageFileFromUrl(url));
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = decoded.width;
+  sourceCanvas.height = decoded.height;
+  const sourceCtx = sourceCanvas.getContext("2d");
+  if (!sourceCtx) {
+    decoded.close();
+    throw new Error("This browser could not crop the image.");
+  }
+  decoded.draw(sourceCtx, decoded.width, decoded.height);
+  decoded.close();
+
+  const sx = Math.round((crop.x / 100) * sourceCanvas.width);
+  const sy = Math.round((crop.y / 100) * sourceCanvas.height);
+  const sw = Math.max(1, Math.round((crop.width / 100) * sourceCanvas.width));
+  const sh = Math.max(1, Math.round((crop.height / 100) * sourceCanvas.height));
+  const scale = Math.min(1, IMAGE_POLICY.maxDimension / Math.max(sw, sh));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(sw * scale));
+  canvas.height = Math.max(1, Math.round(sh * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("This browser could not crop the image.");
+  ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  return canvasFile(canvas, "cropped");
+}
+
 async function normalizeImage(file: File, maxDimension: number, quality: number): Promise<File> {
   try {
     const orientation = await readExifOrientation(file);
