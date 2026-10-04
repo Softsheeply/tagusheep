@@ -55,9 +55,9 @@ export default function PhotoManager({
   return (
     <div className="space-y-4">
       {preview ? (
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+        <div className="flex max-h-[70vh] min-h-64 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt={brand ?? "tag"} className="max-h-[70vh] w-full object-contain" />
+          <img src={preview} alt={brand ?? "tag"} className="h-auto max-h-[70vh] w-auto max-w-full object-contain" />
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-6 py-16 text-center">
@@ -86,7 +86,7 @@ export default function PhotoManager({
                 }`}
               >
                 <button type="button" onClick={() => onSelect(index)} className="absolute inset-0">
-                  <SmartImage src={url} alt={`${brand || "tag"} photo ${index + 1}`} fill sizes="25vw" className="object-cover" />
+                  <SmartImage src={url} alt={`${brand || "tag"} photo ${index + 1}`} fill sizes="25vw" className="bg-black/25 object-contain" />
                 </button>
                 {isCover && (
                   <span className="pointer-events-none absolute left-1 top-1 rounded bg-emerald-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black">

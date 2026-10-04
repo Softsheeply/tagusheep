@@ -274,7 +274,7 @@ function CaptureTool() {
               {photos.map((photo) => (
                 <div key={photo.id} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.previewUrl} alt={photo.role} className="h-24 w-24 rounded-xl object-cover" />
+                  <img src={photo.previewUrl} alt={photo.role} className="h-24 w-24 rounded-xl bg-black/25 object-contain" />
                   <div className="min-w-0 flex-1 space-y-2">
                     <select value={photo.role} onChange={(event) => setPhotos((current) => current.map((item) => item.id === photo.id ? { ...item, role: event.target.value as PhotoRole } : item))} className="w-full rounded-lg border border-white/15 bg-[#09111f] px-2 py-2 text-sm">
                       {ROLES.map((role) => <option key={role}>{role}</option>)}
@@ -330,7 +330,7 @@ function CaptureTool() {
       {phase === "success" && success && (
         <section className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-6 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {success.thumbnailUrl && <img src={success.thumbnailUrl} alt="Uploaded garment" className="mx-auto h-36 w-36 rounded-2xl object-cover" />}
+          {success.thumbnailUrl && <img src={success.thumbnailUrl} alt="Uploaded garment" className="mx-auto h-36 w-36 rounded-2xl bg-black/25 object-contain" />}
           <h2 className="mt-4 text-2xl font-semibold">Uploaded to TagSheep</h2>
           <p className="mt-2 text-white/70">{success.brand || "Garment"}{success.identifier ? ` · ${success.identifier}` : ""}</p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
