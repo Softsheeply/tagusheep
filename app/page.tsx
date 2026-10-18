@@ -195,13 +195,13 @@ export default function HomePage() {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {recentRecords.map((tag, index) => (
                 <article key={tag.id} className="archive-card group min-w-0 overflow-hidden rounded-sm border border-white/10 bg-[#0c1524] hover:border-emerald-300/35">
-                  <Link href={`/tag/${tag.id}`} className="relative block aspect-[4/5] overflow-hidden bg-white/5">
+                  <Link href={`/tag/${tag.id}`} className="relative block aspect-[4/5] overflow-hidden bg-[#111827]">
                     <SmartImage
                       src={photoOf(tag)!}
                       alt={tag.brand || "Clothing record"}
                       fill
                       sizes="(min-width: 1536px) 16vw, (min-width: 1280px) 20vw, (min-width: 768px) 25vw, 50vw"
-                      className="object-cover transition duration-300 group-hover:scale-[1.025]"
+                      className="object-contain"
                       loading={index < 8 ? "eager" : "lazy"}
                     />
                     <span className={`absolute bottom-2 left-2 rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm ${statusStyle(tag.verificationStatus)}`}>
