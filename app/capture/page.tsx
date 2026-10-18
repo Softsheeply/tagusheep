@@ -5,7 +5,7 @@ import Link from "next/link";
 import AdminGate from "@/app/components/AdminGate";
 import { auth } from "@/lib/firebase";
 import { createOcrWorker, recognizeTagPhoto } from "@/lib/ocr";
-import { fitCaptureImages, normalizeCaptureImage } from "@/lib/images";
+import { fitCaptureImages, normalizeCaptureImage, normalizeUploadedImage } from "@/lib/images";
 import type { CaptureFields, CaptureStopReason } from "@/lib/capture-policy";
 import { extractFreeCapture, suggestPhotoRoles, type FreeOcrInput, type PhotoRole } from "@/lib/free-capture";
 
@@ -156,7 +156,14 @@ function CaptureTool() {
         return role === "full garment" ? "detail" as PhotoRole : role;
       });
       const order = garmentFirstIndexes(finalRoles);
-      const orderedFiles = order.map((index) => normalized[index]);
+      // OCR uses aggressively compressed copies, but the archive should not.
+      // Keep a higher-quality, full-frame version of the original garment
+      // photo and use lighter copies only for the supporting tag close-ups.
+      const orderedFiles = await Promise.all(order.map((index, orderedIndex) =>
+        orderedIndex === 0
+          ? normalizeUploadedImage(photos[index].file)
+          : normalizeCaptureImage(photos[index].file)
+      ));
       setNormalizedFiles(orderedFiles);
       setPhotos((current) => order.map((index) => ({
         ...current[index],
